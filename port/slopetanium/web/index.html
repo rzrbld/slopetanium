@@ -1242,10 +1242,13 @@ function bindReview(root, after) {
   api('GET', '/api/community/me').then(m => $$('#mynick', root).forEach(x => x.textContent = m.shown_as)).catch(() => {});
 }
 // in a port's Overview: share it, its rating, this handheld's review
+let cpanelSeq = 0;
 async function communityPanel(r, fresh) {
   const box = $('#cpanel'); if (!box) return;
+  const seq = ++cpanelSeq;
   const c = await cport(r.repo, fresh);
-  const box2 = $('#cpanel'); if (!box2 || route.port !== r.id) return;
+  const box2 = $('#cpanel'); if (!box2 || route.port !== r.id || seq !== cpanelSeq) return;
+  r = repo(r.id) || r;
   const d = c.d, mine = d && d.review_list.find(x => x.mine);
   const site = `${S.settings.community_url}/p/${(d && d.repo) || r.repo}`;
   box2.innerHTML = `<div class="panel"><h3>${ico('globe')}Community ${d && d.reviews ? `<span class="row" style="gap:6px;font-weight:500">${starsHtml(d.rating)}<b>${d.rating.toFixed(1)}</b><span class="faint small">${d.reviews} review${d.reviews === 1 ? '' : 's'}</span></span>` : ''}
@@ -1257,9 +1260,11 @@ async function communityPanel(r, fresh) {
     ${d ? `<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)"><h3 style="margin-bottom:10px">${mine ? 'Your review' : 'Rate it'}</h3>${reviewForm(d.repo, mine)}</div>` : ''}</div>`;
   $('#shr', box2).onchange = async e => {
     const on = e.target.checked;
+    e.target.disabled = true;
     const res = await act(() => api('POST', `/api/repos/${r.id}/share`, { share: on }), on ? 'Shared with the community' : 'No longer shared');
-    if (!res) e.target.checked = !on;
-    communityPanel(repo(r.id) || r, true);
+    const cur = repo(r.id);
+    if (res && cur) cur.shared = on;   // until the next state says so too
+    communityPanel(cur || r, true);
   };
   bindReview(box2, () => communityPanel(r, true));
 }
