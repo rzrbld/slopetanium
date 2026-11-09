@@ -103,8 +103,8 @@ namespace rnds
 		virtual bool hostFace(const std::string& /*key*/) { return false; }
 		// the word on a library's plate under the picked entry ("START" when empty)
 		virtual std::string plateLabel(int /*game*/) { return ""; }
-		// the shelf's entries as PC game cases (a DVD keep case: the cover in its sleeve, the spine on the left) instead
-		// of DS cartridges
+		// the shelf's entries as PC game CD jewel cases (the hinge on the left, the cover insert under the clear lid)
+		// instead of DS cartridges
 		virtual bool caseStyle() { return false; }
 	};
 

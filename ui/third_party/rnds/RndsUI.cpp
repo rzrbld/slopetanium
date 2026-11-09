@@ -791,9 +791,10 @@ namespace rnds
 			return Sprite();
 		}
 
-		// Slopetanium: a PC game's DVD keep case on the cartridge's 100x104 CSS canvas: dark plastic with a ridged spine on
-		// the left, the cover in the clear sleeve (a portrait cover filling it, a landscape picture such as a logo
-		// centred on black), a thin highlight along the sleeve's edges and a soft sheen across it
+		// Slopetanium: a PC game's CD jewel case on the cartridge's 100x104 CSS canvas, as the early-2000s PC games came:
+		// a little wider than tall (142 x 125 mm), the clear hinge on the left with its knuckles, the front insert
+		// (the box art cut to its near-square shape, or a landscape picture such as a logo centred on black) under the
+		// clear lid, which catches a highlight on its edges and a soft sheen
 		static Bitmap gameCase(const CartArt& a, float sc, int dw, int dh)
 		{
 			int mw = (int)std::lround(100 * sc), mh = (int)std::lround(104 * sc);
@@ -816,35 +817,30 @@ namespace rnds
 						p[3] = (uint8_t)std::lround(oa * 255);
 					}
 			};
-			int cx0 = X(13), cx1 = X(87), cy0 = X(2), cy1 = X(102), r = std::max(1, X(3));
-			// the case: an outline, then the plastic, corners rounded by leaving them out
-			fill(cx0, cy0, cx1, cy1, 0x05070a, 1);
-			fill(cx0 + 1, cy0 + 1, cx1 - 1, cy1 - 1, 0x14181f, 1);
-			for (int i = 0; i < r; i++)
-				for (int j = 0; j < r - i; j++)
-				{
-					int pts[4][2] = { { cx0 + j, cy0 + i }, { cx1 - 1 - j, cy0 + i }, { cx0 + j, cy1 - 1 - i }, { cx1 - 1 - j, cy1 - 1 - i } };
-					if (i + j < r - 1 || (i == 0 && j == 0))
-						for (auto& pt : pts) memset(&m.px[((size_t)pt[1] * mw + pt[0]) * 4], 0, 4);
-				}
-			// the spine: lighter plastic with two ridges
-			int sx1 = X(21);
-			fill(cx0 + 1, cy0 + 1, sx1, cy1 - 1, 0x1e232c, 1);
-			fill(X(15.5f), cy0 + X(3), X(15.5f) + std::max(1, X(1)), cy1 - X(3), 0x343b48, 1);
-			fill(X(18), cy0 + X(3), X(18) + std::max(1, X(1)), cy1 - X(3), 0x343b48, 1);
-			// the cover
-			int ax0 = sx1, ay0 = cy0 + X(2), ax1 = cx1 - X(2), ay1 = cy1 - X(2);
+			// the case: 98 x 86 CSS px, centred on the canvas
+			int cx0 = X(1), cx1 = X(99), cy0 = X(9), cy1 = X(95);
+			int px1 = std::max(1, X(1));
+			fill(cx0, cy0, cx1, cy1, 0x05070a, 1);						// outline
+			fill(cx0 + px1, cy0 + px1, cx1 - px1, cy1 - px1, 0x0d1015, 1);	// the dark tray under the lid
+			// the hinge: clear plastic over the tray, its knuckles at both ends
+			int hx1 = X(10);
+			fill(cx0 + px1, cy0 + px1, hx1, cy1 - px1, 0x9aa3b0, 0.38f);
+			fill(cx0 + px1, cy0 + X(3), hx1, cy0 + X(14), 0xd5dce6, 0.55f);
+			fill(cx0 + px1, cy1 - X(14), hx1, cy1 - X(3), 0xd5dce6, 0.55f);
+			fill(X(4), cy0 + X(16), X(4) + px1, cy1 - X(16), 0xffffff, 0.22f);	// the hinge's ridge
+			// the front insert
+			int ax0 = hx1 + px1, ay0 = cy0 + X(2), ax1 = cx1 - X(2), ay1 = cy1 - X(2);
 			int aw = ax1 - ax0, ah = ay1 - ay0;
 			Bitmap art = a.box.empty() ? Bitmap() : decodeFile(a.box);
 			fill(ax0, ay0, ax1, ay1, 0x000000, 1);
 			if (!art.empty())
 			{
-				if (art.w * 10 <= art.h * 9)	// portrait: fills the sleeve
+				if (art.w * 10 <= art.h * 13)	// a box cover (portrait or square): cut to the insert
 					blit(m, cover(art, aw, ah), ax0, ay0);
 				else
 				{
 					float fw, fh;
-					containSize(art.w, art.h, aw - X(6), ah, fw, fh);
+					containSize(art.w, art.h, aw - X(4), ah, fw, fh);
 					int w = std::max(1, (int)std::lround(fw)), h = std::max(1, (int)std::lround(fh));
 					blit(m, resize(art, w, h), ax0 + (aw - w) / 2, ay0 + (ah - h) / 2);
 				}
@@ -858,13 +854,15 @@ namespace rnds
 					blit(m, resizeNearest(ic, ic.w * k, ic.h * k), ax0 + (aw - ic.w * k) / 2, ay0 + (ah - ic.h * k) / 2);
 				}
 			}
-			// the sleeve: a highlight on its top and right edges, a sheen across its upper half
-			fill(ax0, ay0, ax1, ay0 + std::max(1, X(0.6f)), 0xffffff, 0.35f);
-			fill(ax1 - std::max(1, X(0.6f)), ay0, ax1, ay1, 0xffffff, 0.18f);
-			for (int y = ay0; y < ay0 + ah * 2 / 5; y++)
+			// the clear lid: its seam at the hinge, a bright top edge, a fainter right one, a sheen across the upper left
+			fill(hx1, cy0 + px1, hx1 + px1, cy1 - px1, 0xffffff, 0.30f);
+			fill(cx0 + px1, cy0 + px1, cx1 - px1, cy0 + 2 * px1, 0xffffff, 0.45f);
+			fill(cx1 - 2 * px1, cy0 + px1, cx1 - px1, cy1 - px1, 0xffffff, 0.22f);
+			fill(cx0 + px1, cy1 - 2 * px1, cx1 - px1, cy1 - px1, 0xffffff, 0.12f);
+			for (int y = ay0; y < ay0 + ah / 2; y++)
 			{
-				int x0 = ax0 + (y - ay0) * aw / std::max(1, ah) / 2;
-				fill(x0, y, std::min(ax1, x0 + aw / 3), y + 1, 0xffffff, 0.07f);
+				int x0 = ax0 + (y - ay0) * aw / std::max(1, ah);
+				fill(x0, y, std::min(ax1, x0 + aw / 4), y + 1, 0xffffff, 0.08f);
 			}
 			if (dw == mw && dh == mh) return m;
 			return resize(m, dw, dh);
