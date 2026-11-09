@@ -235,6 +235,34 @@ details.adv > summary { cursor: pointer; color: var(--muted); font-weight: 600; 
 .up-list { margin-top: 12px; display: grid; gap: 8px; text-align: left; }
 .up-item { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 13px; }
 .up-item .progress { grid-column: 1 / -1; }
+/* file browser */
+.fb-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.crumbs { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; min-width: 0; font-size: 14px; }
+.crumbs button { border: 0; background: none; padding: 4px 7px; border-radius: 7px; color: var(--muted); font-weight: 600; cursor: pointer; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumbs button:hover { background: var(--surface-3); color: var(--text); }
+.crumbs button:last-child { color: var(--text); }
+.crumbs .sep { color: var(--faint); }
+.fb { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; transition: border-color .15s, background .15s; }
+.fb.over { border-color: var(--accent); background: var(--accent-soft); }
+.fb-row { display: grid; grid-template-columns: 22px 1fr auto auto auto; gap: 12px; align-items: center; padding: 7px 10px 7px 14px; border-top: 1px solid var(--line); min-height: 46px; }
+.fb-row:first-child { border-top: 0; }
+.fb-row:hover { background: var(--surface-2); }
+.fb-row .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; cursor: pointer; border: 0; background: none; text-align: left; padding: 0; }
+.fb-row .nm:hover { color: var(--accent); }
+.fb-row.out .nm { cursor: default; color: var(--faint); }
+.fb-row.out .nm:hover { color: var(--faint); }
+.fb-row svg.k { color: var(--faint); } .fb-row.dir svg.k { color: var(--accent); }
+.fb-row .sz, .fb-row .dt { font-size: 12.5px; color: var(--faint); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.fb-row .sz { min-width: 64px; } .fb-row .dt { min-width: 92px; }
+.fb-row .ra { display: flex; gap: 2px; opacity: .55; transition: opacity .15s; }
+.fb-row:hover .ra, .fb-row:focus-within .ra { opacity: 1; }
+.fb-empty { padding: 30px 16px; text-align: center; color: var(--muted); font-size: 14px; }
+.fb-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 9px 14px; border-top: 1px solid var(--line); background: var(--surface-2); font-size: 12.5px; color: var(--faint); }
+.editor { display: flex; flex-direction: column; gap: 10px; height: calc(100vh - 260px); min-height: 320px; }
+.editor textarea { flex: 1; width: 100%; resize: none; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg);
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 4; white-space: pre; overflow: auto; color: var(--text); }
+.editor textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+@media (max-width: 760px) { .crumbs { flex-basis: 100%; } .fb-row { grid-template-columns: 22px 1fr auto; } .fb-row .dt, .fb-row .sz { display: none; } .fb-row .ra { opacity: 1; } .editor { height: calc(100vh - 230px); } }
 
 /* ---------- catalogue, activity ---------- */
 .cat { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
@@ -359,6 +387,12 @@ dialog .dl-acts { display: flex; justify-content: flex-end; gap: 8px; padding: 0
   <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zM18 5v14"/></symbol>
   <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 7h16l-1 12H5zM9 7a3 3 0 0 1 6 0"/></symbol>
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M17 6l3 3"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8.5 13h7M8.5 17h5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-newdir" viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M12 10.5v5M9.5 13h5"/></symbol>
   <symbol id="i-gog" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9.5h3v5H8zM13 9.5h3v5h-3"/></symbol>
 </svg>
 
@@ -658,20 +692,24 @@ function portMenu(r) {
 }
 
 // ---------- port drawer
-const TABS = [['overview', 'Overview'], ['versions', 'Versions'], ['files', 'Game files'], ['backups', 'Backups'], ['settings', 'Settings']];
+const TABS = [['overview', 'Overview'], ['versions', 'Versions'], ['files', 'Game files'], ['browse', 'Files'], ['backups', 'Backups'], ['settings', 'Settings']];
 function openPort(id, tab) { go(`port=${id}${tab && tab !== 'overview' ? '&tab=' + tab : ''}`); }
-function closePort() { if (route.port) { history.pushState(null, '', '#' + route.page); route.port = null; renderDrawer(true); } }
+async function closePort() {
+  if (FB.edit && FB.edit.text !== FB.edit.orig && !await confirmBox({ title: 'Discard your changes?', body: `${esc(FB.edit.path.split('/').pop())} has unsaved changes.`, ok: 'Discard', danger: true })) return;
+  FB.edit = null;
+  if (route.port) { history.pushState(null, '', '#' + route.page); route.port = null; renderDrawer(true); } }
 let drawerSig = '';
 function renderDrawer(force) {
   const dr = $('#drawer'), sc = $('#scrim'), r = route.port && S && repo(route.port);
   if (!r) { dr.classList.remove('on'); sc.classList.remove('on'); dr.setAttribute('aria-hidden', 'true'); drawerSig = ''; return; }
   dr.classList.add('on'); sc.classList.add('on'); dr.setAttribute('aria-hidden', 'false');
   if (!force && typing(dr)) return;   // a form being filled in stays as it is
+  if (!force && route.tab === 'browse' && FB.edit) return;   // nor a file being edited
   const sig = JSON.stringify([route.tab, r, S.gog_account, S.disk && S.disk.free]);
   if (!force && sig === drawerSig) return;
   drawerSig = sig;
   const [st, label] = statusOf(r), a = mainAction(r);
-  const tabs = TABS.filter(([k]) => !((k === 'files' && !r.upload_dir) || (k === 'backups' && (!r.installed || r.is_self))));
+  const tabs = TABS.filter(([k]) => !((k === 'files' && !r.upload_dir) || (k === 'backups' && (!r.installed || r.is_self)) || (k === 'browse' && !r.installed)));
   if (!tabs.find(([k]) => k === route.tab)) route.tab = 'overview';
   const old = $('.d-body', dr), scroll = old && dr.dataset.tab === route.tab ? old.scrollTop : 0;
   dr.dataset.tab = route.tab;
@@ -687,7 +725,7 @@ function renderDrawer(force) {
   $('.tabs', dr).onclick = e => { const b = e.target.closest('[data-tab]'); if (b) openPort(r.id, b.dataset.tab); };
   if (a) $('#d-main', dr).onclick = a.fn;
   const body = $('.d-body', dr);
-  ({ overview: paneOverview, versions: paneVersions, files: paneFiles, backups: paneBackups, settings: paneSettings })[route.tab](body, r);
+  ({ overview: paneOverview, versions: paneVersions, files: paneFiles, browse: paneBrowse, backups: paneBackups, settings: paneSettings })[route.tab](body, r);
   body.scrollTop = scroll;
 }
 
@@ -810,9 +848,9 @@ async function droppedFiles(dt) {
   for (const en of entries) await walk(en, '');
   return out;
 }
-function queueFiles(id, files) {
+function queueFiles(id, files, into) {
   if (!files.length) return;
-  const r = repo(id), lim = (r && r.upload_fs) || {};
+  const r = repo(id), lim = (into != null ? FB.data : r && r.upload_fs) || {};
   // what the card can't hold: said now, not after an hour of uploading
   if (lim.max_file) {
     const big = files.filter(f => f.file.size > lim.max_file);
@@ -822,7 +860,7 @@ function queueFiles(id, files) {
   if (S.disk && S.disk.free != null && total > S.disk.free) { toast(`${size(total)} won't fit: ${size(S.disk.free)} free on the handheld`, true); return; }
   if (!files.length) return;
   const single = files.length === 1;
-  files.forEach(f => UPQ.items.push({ id, file: f.file, name: f.name, single, done: 0, state: 'waiting', err: '', t0: 0, d0: 0 }));
+  files.forEach(f => UPQ.items.push({ id, file: f.file, name: f.name, single: single && into == null, into, done: 0, state: 'waiting', err: '', t0: 0, d0: 0 }));
   drawUploads(); runUploads();
 }
 async function runUploads() {
@@ -833,10 +871,11 @@ async function runUploads() {
     it.state = 'up'; drawUploads();
     try { await uploadOne(it); it.state = 'done'; } catch (e) { it.state = 'bad'; it.err = e.message; }
     drawUploads();
+    if (it.into != null && FB.id === it.id && route.tab === 'browse' && !FB.edit) fbLoad(FB.path, true);
   }
   UPQ.running = false;
   const bad = UPQ.items.filter(i => i.state === 'bad').length, ok = UPQ.items.filter(i => i.state === 'done').length;
-  if (ok || bad) toast(bad ? `${bad} upload${bad === 1 ? '' : 's'} stopped: drop the same files again to continue where they stopped` : `${ok} file${ok === 1 ? '' : 's'} uploaded: start the port to import them`, !!bad);
+  if (ok || bad) toast(bad ? `${bad} upload${bad === 1 ? '' : 's'} stopped: drop the same files again to continue where they stopped` : `${ok} file${ok === 1 ? '' : 's'} uploaded${UPQ.items.some(i => i.state === 'done' && i.into == null) ? ': start the port to import them' : ''}`, !!bad);
   setTimeout(() => { if (!UPQ.running) { UPQ.items = UPQ.items.filter(i => i.state === 'waiting' || i.state === 'up'); drawUploads(); } }, 6000);
   poll();
 }
@@ -860,7 +899,7 @@ async function sendChunks(url, f, start, onProgress) {
   return last;
 }
 async function uploadOne(it) {
-  const f = it.file, qs = `name=${encodeURIComponent(it.name)}&total=${f.size}${it.single ? '&single=1' : ''}`;
+  const f = it.file, qs = `name=${encodeURIComponent(it.name)}&total=${f.size}${it.single ? '&single=1' : ''}${it.into != null ? '&into=' + encodeURIComponent(it.into) : ''}`;
   const st = await api('GET', `/api/repos/${it.id}/upload?${qs}`);
   if (st.max_file && f.size > st.max_file) throw new Error(`Over ${size(st.max_file)}, the most one file can be on this card (${st.fs || 'FAT32'})`);
   if (st.free != null && st.free < f.size - st.have) throw new Error(`Not enough space on the handheld (${size(st.free)} free)`);
@@ -890,7 +929,148 @@ function drawUploads() {
       <div class="progress" style="margin-top:8px"><i style="width:${tot ? Math.round(dn * 100 / tot) : 0}%"></i></div><div class="faint tiny" style="margin-top:6px">Keep this page open until it's done.</div>`;
   }
 }
-addEventListener('beforeunload', e => { if (UPQ.items.some(i => i.state === 'up' || i.state === 'waiting')) { e.preventDefault(); e.returnValue = ''; } });
+addEventListener('beforeunload', e => { if (UPQ.items.some(i => i.state === 'up' || i.state === 'waiting') || (FB.edit && FB.edit.text !== FB.edit.orig)) { e.preventDefault(); e.returnValue = ''; } });
+
+// ---------- files: the port's whole folder (saves in, mods in, configs edited)
+const FB = { id: null, path: '', data: null, loading: false, err: '', edit: null };
+const dlFs = (id, p) => `/api/repos/${id}/fs/download?path=${encodeURIComponent(p)}&pin=${encodeURIComponent(PIN)}`;
+const join = (a, b) => a ? a + '/' + b : b;
+async function fbLoad(path, quiet) {
+  const id = route.port;
+  if (!quiet) { FB.loading = true; drawBrowse(); }
+  try { FB.data = await api('GET', `/api/repos/${id}/fs?path=${encodeURIComponent(path)}`); FB.path = FB.data.path; FB.err = ''; }
+  catch (e) { FB.err = e.message; if (path) { FB.path = ''; return fbLoad('', quiet); } }
+  FB.loading = false;
+  if (route.port === id && route.tab === 'browse') drawBrowse();
+}
+function paneBrowse(body, r) {
+  if (FB.id !== r.id) Object.assign(FB, { id: r.id, path: '', data: null, edit: null, err: '' });
+  body.innerHTML = '<div id="fbx"></div>';
+  if (!FB.data && !FB.loading) fbLoad(FB.path); else drawBrowse();
+}
+function drawBrowse() {
+  const box = $('#fbx'); if (!box) return;
+  const r = repo(FB.id); if (!r) return;
+  if (FB.edit) return drawEditor(box, r);
+  const d = FB.data, segs = FB.path ? FB.path.split('/') : [];
+  const crumbs = `<button data-go="">${esc((d && d.root) || r.port_dir || 'port')}</button>` + segs.map((s, i) => `<span class="sep">/</span><button data-go="${esc(segs.slice(0, i + 1).join('/'))}">${esc(s)}</button>`).join('');
+  const rows = !d ? '' : (FB.path ? `<div class="fb-row dir"><svg class="i k"><use href="#i-back"/></svg><button class="nm" data-go="${esc(segs.slice(0, -1).join('/'))}">..</button><span></span><span></span><span></span></div>` : '')
+    + d.entries.map(e => {
+      const p = join(FB.path, e.name), k = e.outside ? 'link' : e.dir ? 'folder' : e.text ? 'text' : 'file';
+      const acts = e.outside ? '' : [
+        e.text ? `<button class="btn ghost sm icon" title="Edit" aria-label="Edit ${esc(e.name)}" data-edit="${esc(p)}">${ico('edit')}</button>` : '',
+        `<a class="btn ghost sm icon" title="${e.dir ? 'Download as zip' : 'Download'}" aria-label="Download ${esc(e.name)}" href="${dlFs(FB.id, p)}" download>${ico('down')}</a>`,
+        `<button class="btn ghost sm icon" title="More" aria-label="More" data-more="${esc(p)}" data-dir="${e.dir ? 1 : 0}">${ico('more')}</button>`].join('');
+      return `<div class="fb-row ${e.dir ? 'dir' : ''} ${e.outside ? 'out' : ''}">${ico(k, 'i k')}
+        <button class="nm" ${e.outside ? `title="A link to outside the port's folder"` : e.dir ? `data-go="${esc(p)}"` : e.text ? `data-edit="${esc(p)}"` : `data-dl="${esc(p)}"`}>${esc(e.name)}</button>
+        <span class="sz">${e.dir ? '' : size(e.size)}</span><span class="dt">${e.mtime ? day(e.mtime * 1000) : ''}</span><span class="ra">${acts}</span></div>`;
+    }).join('');
+  const used = d ? d.entries.reduce((a, e) => a + (e.dir ? 0 : e.size), 0) : 0;
+  box.innerHTML = `
+    ${d && d.running ? `<div class="panel" style="border-color:color-mix(in srgb, var(--warn) 45%, var(--line));margin-bottom:12px"><h3 style="color:var(--warn);margin:0 0 4px">${ico('alert')}The port is running</h3><p class="small muted" style="margin:0">A game often writes its saves and settings when it quits, over what you change here. Quit it first.</p></div>` : ''}
+    <div class="fb-bar"><div class="crumbs grow">${crumbs}</div>
+      <button class="btn sm" id="fb-mk">${ico('newdir')}New folder</button>
+      <label class="btn sm">${ico('up')}Upload<input type="file" multiple hidden id="fb-f"></label>
+      <label class="btn sm icon" title="Upload a folder" aria-label="Upload a folder">${ico('folder')}<input type="file" webkitdirectory multiple hidden id="fb-d"></label>
+      <button class="btn ghost sm icon" title="Refresh" aria-label="Refresh" id="fb-rf">${ico('refresh')}</button></div>
+    <div class="fb" id="fb">${FB.loading && !d ? '<div class="fb-empty">Loading…</div>' : FB.err && !d ? `<div class="fb-empty" style="color:var(--danger)">${esc(FB.err)}</div>`
+      : rows || ''}${d && !d.entries.length ? '<div class="fb-empty">An empty folder. Drop files here to upload them.</div>' : ''}
+      ${d ? `<div class="fb-foot"><span>${d.entries.length} item${d.entries.length === 1 ? '' : 's'}${used ? ' · ' + size(used) + ' in files here' : ''}</span><span>Drop files or folders here to upload · ${d.free != null ? size(d.free) + ' free' : ''}${d.max_file ? ' · ' + esc(d.fs) + ': files up to ' + size(d.max_file) : ''}</span></div>` : ''}</div>
+    <div class="up-list" id="uplist"></div>`;
+  const fb = $('#fb', box);
+  fb.ondragover = e => { e.preventDefault(); fb.classList.add('over'); };
+  fb.ondragleave = e => { if (!fb.contains(e.relatedTarget)) fb.classList.remove('over'); };
+  fb.ondrop = async e => { e.preventDefault(); fb.classList.remove('over'); fbUpload(await droppedFiles(e.dataTransfer)); };
+  $('#fb-f', box).onchange = e => fbUpload([...e.target.files].map(f => ({ file: f, name: f.name })));
+  $('#fb-d', box).onchange = e => fbUpload([...e.target.files].map(f => ({ file: f, name: f.webkitRelativePath || f.name })));
+  $('#fb-rf', box).onclick = () => fbLoad(FB.path);
+  $('#fb-mk', box).onclick = async () => {
+    const name = await askName('New folder', '', 'Create');
+    if (name && await act(() => api('POST', `/api/repos/${FB.id}/fs/mkdir`, { path: FB.path, name }))) fbLoad(join(FB.path, name));
+  };
+  box.onclick = async e => {
+    const g = e.target.closest('[data-go]'); if (g) return fbLoad(g.dataset.go);
+    const ed = e.target.closest('[data-edit]'); if (ed) return fbOpen(ed.dataset.edit);
+    const dlb = e.target.closest('[data-dl]'); if (dlb) { location.href = dlFs(FB.id, dlb.dataset.dl); return; }
+    const m = e.target.closest('[data-more]');
+    if (m) {
+      e.stopPropagation();
+      const p = m.dataset.more, nm = p.split('/').pop(), dir = m.dataset.dir === '1';
+      openMenu(m, [
+        { label: dir ? 'Download as zip' : 'Download', icon: 'down', fn: () => { location.href = dlFs(FB.id, p); } },
+        { label: 'Rename…', icon: 'edit', fn: async () => { const n = await askName('Rename', nm, 'Rename'); if (n && n !== nm && await act(() => api('POST', `/api/repos/${FB.id}/fs/rename`, { path: p, name: n }), `Renamed to ${n}`)) fbLoad(FB.path, true); } },
+        '-',
+        { label: 'Delete…', icon: 'trash', bad: true, fn: async () => {
+          if (await confirmBox({ title: `Delete ${nm}?`, body: dir ? 'The folder and everything in it is deleted from the handheld. This can’t be undone.' : 'It is deleted from the handheld. This can’t be undone.', ok: 'Delete', danger: true })
+            && await act(() => api('POST', `/api/repos/${FB.id}/fs/delete`, { paths: [p] }), j => `Deleted ${nm} (${size(j.freed)})`)) fbLoad(FB.path, true); } },
+      ]);
+    }
+  };
+  drawUploads();
+}
+async function fbUpload(files) {
+  if (!files.length || !FB.data) return;
+  const have = new Set(FB.data.entries.map(e => e.name));
+  const clash = [...new Set(files.map(f => f.name.split('/')[0]).filter(n => have.has(n)))];
+  if (clash.length && !await confirmBox({ title: `Replace ${clash.length === 1 ? clash[0] : clash.length + ' items'}?`,
+    body: `${clash.length === 1 ? 'It is' : esc(clash.slice(0, 6).join(', ')) + (clash.length > 6 ? '…' : '') + ' are'} already in this folder. Uploaded files replace the ones with the same name; other files in a folder stay.`, ok: 'Replace', danger: true })) return;
+  queueFiles(FB.id, files, FB.path);
+}
+function askName(title, value, ok) {
+  return new Promise(res => {
+    const d = $('#dlg');
+    d.innerHTML = `<form method="dialog"><div class="dl-in"><h3>${esc(title)}</h3><input id="nm-in" value="${esc(value)}" autocomplete="off" spellcheck="false"></div>
+      <div class="dl-acts"><button class="btn ghost" value="0" type="button" data-v="0">Cancel</button><button class="btn primary" value="1">${esc(ok)}</button></div></form>`;
+    const inp = $('#nm-in', d);
+    d.onclick = e => { if (e.target.closest('[data-v="0"]')) { d.close(); res(null); } };
+    $('form', d).onsubmit = e => { e.preventDefault(); const v = inp.value.trim(); d.close(); res(v || null); };
+    d.oncancel = () => res(null);
+    d.showModal();
+    inp.focus(); const dot = value.lastIndexOf('.'); inp.setSelectionRange(0, dot > 0 ? dot : value.length);
+  });
+}
+async function fbOpen(p) {
+  try { const f = await api('GET', `/api/repos/${FB.id}/fs/read?path=${encodeURIComponent(p)}`); FB.edit = Object.assign(f, { orig: f.text }); drawBrowse(); }
+  catch (e) { if (e.status !== 401) toast(e.message, true); }
+}
+function drawEditor(box, r) {
+  const f = FB.edit, dirty = f.text !== f.orig;
+  box.innerHTML = `<div class="editor">
+    <div class="fb-bar"><button class="btn ghost sm" id="ed-x">${ico('back')}Files</button>
+      <div class="grow" style="min-width:0"><div style="font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.path.split('/').pop())} <span id="ed-dirty" class="chip warn ${dirty ? '' : 'hidden'}" style="height:22px">unsaved</span></div>
+        <div class="faint tiny" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.path)} · ${esc(f.encoding === 'latin-1' ? 'Latin-1' : 'UTF-8')} · ${f.crlf ? 'CRLF' : 'LF'}</div></div>
+      <a class="btn ghost sm icon" title="Download" aria-label="Download" href="${dlFs(FB.id, f.path)}" download>${ico('down')}</a>
+      <button class="btn primary sm" id="ed-save">${ico('check')}Save</button></div>
+    <textarea id="ed-t" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+    <div class="faint tiny">Ctrl+S saves · the file keeps its encoding and line endings${FB.data && FB.data.running ? ' · <b style="color:var(--warn)">the port is running</b>' : ''}</div></div>`;
+  const t = $('#ed-t', box);
+  t.value = f.text;
+  t.oninput = () => { f.text = t.value; $('#ed-dirty', box).classList.toggle('hidden', f.text === f.orig); };
+  t.onkeydown = e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); fbSave(); }
+    if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); t.setRangeText('\t', t.selectionStart, t.selectionEnd, 'end'); t.oninput(); }
+  };
+  $('#ed-save', box).onclick = () => fbSave();
+  $('#ed-x', box).onclick = () => fbClose();
+  t.focus();
+}
+async function fbSave(force) {
+  const f = FB.edit; if (!f) return;
+  try {
+    const j = await api('POST', `/api/repos/${FB.id}/fs/write`, { path: f.path, text: f.text, mtime: f.mtime, encoding: f.encoding, crlf: f.crlf, force: !!force });
+    f.mtime = j.mtime; f.orig = f.text; const dt = $('#ed-dirty'); if (dt) dt.classList.add('hidden');
+    toast(`Saved ${f.path.split('/').pop()}`);
+  } catch (e) {
+    if (e.status === 409 && /changed/.test(e.message)) {
+      if (await confirmBox({ title: 'The file changed on the handheld', body: 'Something wrote it since you opened it here (the game, maybe). Save yours over it anyway?', ok: 'Save mine', danger: true })) fbSave(true);
+    } else if (e.status !== 401) toast(e.message, true);
+  }
+}
+async function fbClose() {
+  const f = FB.edit;
+  if (f && f.text !== f.orig && !await confirmBox({ title: 'Discard your changes?', body: `${esc(f.path.split('/').pop())} has unsaved changes.`, ok: 'Discard', danger: true })) return;
+  FB.edit = null; fbLoad(FB.path, true); drawBrowse();
+}
 
 // ---------- backups
 function paneBackups(body, r) {

@@ -201,6 +201,100 @@ def upload_tests(c, ports):
     assert "the_thing.iso" in names and "NFS" in names, names
 
 
+def browser_tests(c, ports, tmp):
+    """The file browser: one port's folder, nothing outside it."""
+    import web, urllib.request, urllib.error, zipfile
+    r = c.state["repos"][0]
+    pdir = os.path.join(ports, "demo")
+    os.makedirs(os.path.join(pdir, "conf"), exist_ok=True)
+    with open(os.path.join(pdir, "conf", "game.ini"), "wb") as fh:
+        fh.write(b"[video]\r\nwidth=640\r\n")
+    with open(os.path.join(pdir, "conf", "save.bin"), "wb") as fh:
+        fh.write(b"\0\1\2" * 10)
+    secret = os.path.join(tmp, "secret.txt")
+    open(secret, "w").write("nope")
+    os.symlink(secret, os.path.join(pdir, "escape"))
+    os.symlink(tmp, os.path.join(pdir, "escdir"))
+    ls = c.fs_list(r["id"], "")
+    by = dict((e["name"], e) for e in ls["entries"])
+    assert by["conf"]["dir"] and by["escape"].get("outside") and by["escdir"].get("outside"), by
+    conf = dict((e["name"], e) for e in c.fs_list(r["id"], "conf")["entries"])
+    assert conf["game.ini"]["text"] and not conf["save.bin"]["text"]
+    for bad in ("..", "../x", "conf/../../x", "escape", "escdir/secret.txt", "escdir"):
+        try:
+            c.fs_read(r["id"], bad) if bad != "escdir" else c.fs_list(r["id"], bad)
+            raise AssertionError("allowed %r" % bad)
+        except ValueError:
+            pass
+    # an edit keeps the CRLF endings; a change behind the editor's back is refused
+    f = c.fs_read(r["id"], "conf/game.ini")
+    assert f["crlf"] and f["text"] == "[video]\nwidth=640\n"
+    c.fs_write(r["id"], "conf/game.ini", f["text"].replace("640", "1280"), f["mtime"], f["encoding"], f["crlf"])
+    assert open(os.path.join(pdir, "conf", "game.ini"), "rb").read() == b"[video]\r\nwidth=1280\r\n"
+    try:
+        c.fs_write(r["id"], "conf/game.ini", "x", f["mtime"] - 100)
+        raise AssertionError("stale save accepted")
+    except core.FsConflict:
+        pass
+    try:
+        c.fs_read(r["id"], "conf/save.bin")
+        raise AssertionError("binary opened")
+    except ValueError:
+        pass
+    # folders, renames, deletes; a link is deleted as itself, never what it points to
+    c.fs_mkdir(r["id"], "", "mods")
+    for bad in ("", "..", "a/b"):
+        try:
+            c.fs_mkdir(r["id"], "", bad)
+            raise AssertionError("mkdir %r" % bad)
+        except ValueError:
+            pass
+    c.fs_rename(r["id"], "mods", "mods2")
+    assert os.path.isdir(os.path.join(pdir, "mods2"))
+    c.fs_delete(r["id"], ["escape", "escdir"])
+    assert os.path.exists(secret) and os.path.isdir(tmp)
+    for bad in ([""], [".."], ["../demo"]):
+        try:
+            c.fs_delete(r["id"], bad)
+            raise AssertionError("deleted %r" % bad)
+        except ValueError:
+            pass
+    assert os.path.isdir(pdir)
+    # over HTTP: an upload into a folder replaces a file of the same size; downloads of files and folders
+    os.environ["SLOP_LOCAL_TOKEN"] = "tt"
+    srv = web.start(c, os.path.join(HERE, "..", "port", "slopetanium", "web"), 0, host="127.0.0.1")
+    port = srv.server_address[1]
+
+    def req(method, path, body=None, raw=False):
+        rq = urllib.request.Request("http://127.0.0.1:%d/api/repos/%s/%s" % (port, r["id"], path), data=body,
+                                    method=method, headers={"X-Local-Token": "tt"})
+        try:
+            with urllib.request.urlopen(rq) as resp:
+                d = resp.read()
+                return resp.status, (d if raw else json.loads(d.decode()))
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode())
+    new = b"\x09\x08\x07" * 10
+    code, st = req("GET", "upload?name=save.bin&total=30&into=conf")
+    assert code == 200 and not st["done"], st   # the same size there: still sent, to replace it
+    assert req("PUT", "upload?name=save.bin&total=30&offset=0&into=conf", new)[1]["done"]
+    assert open(os.path.join(pdir, "conf", "save.bin"), "rb").read() == new
+    assert req("PUT", "upload?name=top.txt&total=2&offset=0&into=", b"hi")[1]["done"]
+    assert open(os.path.join(pdir, "top.txt"), "rb").read() == b"hi"
+    assert req("GET", "upload?name=x&total=1&into=..")[0] == 400
+    assert req("GET", "fs/download?path=conf/save.bin", raw=True) == (200, new)
+    code, z = req("GET", "fs/download?path=conf", raw=True)
+    assert code == 200 and sorted(zipfile.ZipFile(io.BytesIO(z)).namelist()) == ["conf/game.ini", "conf/save.bin"]
+    code, j = req("POST", "fs/write", json.dumps({"path": "conf/new.cfg", "text": "a=1\n"}).encode())
+    assert code == 200 and open(os.path.join(pdir, "conf", "new.cfg")).read() == "a=1\n"
+    code, j = req("POST", "fs/write", json.dumps({"path": "conf/new.cfg", "text": "b", "mtime": 1}).encode())
+    assert code == 409, (code, j)
+    assert req("POST", "fs/delete", json.dumps({"paths": ["conf/new.cfg", "top.txt", "mods2"]}).encode())[0] == 200
+    assert req("GET", "fs?path=../..")[0] == 400
+    srv.shutdown()
+    shutil.rmtree(os.path.join(pdir, "conf"))
+
+
 def backup_tests(c, ports, tmp):
     import zipfile
     r = c.state["repos"][0]
@@ -415,6 +509,7 @@ def main():
         assert core.parse_repo("https://github.com/a/b.git") == "a/b"
         gog_tests(c, ports, tmp)
         upload_tests(c, ports)
+        browser_tests(c, ports, tmp)
         backup_tests(c, ports, tmp)
         catalogue_tests(tmp)
         c.stop()

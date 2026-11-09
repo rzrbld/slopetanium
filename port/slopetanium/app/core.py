@@ -327,6 +327,41 @@ class Http(object):
         return done
 
 
+class FsConflict(Exception):
+    pass
+
+
+TEXT_MAX = 1 << 20   # the most the browser's editor opens
+TEXT_EXT = set(".txt .ini .cfg .conf .json .xml .sh .lua .yaml .yml .toml .md .log .gptk .py .properties .csv .bat "
+               ".cmd .js .htm .html .css .list .rc .def .mod .script .info .nfo".split())
+
+
+def _looks_text(path, size):
+    if size > TEXT_MAX:
+        return False
+    if os.path.splitext(path)[1].lower() in TEXT_EXT:
+        return True
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(2048)
+    except (IOError, OSError):
+        return False
+    if b"\0" in head:
+        return False
+    try:
+        head.decode("utf-8")
+        return True
+    except UnicodeDecodeError as e:
+        return e.start > len(head) - 4  # cut inside a character at the end
+
+
+def _plain_name(name):
+    name = (name or "").strip()
+    if not name or name in (".", "..") or "/" in name or "\\" in name or "\0" in name:
+        raise ValueError("Bad name: %s" % (name or "(empty)"))
+    return name
+
+
 class InstallBlocked(ValueError):
     """Battery or space says not now; the user may insist (force)."""
 
@@ -1578,8 +1613,9 @@ class Core(object):
             os.makedirs(dest)
         return dest
 
-    def _upload_path(self, r, name, single=False):
-        """Where an uploaded file goes: its name (a folder upload: its relative path) inside the game files folder."""
+    def _upload_path(self, r, name, single=False, into=None):
+        """Where an uploaded file goes: its name (a folder upload: its relative path) inside the game files folder,
+        or inside into (a folder of the port, relative to it: the file browser)."""
         name = (name or "").replace("\\", "/")
         if name.startswith("/") or re.match(r"^[A-Za-z]:", name):
             raise ValueError("Bad file name")
@@ -1591,22 +1627,28 @@ class Core(object):
                 if fnmatch.fnmatch(parts[0].lower(), pat.lower()):
                     parts = [new]
                     break
-        dest = self.upload_dest(r)
+        if into is not None:
+            dest = self.fs_path(r, into)
+            if not os.path.isdir(dest):
+                raise ValueError("No such folder: %s" % (into or "/"))
+            single = False
+        else:
+            dest = self.upload_dest(r)
         path = os.path.normpath(os.path.join(dest, *parts))
         if not is_inside(path, dest) or path == dest:
             raise ValueError("Bad file name")
         return dest, path
 
-    def upload_status(self, repo_id, name, total, single=False):
+    def upload_status(self, repo_id, name, total, single=False, into=None):
         r = self.get_repo(repo_id)
-        dest, path = self._upload_path(r, name, single)
+        dest, path = self._upload_path(r, name, single, into)
         lim = fs_info(dest)
         try:
             free = shutil.disk_usage(dest).free
         except OSError:
             free = None
         extra = {"fs": lim["fs"], "max_file": lim["max_file"]}
-        if os.path.isfile(path) and os.path.getsize(path) == total:
+        if into is None and os.path.isfile(path) and os.path.getsize(path) == total:
             return dict(extra, have=total, done=True, free=free, saved_as=os.path.relpath(path, self.ports_dir))
         part = path + ".part"
         have = os.path.getsize(part) if os.path.isfile(part) else 0
@@ -1615,10 +1657,10 @@ class Core(object):
             have = 0
         return dict(extra, have=have, done=False, free=free, saved_as=os.path.relpath(path, self.ports_dir))
 
-    def upload_chunk(self, repo_id, name, offset, total, read, length, single=False):
+    def upload_chunk(self, repo_id, name, offset, total, read, length, single=False, into=None):
         """Appends length bytes (read(n) gives them) at offset to the file's .part; the last one completes it."""
         r = self.get_repo(repo_id)
-        dest, path = self._upload_path(r, name, single)
+        dest, path = self._upload_path(r, name, single, into)
         check_fits(dest, total, os.path.basename(path))
         part = path + ".part"
         if not os.path.isdir(os.path.dirname(part)):
@@ -1639,10 +1681,190 @@ class Core(object):
         have += length
         done = have == total
         if done:
+            if os.path.isdir(path):
+                raise ValueError("A folder is in the way: %s" % os.path.basename(path))
             os.replace(part, path)
-            self.log("%s: game file %s uploaded (%s)" % (r["repo"], os.path.relpath(path, dest), human_size(total)))
+            self.log("%s: %s %s uploaded (%s)" % (r["repo"], "file" if into is not None else "game file",
+                                                 os.path.relpath(path, self.port_dir(r) if into is not None else dest),
+                                                 human_size(total)))
             self.changed += 1
         return {"have": have, "done": done}
+
+    # ---------------------------------------------------------------- the file browser (one port's folder)
+    def fs_path(self, r, rel):
+        """A path inside the port's folder from one relative to it; symlinks are followed and must stay inside."""
+        pdir = self.port_dir(r)
+        if not pdir:
+            raise ValueError("%s is not installed" % r["repo"])
+        rel = (rel or "").replace("\\", "/").strip("/")
+        parts = [p for p in rel.split("/") if p not in ("", ".")]
+        if any(p == ".." or "\0" in p for p in parts):
+            raise ValueError("Bad path")
+        path = os.path.normpath(os.path.join(pdir, *parts)) if parts else pdir
+        if not is_inside(path, pdir):
+            raise ValueError("That is outside the port's folder")
+        return path
+
+    def _fs_rel(self, r, path):
+        rel = os.path.relpath(path, self.port_dir(r))
+        return "" if rel == "." else rel.replace(os.sep, "/")
+
+    def fs_list(self, repo_id, rel=""):
+        r = self.get_repo(repo_id)
+        pdir = self.port_dir(r)
+        path = self.fs_path(r, rel)
+        if not os.path.isdir(path):
+            raise ValueError("No such folder: %s" % (rel or "/"))
+        out = []
+        for name in os.listdir(path):
+            full = os.path.join(path, name)
+            try:
+                st = os.stat(full)
+            except OSError:  # a dangling link
+                out.append({"name": name, "dir": False, "size": 0, "mtime": 0, "outside": True})
+                continue
+            isdir = os.path.isdir(full)
+            e = {"name": name, "dir": isdir, "size": 0 if isdir else st.st_size, "mtime": int(st.st_mtime)}
+            if os.path.islink(full) and not is_inside(full, pdir):
+                e["outside"] = True
+            elif not isdir:
+                e["text"] = _looks_text(full, st.st_size)
+            out.append(e)
+        out.sort(key=lambda e: (not e["dir"], e["name"].lower()))
+        lim = fs_info(path)
+        return {"path": self._fs_rel(r, path), "root": os.path.basename(pdir), "entries": out,
+                "free": free_space(path), "fs": lim["fs"], "max_file": lim["max_file"],
+                "running": bool(self.running_pids(r))}
+
+    def fs_file(self, repo_id, rel):
+        """The real path of a file of the port, for a download."""
+        r = self.get_repo(repo_id)
+        path = self.fs_path(r, rel)
+        if not os.path.exists(path):
+            raise ValueError("No such file: %s" % rel)
+        return r, path
+
+    def fs_read(self, repo_id, rel):
+        r, path = self.fs_file(repo_id, rel)
+        if os.path.isdir(path):
+            raise ValueError("That is a folder")
+        size = os.path.getsize(path)
+        if size > TEXT_MAX:
+            raise ValueError("Too big to edit here (%s); download it instead" % human_size(size))
+        with open(path, "rb") as fh:
+            data = fh.read()
+        if b"\0" in data:
+            raise ValueError("Not a text file; download it instead")
+        try:
+            text, enc = data.decode("utf-8"), "utf-8"
+            if text.startswith("\ufeff"):
+                text, enc = text[1:], "utf-8-sig"
+        except UnicodeDecodeError:
+            text, enc = data.decode("latin-1"), "latin-1"
+        crlf = b"\r\n" in data
+        return {"path": self._fs_rel(r, path), "text": text.replace("\r\n", "\n") if crlf else text,
+                "encoding": enc, "crlf": crlf, "mtime": os.stat(path).st_mtime, "size": size}
+
+    def fs_write(self, repo_id, rel, text, mtime=None, encoding="utf-8", crlf=False):
+        """Saves an edited text file in its own encoding and line endings; mtime: the version the editor started
+        from (another change since then: refused, unless None)."""
+        r = self.get_repo(repo_id)
+        path = self.fs_path(r, rel)
+        if not os.path.isdir(os.path.dirname(path)):
+            raise ValueError("No such folder")
+        if os.path.isdir(path):
+            raise ValueError("That is a folder")
+        if mtime is not None and os.path.exists(path) and abs(os.stat(path).st_mtime - float(mtime)) > 1e-3:
+            raise FsConflict("The file changed on the handheld since you opened it")
+        if encoding not in ("utf-8", "utf-8-sig", "latin-1"):
+            encoding = "utf-8"
+        if crlf:
+            text = text.replace("\r\n", "\n").replace("\n", "\r\n")
+        try:
+            data = text.encode(encoding)
+        except UnicodeEncodeError:
+            data = text.encode("utf-8")
+        tmp = path + ".slop-tmp"
+        with open(tmp, "wb") as fh:
+            fh.write(data)
+        if os.path.exists(path):
+            try:
+                shutil.copymode(path, tmp)
+            except OSError:
+                pass
+        os.replace(tmp, path)
+        self.log("%s: %s edited" % (r["repo"], self._fs_rel(r, path)))
+        return {"mtime": os.stat(path).st_mtime, "size": len(data)}
+
+    def fs_mkdir(self, repo_id, rel, name):
+        r = self.get_repo(repo_id)
+        base = self.fs_path(r, rel)
+        path = self.fs_path(r, (rel.rstrip("/") + "/" if rel else "") + _plain_name(name))
+        if os.path.exists(path):
+            raise ValueError("%s already exists" % name)
+        if not os.path.isdir(base):
+            raise ValueError("No such folder")
+        os.mkdir(path)
+        return {"path": self._fs_rel(r, path)}
+
+    def fs_rename(self, repo_id, rel, name):
+        r = self.get_repo(repo_id)
+        src = self.fs_path(r, rel)
+        if src == self.port_dir(r):
+            raise ValueError("The port's own folder can't be renamed here")
+        if not os.path.lexists(src):
+            raise ValueError("No such file: %s" % rel)
+        dst = os.path.join(os.path.dirname(src), _plain_name(name))
+        if not is_inside(dst, self.port_dir(r)):
+            raise ValueError("Bad name")
+        if os.path.lexists(dst):
+            raise ValueError("%s already exists" % name)
+        os.rename(src, dst)
+        self.log("%s: %s renamed to %s" % (r["repo"], rel, os.path.basename(dst)))
+        return {"path": self._fs_rel(r, dst)}
+
+    def fs_delete(self, repo_id, rels):
+        r = self.get_repo(repo_id)
+        pdir = self.port_dir(r)
+        freed = 0
+        paths = []
+        for rel in rels or []:
+            # a link is removed as itself (lexists): never what it points to
+            parent = self.fs_path(r, os.path.dirname(rel.strip("/")))
+            path = os.path.join(parent, _plain_name(os.path.basename(rel.strip("/"))))
+            if os.path.realpath(parent) == os.path.realpath(pdir) and os.path.basename(path) == "":
+                raise ValueError("The port's own folder can't be deleted here")
+            if not os.path.lexists(path):
+                raise ValueError("No such file: %s" % rel)
+            paths.append(path)
+        for path in paths:
+            if os.path.isdir(path) and not os.path.islink(path):
+                freed += dir_size(path)
+                shutil.rmtree(path)
+            else:
+                freed += os.lstat(path).st_size
+                os.unlink(path)
+        self.log("%s: deleted %s (%s)" % (r["repo"], ", ".join(rels), human_size(freed)))
+        self.changed += 1
+        return freed
+
+    def fs_zip(self, repo_id, rel, out):
+        """A folder of the port, zipped while it streams to out."""
+        import zipfile
+        r = self.get_repo(repo_id)
+        pdir = self.port_dir(r)
+        base = self.fs_path(r, rel)
+        if not os.path.isdir(base):
+            raise ValueError("No such folder")
+        top = os.path.basename(base)
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(base):
+                dirs[:] = [d for d in dirs if is_inside(os.path.join(root, d), pdir)]
+                for f in files:
+                    full = os.path.join(root, f)
+                    if not is_inside(full, pdir) or not os.path.isfile(full):
+                        continue
+                    zf.write(full, os.path.join(top, os.path.relpath(full, base)))
 
     # ---------------------------------------------------------------- GOG
     def _gog_files_present(self, r, pdir=None):

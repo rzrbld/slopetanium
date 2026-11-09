@@ -79,7 +79,7 @@ def make_handler(core, web_dir):
             if self.headers.get("X-Pin") == pin:
                 return True
             # a download link (the browser can't add a header to it): the PIN in the address
-            if self.command == "GET" and ("/backup" in self.path or "/cover" in self.path):
+            if self.command == "GET" and ("/backup" in self.path or "/cover" in self.path or "/fs/download" in self.path):
                 qs = parse_qs(urlparse(self.path).query)
                 if (qs.get("pin") or [""])[0] == pin:
                     return True
@@ -194,22 +194,74 @@ def make_handler(core, web_dir):
                 name = (q.get("name") or [""])[0]
                 total = int((q.get("total") or ["0"])[0])
                 single = (q.get("single") or ["0"])[0] == "1"
+                into = (parse_qs(url.query, keep_blank_values=True).get("into") or [None])[0]  # "": the port's folder
                 try:
                     core.get_repo(parts[1])
                 except KeyError:
                     raise ApiError(404, "No such repo")
                 if method == "GET":
-                    return self._send(200, core.upload_status(parts[1], name, total, single))
+                    return self._send(200, core.upload_status(parts[1], name, total, single, into))
                 length = int(self.headers.get("Content-Length") or 0)
                 if length > 64 << 20:
                     raise ApiError(413, "Chunk too large")
                 offset = int((q.get("offset") or ["0"])[0])
                 try:
-                    res = core.upload_chunk(parts[1], name, offset, total, self.rfile.read, length, single)
+                    res = core.upload_chunk(parts[1], name, offset, total, self.rfile.read, length, single, into)
                 except core_mod.UploadOffset as e:
                     self.rfile.read(length)  # (drain it: the connection stays usable)
                     return self._send(409, {"error": "resume", "have": e.have})
                 return self._send(200, res)
+            # the file browser: one port's folder
+            if len(parts) >= 3 and parts[0] == "repos" and parts[2] == "fs":
+                rid, sub = parts[1], (parts[3] if len(parts) > 3 else "")
+                rel = (q.get("path") or [""])[0]
+                if method == "GET" and sub == "":
+                    return self._send(200, core.fs_list(rid, rel))
+                if method == "GET" and sub == "read":
+                    return self._send(200, core.fs_read(rid, rel))
+                if method == "GET" and sub == "download":
+                    r, full = core.fs_file(rid, rel)
+                    name = os.path.basename(full).replace('"', "") or "port"
+                    if os.path.isdir(full):
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/zip")
+                        self.send_header("Content-Disposition", 'attachment; filename="%s.zip"' % name)
+                        self.send_header("Connection", "close")
+                        self.end_headers()
+                        core.fs_zip(rid, rel, _Unseekable(self.wfile))
+                        return
+                    size = os.path.getsize(full)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/octet-stream")
+                    self.send_header("Content-Length", str(size))
+                    self.send_header("Content-Disposition", 'attachment; filename="%s"' % name)
+                    self.end_headers()
+                    with open(full, "rb") as fh:
+                        while True:
+                            b = fh.read(1 << 20)
+                            if not b:
+                                break
+                            self.wfile.write(b)
+                    return
+                if method == "POST":
+                    b = self._body()
+                    if core.busy():
+                        raise ApiError(409, "Wait for the running install to finish")
+                    if sub == "write":
+                        try:
+                            res = core.fs_write(rid, b.get("path", ""), b.get("text", ""),
+                                                None if b.get("force") else b.get("mtime"),
+                                                b.get("encoding") or "utf-8", bool(b.get("crlf")))
+                        except core_mod.FsConflict as e:
+                            raise ApiError(409, str(e))
+                        return self._send(200, res)
+                    if sub == "mkdir":
+                        return self._send(200, core.fs_mkdir(rid, b.get("path", ""), b.get("name", "")))
+                    if sub == "rename":
+                        return self._send(200, core.fs_rename(rid, b.get("path", ""), b.get("name", "")))
+                    if sub == "delete":
+                        return self._send(200, {"freed": core.fs_delete(rid, b.get("paths") or [])})
+                raise ApiError(404, "Unknown file call")
             body = self._body() if method in ("POST", "PUT", "PATCH", "DELETE") else {}
 
             if parts == ["state"] and method == "GET":

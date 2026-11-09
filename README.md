@@ -44,6 +44,19 @@ a console-style home menu on the device and a web interface for your PC, phone o
   folder on your PC or phone. They go straight into the port's game-files folder on the handheld,
   in chunks that resume if the Wi-Fi drops, after a free-space check. Each catalogue port tells
   you what it wants; The ReThing's ISO is saved as the `the_thing.iso` it needs.
+- **A file browser for each port.** The **Files** tab on a port's page shows the port's whole
+  folder on the handheld:
+  - Upload files or whole folders into any folder: put saves in place, or install mods. A file
+    with the same name is replaced, after you confirm.
+  - Download any file, or any folder as a zip.
+  - Edit text files (configs, `.ini`, `.json`, `.gptk` and the like, up to 1 MB) in the browser.
+    A file keeps its encoding and line endings. If the game changed it after you opened it,
+    Slopetanium asks before saving over it.
+  - New folder, rename, delete.
+  - It only reaches inside the port's own folder. Links that point outside it are shown but
+    can't be opened, and deleting a link removes only the link.
+  - While the port is running, the tab warns you: many games write their saves and settings
+    when they quit, over what you changed.
 - **Big files, up to what the card holds.** Uploads, backup restores and whole-game downloads
   of 4 to 9 GB work (tested with 5 and 6 GB files; ZIP64 for big backups). Slopetanium reads
   the card's filesystem from `/proc/mounts`: on exFAT or ext4 there is no file size limit, while
