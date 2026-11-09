@@ -817,17 +817,17 @@ namespace rnds
 						p[3] = (uint8_t)std::lround(oa * 255);
 					}
 			};
-			// the case: 98 x 86 CSS px, centred on the canvas
-			int cx0 = X(1), cx1 = X(99), cy0 = X(9), cy1 = X(95);
+			// the case: 100 x 76 CSS px, clearly wider than tall, centred on the canvas
+			int cx0 = X(0), cx1 = X(100), cy0 = X(14), cy1 = X(90);
 			int px1 = std::max(1, X(1));
 			fill(cx0, cy0, cx1, cy1, 0x05070a, 1);						// outline
 			fill(cx0 + px1, cy0 + px1, cx1 - px1, cy1 - px1, 0x0d1015, 1);	// the dark tray under the lid
 			// the hinge: clear plastic over the tray, its knuckles at both ends
 			int hx1 = X(10);
 			fill(cx0 + px1, cy0 + px1, hx1, cy1 - px1, 0x9aa3b0, 0.38f);
-			fill(cx0 + px1, cy0 + X(3), hx1, cy0 + X(14), 0xd5dce6, 0.55f);
-			fill(cx0 + px1, cy1 - X(14), hx1, cy1 - X(3), 0xd5dce6, 0.55f);
-			fill(X(4), cy0 + X(16), X(4) + px1, cy1 - X(16), 0xffffff, 0.22f);	// the hinge's ridge
+			fill(cx0 + px1, cy0 + X(3), hx1, cy0 + X(12), 0xd5dce6, 0.55f);
+			fill(cx0 + px1, cy1 - X(12), hx1, cy1 - X(3), 0xd5dce6, 0.55f);
+			fill(X(4), cy0 + X(14), X(4) + px1, cy1 - X(14), 0xffffff, 0.22f);	// the hinge's ridge
 			// the front insert
 			int ax0 = hx1 + px1, ay0 = cy0 + X(2), ax1 = cx1 - X(2), ay1 = cy1 - X(2);
 			int aw = ax1 - ax0, ah = ay1 - ay0;
@@ -835,8 +835,18 @@ namespace rnds
 			fill(ax0, ay0, ax1, ay1, 0x000000, 1);
 			if (!art.empty())
 			{
-				if (art.w * 10 <= art.h * 13)	// a box cover (portrait or square): cut to the insert
-					blit(m, cover(art, aw, ah), ax0, ay0);
+				if (art.w * 10 <= art.h * 13)
+				{
+					// a box cover (portrait or square) whole, its height filling the insert, on a soft, darkened copy of
+					// itself that fills the rest
+					Bitmap bg = resize(cover(art, std::max(1, aw / 8), std::max(1, ah / 8)), aw, ah);
+					for (size_t i = 0; i < bg.px.size(); i += 4) { bg.px[i] = bg.px[i] * 2 / 5; bg.px[i + 1] = bg.px[i + 1] * 2 / 5; bg.px[i + 2] = bg.px[i + 2] * 2 / 5; }
+					blit(m, bg, ax0, ay0);
+					float fw, fh;
+					containSize(art.w, art.h, aw, ah, fw, fh);
+					int w = std::max(1, (int)std::lround(fw)), h = std::max(1, (int)std::lround(fh));
+					blit(m, resize(art, w, h), ax0 + (aw - w) / 2, ay0 + (ah - h) / 2);
+				}
 				else
 				{
 					float fw, fh;
