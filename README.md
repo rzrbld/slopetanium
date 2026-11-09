@@ -77,8 +77,10 @@ a console-style home menu on the device and a web interface for your PC, phone o
   - **Reviews and ratings** are written in Slopetanium, one per handheld and port, and can be
     changed or deleted. The website shows them read-only.
   - **Install counts are opt-in.** On first start, the handheld and the web page ask once.
-    Only after a yes does each install send the port, its version, the handheld model and the
-    firmware, once per version. No location is sent. This can be changed in **Settings →
+    Only after a yes are installs sent: the port, its version, the handheld model and the
+    firmware, once per version, for ports listed in the community, including versions
+    installed before. Sharing a port also counts your own install of it, without model or
+    firmware unless you said yes. No location is sent. This can be changed in **Settings →
     Community**.
   - **No account.** Slopetanium makes a random id on the handheld and keeps it there. The
     server stores only a keyed hash of it, plus the name you choose for your reviews

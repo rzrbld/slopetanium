@@ -435,6 +435,9 @@ class Core(object):
         threading.Thread(target=self._auto_checker, name="autocheck", daemon=True).start()
         threading.Thread(target=self._gog_refresher, name="gog", daemon=True).start()
         threading.Thread(target=self._art_fetcher, name="art", daemon=True).start()
+        t = threading.Timer(15, self.sync_installs)
+        t.daemon = True
+        t.start()
 
     # ---------------------------------------------------------------- state
     def _load(self):
@@ -520,7 +523,10 @@ class Core(object):
             if "gog_auto" in data:
                 s["gog_auto"] = bool(data["gog_auto"])
             if "count_installs" in data:
+                was = s.get("count_installs")
                 s["count_installs"] = None if data["count_installs"] is None else bool(data["count_installs"])
+                if s["count_installs"] and not was:
+                    threading.Thread(target=self.sync_installs, daemon=True).start()
             if "community_url" in data:
                 u = str(data["community_url"] or "").strip().rstrip("/")
                 if u and not (u.startswith("https://") or u.startswith("http://127.0.0.1") or u.startswith("http://localhost")):
@@ -578,7 +584,21 @@ class Core(object):
             r["shared"] = bool(on)
             self.save()
         self.changed += 1
+        if on:
+            if r.get("installed_tag") and self.port_dir(r):
+                self.community.count_shared(r["repo"], r["installed_tag"])
+            self.sync_installs()
         return res
+
+    def sync_installs(self):
+        """Installed versions to the community's counts (when the owner agreed)."""
+        try:
+            installed = self.installed_ports()
+            pairs = [(r["repo"], r.get("installed_tag")) for r in self.state["repos"]
+                     if r.get("installed_tag") and self._installed_info(r, installed)]
+        except Exception:
+            return
+        self.community.sync_installs(pairs)
 
     def watched_by_repo(self):
         return dict((r["repo"].lower(), r) for r in self.state["repos"])

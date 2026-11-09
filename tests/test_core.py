@@ -326,6 +326,8 @@ def community_tests(c):
         def do_POST(self):
             if self.path == "/v1/ports":
                 return self._answer(lambda g: {"repo": g["repo"], "shared": True, "listed": True})
+            if self.path == "/v1/pulls":
+                return self._answer(lambda g: {"counted": True})
             return self._answer(lambda g: {"ok": True})
 
         do_DELETE = do_POST
@@ -344,9 +346,10 @@ def community_tests(c):
     r = c.state["repos"][0]
     r["originals_dir"] = "source"
     c.share_repo(r["id"], True)
-    m, path, dev, body = seen[-1]
+    m, path, dev, body = [x for x in seen if x[1] == "/v1/ports"][-1]
     assert (m, path, dev) == ("POST", "/v1/ports", secret) and body["config"]["originals_dir"] == "source" and r["shared"]
     assert "installed_tag" not in body["config"] and "history" not in body["config"]
+    time.sleep(0.6)  # (sharing counts this handheld's own install, in the background)
     # install counts: not before the owner said yes
     n = len(seen)
     c.community.count_install(r["repo"], "v1")
@@ -365,6 +368,31 @@ def community_tests(c):
     assert c.community_ports()["ports"][0]["watched"] == r["id"]
     nr = c.add_from_community("someone/Shared")
     assert nr["originals_dir"] == "data" and nr["keep_on_uninstall"] == ["saves"] and "evil" not in nr
+    # installs made before: counted once each, listed ports only, when the owner said yes
+    def pulls():
+        return [x for x in seen if x[1] == "/v1/pulls"]
+
+    def settle(n0, want):
+        for _ in range(60):
+            if len(pulls()) >= n0 + want:
+                break
+            time.sleep(0.05)
+        time.sleep(0.2)
+    n0 = len(pulls())
+    c.community.sync_installs([(r["repo"], "v9"), ("other/notlisted", "v1")])
+    settle(n0, 1)
+    assert [(p[3]["repo"], p[3]["tag"]) for p in pulls()[n0:]] == [(r["repo"], "v9")], pulls()[n0:]
+    n0 = len(pulls())
+    c.community.sync_installs([(r["repo"], "v9")])
+    time.sleep(0.4)
+    assert len(pulls()) == n0, "counted twice"
+    # sharing counts the sharer's own install; without a yes, no model or firmware with it
+    c.update_settings({"count_installs": False})
+    n0 = len(pulls())
+    c.community.count_shared(r["repo"], "v10")
+    settle(n0, 1)
+    p = pulls()[-1][3]
+    assert p["tag"] == "v10" and p["device"] == "" and p["cfw"] == "", p
     c.share_repo(r["id"], False)
     assert seen[-1][0] == "DELETE" and not r["shared"]
     c.delete_repo(nr["id"])

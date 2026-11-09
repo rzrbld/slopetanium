@@ -54,6 +54,7 @@ class Community(object):
         self.settings = settings
         self.save = save
         self.log = log
+        self._sync_lock = threading.Lock()
         if not self.settings.get("device_secret"):
             self.settings["device_secret"] = secrets.token_hex(32)
             self.save()
@@ -124,6 +125,16 @@ class Community(object):
     def unreview(self, repo):
         return self.request("DELETE", "/v1/ports/%s/reviews" % _repo_path(repo))
 
+    def _send_install(self, repo, tag, details=True):
+        """One install to the server; remembered when counted, so each version is sent once. details: the handheld's
+        model and firmware with it (only when the owner said yes to counting)."""
+        res = self.request("POST", "/v1/pulls", {"repo": repo, "tag": tag, "device": device_name() if details else "",
+                                                 "cfw": cfw_name() if details else ""}, timeout=10)
+        if res.get("counted"):
+            self.settings.setdefault("counted_installs", {})[repo.lower()] = tag
+            self.save()
+        return bool(res.get("counted"))
+
     def count_install(self, repo, tag):
         """An install, counted in the background when the owner agreed; failures don't matter."""
         if self.settings.get("count_installs") is not True or not tag:
@@ -131,11 +142,51 @@ class Community(object):
 
         def send():
             try:
-                self.request("POST", "/v1/pulls", {"repo": repo, "tag": tag, "device": device_name(), "cfw": cfw_name()},
-                             timeout=10)
+                self._send_install(repo, tag)
             except Exception:
                 pass
         t = threading.Thread(target=send, name="count-install")
+        t.daemon = True
+        t.start()
+
+    def count_shared(self, repo, tag):
+        """Sharing a port says this handheld has it: its install counts, whatever the answer to counting was (the
+        model and firmware only with a yes)."""
+        if not tag or (self.settings.get("counted_installs") or {}).get(repo.lower()) == tag:
+            return
+
+        def send():
+            try:
+                self._send_install(repo, tag, details=self.settings.get("count_installs") is True)
+            except Exception:
+                pass
+        t = threading.Thread(target=send, name="count-shared")
+        t.daemon = True
+        t.start()
+
+    def sync_installs(self, installed):
+        """The versions already on the handheld ([(repo, tag)]), counted once each when the owner agreed: installs
+        made before the port was shared or before the yes count too. Only ports listed in the community are sent."""
+        if self.settings.get("count_installs") is not True:
+            return
+
+        def run():
+            with self._sync_lock:
+                try:
+                    done = self.settings.get("counted_installs") or {}
+                    todo = [(r, t) for r, t in installed if t and done.get(r.lower()) != t]
+                    if not todo:
+                        return
+                    listed = set(p["repo"].lower() for p in self.request("GET", "/v1/ports?limit=100&sort=name").get("ports", []))
+                    n = 0
+                    for repo, tag in todo:
+                        if repo.lower() in listed and self._send_install(repo, tag):
+                            n += 1
+                    if n:
+                        self.log("community: %d installed port%s counted" % (n, "" if n == 1 else "s"))
+                except Exception:
+                    pass
+        t = threading.Thread(target=run, name="sync-installs")
         t.daemon = True
         t.start()
 
