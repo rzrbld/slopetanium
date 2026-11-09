@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon-256.png" width="128" alt="Slopetanium: a crystal swirl"></p>
+
 # Slopetanium
 
 An updater for PortMaster ports that are published as GitHub releases, in the spirit of

@@ -1,7 +1,7 @@
 """The Slopetanium mark: a soft-serve swirl (the poop emoji's shape) cut like a gem. Each tier is a rounded band in
 front of the one below it (a dark seam between them); inside a tier, a bright crown facet on top and slanted side
 facets shaded from the light at the top left. Drawn on a pixel grid of any size."""
-import math, sys
+import math, os, sys
 from PIL import Image
 
 MINT = [(8, 36, 44), (14, 78, 84), (22, 128, 122), (40, 182, 152), (90, 226, 190), (170, 250, 226), (240, 255, 250)]
@@ -89,6 +89,25 @@ def mark(size):
                         px[x + dx, y + dy] = MINT[6] + (255,)
     return img
 
+ICON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "icon.png")
+
+
+def icon_mark(size):
+    """The mark from icon.png (the crystal swirl drawn for Slopetanium): the artwork cropped from its canvas, the
+    generator's faint alpha speckle cleared, padded square and scaled to size x size."""
+    im = Image.open(ICON).convert("RGBA")
+    a = im.getchannel("A").point(lambda v: 0 if v <= 12 else v)
+    im.putalpha(a)
+    box = a.point(lambda v: 255 if v > 12 else 0).getbbox()
+    im = im.crop(box)
+    side = max(im.size)
+    sq = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    sq.alpha_composite(im, ((side - im.width) // 2, (side - im.height) // 2))
+    # down in two steps: a smooth shrink keeps the facets' colours, a last nearest-ish step keeps edges crisp
+    mid = sq.resize((size * 4, size * 4), Image.LANCZOS)
+    return mid.resize((size, size), Image.BOX)
+
+
 def star(img, cx, cy, r, color=(255, 255, 255, 255)):
     """A four-point pixel sparkle."""
     px = img.load()
@@ -107,7 +126,7 @@ def logo(scale, path, font_path):
     from PIL import ImageDraw, ImageFont
     W, H = round(134 * scale), round(20 * scale)
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    m = mark(H)
+    m = icon_mark(H) if os.path.isfile(ICON) else mark(H)
     im.alpha_composite(m, (0, 0))
     d = ImageDraw.Draw(im)
     f = ImageFont.truetype(font_path, round(17 * scale))
@@ -128,10 +147,14 @@ def cover(path, font_path, font_regular):
         d.line([(0, y), (W, y)], fill=(int(18 + 22 * k), int(22 + 28 * k), int(32 + 36 * k), 255))
     for x in range(-H, W, 14):
         d.line([(x, H), (x + H, 0)], fill=(32, 40, 56, 255), width=1)
-    m = mark(64).resize((192, 192), Image.NEAREST)   # pixel art, whole multiples
-    im.alpha_composite(m, ((W - 192) // 2, 52))
-    for (x, y, r) in ((70, 70, 5), (236, 96, 4), (226, 212, 3), (58, 196, 3)):
-        star(im, x, y, r)
+    if os.path.isfile(ICON):
+        m = icon_mark(210)          # (the icon has its own sparkle)
+        im.alpha_composite(m, ((W - 210) // 2, 44))
+    else:
+        m = mark(64).resize((192, 192), Image.NEAREST)   # pixel art, whole multiples
+        im.alpha_composite(m, ((W - 192) // 2, 52))
+        for (x, y, r) in ((70, 70, 5), (236, 96, 4), (226, 212, 3), (58, 196, 3)):
+            star(im, x, y, r)
     f = ImageFont.truetype(font_path, 44)
     d.text((W // 2, 296), "slope", font=f, fill=(62, 217, 176, 255), anchor="mm")
     d.text((W // 2, 341), "tanium", font=f, fill=(232, 238, 247, 255), anchor="mm")
@@ -148,7 +171,10 @@ if __name__ == "__main__":
     logo(1, os.path.join(A, "logo@1x.png"), fm)
     logo(1.6, os.path.join(A, "logo@1.6x.png"), fm)
     cover(os.path.join(A, "icons", "slopetanium-cover.png"), fm, fr)
-    mark(32).save(os.path.join(A, "icons", "slopetanium-mark.png"))
+    small = icon_mark(32) if os.path.isfile(ICON) else mark(32)
+    small.save(os.path.join(A, "icons", "slopetanium-mark.png"))
+    if os.path.isfile(ICON):
+        icon_mark(256).save(os.path.join(os.path.dirname(ICON), "docs", "icon-256.png"))
     buf = io.BytesIO()
-    mark(32).save(buf, "PNG")
+    small.save(buf, "PNG")
     print("data:image/png;base64," + base64.b64encode(buf.getvalue()).decode())
