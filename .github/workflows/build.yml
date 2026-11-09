@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Core tests (offline: fake GitHub, fake harbourmaster)
+      - name: "Core tests (offline: fake GitHub, fake harbourmaster)"
         run: |
           python3 -m py_compile port/slopetanium/app/*.py
           python3 tests/test_core.py
