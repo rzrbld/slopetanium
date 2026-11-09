@@ -26,6 +26,18 @@ jobs:
           python3 -m pip install --quiet vermin
           vermin -q --no-tips --violations -t=3.7- port/slopetanium/app/
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: "Community server tests (Go, SQLite)"
+        working-directory: server
+        run: |
+          go vet ./...
+          go test ./...
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/slopetanium-community .
+
       - name: Cross toolchain (cached)
         uses: actions/cache@v4
         with:

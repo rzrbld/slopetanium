@@ -68,6 +68,22 @@ a console-style home menu on the device and a web interface for your PC, phone o
 - **Your GOG library.** Sign in to GOG.com once from the web interface. After you install a port
   of a game GOG sells, Slopetanium downloads that game's installer from your library into the
   port's folder, so its first start can import it.
+- **The community: [slopetanium.pw](https://slopetanium.pw).** Share the ports you watch, and
+  find the ones others share.
+  - When you add a repo, **Share with the community** is on. You can switch it on or off
+    later, on the port's page (Overview → Community).
+  - The **Community** page lists shared ports by popularity, rating, update or newness. **Add**
+    watches one with the settings its sharer used: game files folder, saves, GOG, store links.
+  - **Reviews and ratings** are written in Slopetanium, one per handheld and port, and can be
+    changed or deleted. The website shows them read-only.
+  - **Install counts are opt-in.** On first start, the handheld and the web page ask once.
+    Only after a yes does each install send the port, its version, the handheld model and the
+    firmware, once per version. No location is sent. This can be changed in **Settings →
+    Community**.
+  - **No account.** Slopetanium makes a random id on the handheld and keeps it there. The
+    server stores only a keyed hash of it, plus the name you choose for your reviews
+    (otherwise a made-up one, such as “Mint Otter 3f2a”). See [server/](server/) for how the
+    server works.
 - **A catalogue of ports.** rzrbld's ports are watched from the first start: ReNFS5, The ReThing,
   ReConflict, Vurus, The Familia, ReRed Faction II, and Slopetanium itself.
 
@@ -208,6 +224,11 @@ On a device, `slopetanium/conf/dev.env` sets developer switches for the next sta
 - `SLOP_SCRIPT=wait800,right,a`: presses buttons on a timeline;
 - `SLOP_SCREENSHOT=/tmp/x`: writes both screens as PNG, then exits;
 - `SLOP_SCREENS=1|2`: forces one or two screens.
+
+### The community server
+
+`server/` is the service behind slopetanium.pw: Go, with SQLite (the pure-Go `modernc.org/sqlite`),
+built as one static binary. See [server/README.md](server/README.md).
 
 ### CI and releases
 

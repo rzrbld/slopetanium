@@ -1,0 +1,9 @@
+[Unit]
+Description=Nightly backup of the Slopetanium community database
+
+[Timer]
+OnCalendar=*-*-* 04:20:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

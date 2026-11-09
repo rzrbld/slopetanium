@@ -295,6 +295,83 @@ def browser_tests(c, ports, tmp):
     shutil.rmtree(os.path.join(pdir, "conf"))
 
 
+def community_tests(c):
+    """The community client against a fake slopetanium.pw: the secret goes only there, installs count only on yes."""
+    import threading, time
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    seen = []
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def _answer(self, body):
+            n = int(self.headers.get("Content-Length") or 0)
+            got = json.loads(self.rfile.read(n).decode()) if n else None
+            seen.append((self.command, self.path, self.headers.get("X-Slop-Device"), got))
+            data = json.dumps(body(got)).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):
+            if self.path.startswith("/v1/ports/"):
+                return self._answer(lambda g: {"repo": "someone/Shared", "title": "Shared", "cover_url": "https://x/c.jpg",
+                                               "config": {"originals_dir": "data", "evil": 1, "keep_on_uninstall": ["saves"]},
+                                               "review_list": []})
+            return self._answer(lambda g: {"ports": [{"repo": c.state["repos"][0]["repo"].upper(), "title": "x"}]})
+
+        def do_POST(self):
+            if self.path == "/v1/ports":
+                return self._answer(lambda g: {"repo": g["repo"], "shared": True, "listed": True})
+            return self._answer(lambda g: {"ok": True})
+
+        do_DELETE = do_POST
+        do_PUT = do_POST
+
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    c.update_settings({"community_url": "http://127.0.0.1:%d" % srv.server_address[1]})
+    secret = c.state["settings"]["device_secret"]
+    assert len(secret) == 64 and "device_secret" not in json.dumps(c.snapshot())
+    try:
+        c.update_settings({"community_url": "http://evil.example"})
+        raise AssertionError("plain http server accepted")
+    except ValueError:
+        pass
+    r = c.state["repos"][0]
+    r["originals_dir"] = "source"
+    c.share_repo(r["id"], True)
+    m, path, dev, body = seen[-1]
+    assert (m, path, dev) == ("POST", "/v1/ports", secret) and body["config"]["originals_dir"] == "source" and r["shared"]
+    assert "installed_tag" not in body["config"] and "history" not in body["config"]
+    # install counts: not before the owner said yes
+    n = len(seen)
+    c.community.count_install(r["repo"], "v1")
+    c.update_settings({"count_installs": False})
+    c.community.count_install(r["repo"], "v1")
+    time.sleep(0.3)
+    assert len(seen) == n
+    c.update_settings({"count_installs": True})
+    c.community.count_install(r["repo"], "v1")
+    for _ in range(50):
+        if len(seen) > n:
+            break
+        time.sleep(0.05)
+    assert seen[-1][1] == "/v1/pulls" and seen[-1][3]["tag"] == "v1"
+    # the list knows what is watched here; adding a community port takes its sharer's settings (checked ones only)
+    assert c.community_ports()["ports"][0]["watched"] == r["id"]
+    nr = c.add_from_community("someone/Shared")
+    assert nr["originals_dir"] == "data" and nr["keep_on_uninstall"] == ["saves"] and "evil" not in nr
+    c.share_repo(r["id"], False)
+    assert seen[-1][0] == "DELETE" and not r["shared"]
+    c.delete_repo(nr["id"])
+    r["originals_dir"] = "source"
+    srv.shutdown()
+
+
 def backup_tests(c, ports, tmp):
     import zipfile
     r = c.state["repos"][0]
@@ -510,6 +587,7 @@ def main():
         gog_tests(c, ports, tmp)
         upload_tests(c, ports)
         browser_tests(c, ports, tmp)
+        community_tests(c)
         backup_tests(c, ports, tmp)
         catalogue_tests(tmp)
         c.stop()

@@ -1,0 +1,94 @@
+{{define "desc"}}{{with .P}}{{if .Description}}{{.Description}}{{else}}{{.Title}}: a PortMaster port shared by Slopetanium users.{{end}}{{end}}{{end}}
+{{define "css"}}
+.back { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+.back:hover { color: var(--text); }
+.head { display: grid; grid-template-columns: 170px 1fr; gap: 26px; align-items: start; margin-bottom: 22px; }
+.head .cover { width: 170px; }
+.head h1 { margin: 0 0 4px; font-size: 32px; line-height: 1.15; }
+.head .repo a { color: var(--muted); text-decoration: none; }
+.head .repo a:hover { text-decoration: underline; }
+.head .desc { color: var(--muted); margin: 12px 0 0; white-space: pre-wrap; max-width: 720px; }
+.facts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 9px 14px; min-width: 110px; }
+.fact .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 650; }
+.fact .v { font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; }
+.cols { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+.side { display: grid; gap: 16px; }
+.bars { display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(0, 120px) 1fr 44px; gap: 10px; align-items: center; font-size: 13px; }
+.bar-row .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.bar-row .t { height: 8px; background: var(--surface-3); border-radius: 99px; overflow: hidden; }
+.bar-row .t i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 99px; }
+.bar-row .n { text-align: right; color: var(--faint); font-variant-numeric: tabular-nums; }
+.bar-row.star .t i { background: var(--star); }
+.rev { padding: 14px 0; border-top: 1px solid var(--line); }
+.rev:first-of-type { border-top: 0; padding-top: 2px; }
+.rev .who { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.rev .who b { font-weight: 650; }
+.rev p { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.avatar { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-family: "Pixelify", sans-serif; font-size: 14px; flex: none; }
+.how ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--muted); font-size: 14px; }
+.how code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; font-size: 13px; color: var(--text); }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 14px; }
+dt { color: var(--faint); } dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .head { grid-template-columns: 96px 1fr; gap: 16px; } .head .cover { width: 96px; } .head h1 { font-size: 23px; } }
+{{end}}
+{{define "main"}}{{with .P}}
+<a class="back" href="/">← All ports</a>
+<section class="head">
+  <div class="cover">{{if .CoverURL}}<img src="{{.CoverURL}}" alt="" referrerpolicy="no-referrer">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}});font-size:44px">{{initials .Title}}</div>{{end}}</div>
+  <div style="min-width:0">
+    <h1>{{.Title}}</h1>
+    <div class="repo"><a href="https://github.com/{{.Repo}}">github.com/{{.Repo}}</a>{{if .Stars}} · ★ {{.Stars}} on GitHub{{end}}</div>
+    {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}
+    <div class="facts">
+      <div class="fact"><div class="k">Rating</div><div class="v">{{if .Reviews}}<span class="stars"><i style="width:{{starpct .Rating}}%"></i></span>{{one .Rating}}{{else}}<span class="faint" style="font-weight:600;font-size:14px">no reviews</span>{{end}}</div></div>
+      <div class="fact"><div class="k">Installs</div><div class="v">{{num .Pulls}}{{if .Week}} <span class="faint small" style="font-weight:600">+{{.Week}} this week</span>{{end}}</div></div>
+      <div class="fact"><div class="k">Latest</div><div class="v" title="{{.LatestTag}}">{{short .LatestTag}}</div></div>
+      {{if .LatestSize}}<div class="fact"><div class="k">Download</div><div class="v">{{size .LatestSize}}</div></div>{{end}}
+      {{if .LatestAt}}<div class="fact"><div class="k">Released</div><div class="v">{{day .LatestAt}}</div></div>{{end}}
+    </div>
+  </div>
+</section>
+<div class="cols">
+  <section class="panel">
+    <h2>Reviews {{if .Reviews}}<span class="faint" style="font-weight:500">{{.Reviews}}</span>{{end}}</h2>
+    {{range .ReviewList}}
+    <div class="rev">
+      <div class="who"><span class="avatar" style="background:linear-gradient(150deg,{{tint .Nick 0}},{{tint .Nick 1}})">{{initials .Nick}}</span><b>{{.Nick}}</b>
+        <span class="stars" title="{{.Rating}} of 5"><i style="width:{{starpct (float .Rating)}}%"></i></span>
+        <span class="faint small">{{ago .Updated}}{{if .Version}} · {{short .Version}}{{end}}{{if .Device}} · {{.Device}}{{end}}</span></div>
+      {{if .Text}}<p>{{.Text}}</p>{{end}}
+    </div>{{else}}
+    <p class="muted" style="margin:0">No reviews yet. Reviews are written in Slopetanium, on the handheld that runs the port: open its page there and rate it.</p>{{end}}
+  </section>
+  <aside class="side">
+    <section class="panel how"><h2>Install it</h2><ol>
+      <li>Install <a href="https://github.com/rzrbld/slopetanium/releases">Slopetanium</a> on your handheld.</li>
+      <li>In its web page, open <b>Community</b> and add <b>{{.Title}}</b>, or add the repo <code>{{.Repo}}</code>.</li>
+      <li>Install it. Slopetanium keeps it updated.</li></ol>
+      {{with .Config}}{{if or .hint .gog .buy}}<p class="small muted" style="margin:12px 0 0">{{with .hint}}{{str .}}{{else}}It needs your own copy of the game.{{end}}{{range .buy}} <a href="{{.url}}" style="color:var(--accent)">Buy on {{.store}}</a>{{end}}</p>{{end}}{{end}}
+    </section>
+    {{if .Pulls}}
+    <section class="panel"><h2>Installs by version</h2><div class="bars">{{$m := maxof .ByVersion}}{{range .ByVersion}}
+      <div class="bar-row"><span class="l" title="{{.Key}}">{{short .Key}}</span><span class="t"><i style="width:{{pct .N $m}}%"></i></span><span class="n">{{.N}}</span></div>{{end}}</div></section>
+    <section class="panel"><h2>Installs by handheld</h2><div class="bars">{{$m := maxof .ByDevice}}{{range .ByDevice}}
+      <div class="bar-row"><span class="l" title="{{.Key}}">{{.Key}}</span><span class="t"><i style="width:{{pct .N $m}}%"></i></span><span class="n">{{.N}}</span></div>{{end}}</div>
+      {{if gt (len .ByCFW) 1}}<h2 style="margin-top:16px">By firmware</h2><div class="bars">{{$m := maxof .ByCFW}}{{range .ByCFW}}
+      <div class="bar-row"><span class="l">{{.Key}}</span><span class="t"><i style="width:{{pct .N $m}}%"></i></span><span class="n">{{.N}}</span></div>{{end}}</div>{{end}}</section>
+    {{end}}
+    {{if .Reviews}}{{$p := .}}
+    <section class="panel"><h2>Ratings</h2><div class="bars">{{$t := sum5 .Hist}}{{range rev}}
+      <div class="bar-row star"><span class="l">{{.}} ★</span><span class="t"><i style="width:{{pct (at $p.Hist .) $t}}%"></i></span><span class="n">{{at $p.Hist .}}</span></div>{{end}}</div></section>
+    {{end}}
+    {{with .Config}}{{if or .originals_dir .gog .keep_on_uninstall}}
+    <section class="panel"><h2>For Slopetanium</h2><dl>
+      {{with .originals_dir}}<dt>Game files</dt><dd>{{str .}}</dd>{{end}}
+      {{with .originals_pattern}}<dt>Files</dt><dd>{{str .}}</dd>{{end}}
+      {{with .keep_on_uninstall}}<dt>Saves</dt><dd>{{str .}}</dd>{{end}}
+      {{with .gog}}<dt>GOG</dt><dd>{{with .title}}{{str .}}{{else}}yes{{end}}</dd>{{end}}
+    </dl></section>{{end}}{{end}}
+  </aside>
+</div>
+{{end}}{{end}}

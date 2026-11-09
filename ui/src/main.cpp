@@ -220,6 +220,7 @@ struct State
 	std::string pin;
 	int updates = 0;
 	bool gogLinked = false;
+	bool askCount = false;	// the community install counts: not answered yet
 };
 
 static State parseState(const std::string& text)
@@ -236,6 +237,11 @@ static State parseState(const std::string& text)
 		if (const JVal* u = w->get("urls")) for (auto& e : u->arr) s.urls.push_back(e->s);
 	}
 	if (const JVal* g = root->get("gog_account")) s.gogLinked = g->flag("linked");
+	if (const JVal* se = root->get("settings"))
+	{
+		const JVal* c = se->get("count_installs");
+		s.askCount = c && c->kind == JVal::NUL;
+	}
 	if (const JVal* rs = root->get("repos"))
 		for (auto& e : rs->arr)
 		{
@@ -433,8 +439,26 @@ struct Host
 		if (want != ui->gameIndex()) ui->jumpTo(want);
 		sel = ui->gameIndex();
 		if (st.ports.empty() && mode == SHELF && !connectShown) { connectShown = true; ui->jumpTo(itemCount() - 1); openConnect(); }
+		if (st.askCount && !countAsked && mode == SHELF) askCountInstalls();
 	}
-	bool connectShown = false, haveState = false;
+	bool connectShown = false, haveState = false, countAsked = false;
+	// once: may the community (slopetanium.pw) count this handheld's installs?
+	void askCountInstalls()
+	{
+		countAsked = true;
+		auto answer = [this](bool yes) {
+			menus.clear(); mode = SHELF; overlayAt = nowMs();
+			link->call("PUT", "/api/settings", yes ? "{\"count_installs\":true}" : "{\"count_installs\":false}", nullptr);
+			link->refresh();
+			flash(yes ? "Thanks! Installs are counted" : "Installs are not counted");
+		};
+		Menu m;
+		m.title = "Help the community?";
+		m.lines = { { "Count your installs on slopetanium.pw,", theme::muted }, { "so others see which ports people use.", theme::muted },
+			{ "Sent: port, version, handheld model, firmware.", theme::muted }, { "Nothing about you or where you are.", theme::accentBase } };
+		m.items = { { "Yes, count my installs", [answer] { answer(true); } }, { "No thanks", [answer] { answer(false); }, theme::muted } };
+		pushMenu(m);
+	}
 
 	// ---- actions ----
 	std::string path(const Port& p, const std::string& what) { return "/api/repos/" + p.id + "/" + what; }

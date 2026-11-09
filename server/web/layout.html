@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>{{if .Title}}{{.Title}} · {{end}}Slopetanium community</title>
+<meta name="description" content="{{block "desc" .}}PortMaster ports for handhelds, shared by Slopetanium users: ratings, reviews and how many install them.{{end}}">
+<meta property="og:title" content="{{if .Title}}{{.Title}} · {{end}}Slopetanium community">
+<meta property="og:image" content="{{.Base}}/static/icon-256.png">
+<link rel="icon" href="/static/icon-96.png">
+<style>
+@font-face { font-family: "Pixelify"; src: url("/static/PixelifySans-Medium.ttf") format("truetype"); font-display: swap; }
+:root {
+  --bg: #0e1219; --bg-2: #121722; --surface: #161c27; --surface-2: #1c2331; --surface-3: #232b3b;
+  --line: #273041; --line-2: #323d52; --text: #e9eef7; --muted: #95a1b6; --faint: #66728a;
+  --accent: #3ed9b0; --accent-2: #7febcb; --accent-ink: #04261d; --accent-soft: rgba(62, 217, 176, .13);
+  --star: #ffc247; --warn: #ffb547;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.28); --r: 14px;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f3f5f9; --bg-2: #eef1f6; --surface: #ffffff; --surface-2: #f6f8fb; --surface-3: #edf1f6;
+    --line: #e1e6ee; --line-2: #d3dae5; --text: #131925; --muted: #5a6579; --faint: #8a94a6;
+    --accent: #10a684; --accent-2: #0c8a6d; --accent-ink: #fff; --accent-soft: rgba(16, 166, 132, .11); --star: #e39b00; --warn: #c47a00;
+    --shadow: 0 1px 2px rgba(20,30,50,.06), 0 8px 24px rgba(20,30,50,.07);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: .5;
+  background: repeating-linear-gradient(135deg, transparent 0 13px, color-mix(in srgb, var(--line) 45%, transparent) 13px 14px);
+  -webkit-mask-image: linear-gradient(180deg, #000, transparent 60%); mask-image: linear-gradient(180deg, #000, transparent 60%); }
+a { color: inherit; }
+.pixel { font-family: "Pixelify", ui-sans-serif, sans-serif; font-weight: normal; letter-spacing: .02em; }
+.muted { color: var(--muted); } .faint { color: var(--faint); } .small { font-size: 13px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+header.bar { border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 5; }
+header.bar .wrap { display: flex; align-items: center; gap: 18px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand img { width: 34px; height: 34px; }
+.brand span { font-size: 21px; } .brand b { color: var(--accent); font-weight: normal; }
+nav { margin-left: auto; display: flex; gap: 4px; }
+nav a { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; padding: 7px 12px; border-radius: 9px; }
+nav a:hover { color: var(--text); background: var(--surface-2); }
+nav a.cta { color: var(--accent-ink); background: var(--accent); }
+nav a.cta:hover { background: var(--accent-2); color: var(--accent-ink); }
+main { padding: 26px 0 70px; }
+footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--faint); font-size: 13px; }
+footer a { color: var(--muted); }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 15px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface-2); font-weight: 600; font-size: 14px; text-decoration: none; color: var(--text); cursor: pointer; }
+.btn:hover { background: var(--surface-3); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; font-weight: 600; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); text-decoration: none; white-space: nowrap; }
+.stars { position: relative; display: inline-block; font-size: 15px; letter-spacing: 1px; line-height: 1; color: var(--line-2); white-space: nowrap; }
+.stars::before { content: "★★★★★"; }
+.stars i { position: absolute; left: 0; top: 0; overflow: hidden; color: var(--star); font-style: normal; white-space: nowrap; }
+.stars i::before { content: "★★★★★"; }
+.cover { position: relative; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden; background: var(--surface-3); box-shadow: 0 10px 22px -10px rgba(0,0,0,.6); flex: none; }
+.cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover .ph { position: absolute; inset: 0; display: grid; place-items: center; font-family: "Pixelify", sans-serif; font-size: 30px; color: rgba(255,255,255,.9); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 16px 18px; }
+.panel h2 { font-size: 16px; margin: 0 0 12px; }
+@media (max-width: 700px) { nav a:not(.cta) { display: none; } .brand span { font-size: 18px; } }
+{{block "css" .}}{{end}}
+</style>
+</head>
+<body>
+<header class="bar"><div class="wrap">
+  <a class="brand" href="/"><img src="/static/icon-96.png" alt=""><span class="pixel"><b>slope</b>tanium</span></a>
+  <nav><a href="/">Ports</a><a href="/about">About</a><a class="cta" href="https://github.com/rzrbld/slopetanium/releases">Get Slopetanium</a></nav>
+</div></header>
+<main><div class="wrap">{{block "main" .}}{{end}}</div></main>
+<footer><div class="wrap">Slopetanium community: ports shared from Slopetanium on handhelds. Reviews and ratings are posted from Slopetanium itself.
+  · <a href="/about">How it works and what is stored</a> · <a href="https://github.com/rzrbld/slopetanium">Source</a></div></footer>
+</body>
+</html>

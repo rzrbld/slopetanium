@@ -1,0 +1,7 @@
+[Unit]
+Description=Back up the Slopetanium community database
+
+[Service]
+Type=oneshot
+User=slopetanium
+ExecStart=/bin/sh -c 'd=/var/lib/slopetanium/backups; mkdir -p $d && /opt/slopetanium/slopetanium-community admin -db /var/lib/slopetanium/community.db backup $d/community-$(date +%%Y%%m%%d).db && find $d -name "community-*.db" -mtime +14 -delete'

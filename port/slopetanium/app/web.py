@@ -303,6 +303,27 @@ def make_handler(core, web_dir):
             if parts == ["catalogue", "add"] and method == "POST":
                 r = core.add_from_catalogue(body.get("repo") or "")
                 return self._send(201, {"id": r["id"]})
+            # the community (slopetanium.pw), through the core: the handheld's id stays here
+            if parts and parts[0] == "community":
+                try:
+                    if parts == ["community", "ports"] and method == "GET":
+                        return self._send(200, core.community_ports((q.get("q") or [""])[0], (q.get("sort") or ["popular"])[0]))
+                    if parts == ["community", "port"] and method == "GET":
+                        return self._send(200, core.community_port((q.get("repo") or [""])[0]))
+                    if parts == ["community", "me"] and method == "GET":
+                        return self._send(200, core.community.me())
+                    if parts == ["community", "me"] and method == "PUT":
+                        return self._send(200, core.community.set_nick(body.get("nick") or ""))
+                    if parts == ["community", "add"] and method == "POST":
+                        r = core.add_from_community(body.get("repo") or "")
+                        return self._send(201, {"id": r["id"]})
+                    if parts == ["community", "review"] and method == "POST":
+                        return self._send(200, core.community_review(body.get("repo") or "", body.get("rating") or 0, body.get("text") or ""))
+                    if parts == ["community", "unreview"] and method == "POST":
+                        return self._send(200, core.community.unreview(body.get("repo") or ""))
+                except core_mod.community_mod.CommunityError as e:
+                    raise ApiError(502 if e.status >= 500 else e.status, str(e))
+                raise ApiError(404, "Unknown community call")
             if parts == ["gog", "link"] and method == "POST":
                 try:
                     return self._send(200, core.gog_link(body.get("code") or ""))
@@ -367,6 +388,11 @@ def make_handler(core, web_dir):
                     if action == "gog-download":
                         job = core.queue_gog(rid)
                         return self._send(202, {"job": job.id})
+                    if action == "share":
+                        try:
+                            return self._send(200, core.share_repo(rid, bool(body.get("share"))))
+                        except core_mod.community_mod.CommunityError as e:
+                            raise ApiError(502 if e.status >= 500 else e.status, str(e))
                     if action == "originals-delete":
                         if core.busy():
                             raise ApiError(409, "Wait for the running install to finish")

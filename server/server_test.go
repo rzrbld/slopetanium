@@ -1,0 +1,236 @@
+// SPDX-License-Identifier: MIT
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+// a GitHub with two repos: one with a port zip, one without releases
+func fakeGitHub(t *testing.T) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/rzrbld/ReNFS5", "/repos/rzrbld/renfs5":
+			json.NewEncoder(w).Encode(map[string]any{"full_name": "rzrbld/ReNFS5", "description": "Need for Speed: Porsche Unleashed", "stargazers_count": 12})
+		case "/repos/rzrbld/ReNFS5/releases":
+			json.NewEncoder(w).Encode([]any{
+				map[string]any{"tag_name": "v2", "published_at": time.Now().Format(time.RFC3339), "assets": []any{
+					map[string]any{"name": "renfs5.zip", "size": 30 << 20, "download_count": 40}}},
+				map[string]any{"tag_name": "v1", "published_at": time.Now().Format(time.RFC3339), "assets": []any{
+					map[string]any{"name": "renfs5.zip", "size": 29 << 20, "download_count": 60}, map[string]any{"name": "notes.txt"}}},
+			})
+		case "/repos/someone/empty":
+			json.NewEncoder(w).Encode(map[string]any{"full_name": "someone/empty"})
+		case "/repos/someone/empty/releases":
+			w.Write([]byte("[]"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+type client struct {
+	t   *testing.T
+	url string
+	dev string
+}
+
+func (c client) do(method, path string, body any) (int, map[string]any) {
+	var rd io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		rd = bytes.NewReader(b)
+	}
+	req, _ := http.NewRequest(method, c.url+path, rd)
+	if c.dev != "" {
+		req.Header.Set("X-Slop-Device", c.dev)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	out := map[string]any{}
+	raw, _ := io.ReadAll(resp.Body)
+	if strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
+		_ = json.Unmarshal(raw, &out)
+	} else {
+		out["html"] = string(raw)
+	}
+	return resp.StatusCode, out
+}
+
+func TestCommunity(t *testing.T) {
+	gh := fakeGitHub(t)
+	defer gh.Close()
+	db, err := openDB(filepath.Join(t.TempDir(), "c.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := &GitHub{base: gh.URL, client: gh.Client()}
+	_, h := newServer(db, []byte("salt-for-tests-salt-for-tests-xx"), g, "https://example.test")
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	a := client{t, srv.URL, strings.Repeat("a1", 32)}
+	b := client{t, srv.URL, strings.Repeat("b2", 32)}
+	anon := client{t, srv.URL, ""}
+
+	// sharing needs a device; GitHub must know the repo and it must have a port zip
+	if st, _ := anon.do("POST", "/v1/ports", map[string]any{"repo": "rzrbld/ReNFS5"}); st != 401 {
+		t.Fatalf("anonymous share: %d", st)
+	}
+	if st, j := a.do("POST", "/v1/ports", map[string]any{"repo": "nobody/nothing"}); st != 400 {
+		t.Fatalf("unknown repo: %d %v", st, j)
+	}
+	if st, j := a.do("POST", "/v1/ports", map[string]any{"repo": "someone/empty"}); st != 400 || !strings.Contains(j["error"].(string), "zip") {
+		t.Fatalf("no zip: %d %v", st, j)
+	}
+	if st, _ := a.do("POST", "/v1/ports", map[string]any{"repo": "../../etc"}); st != 400 {
+		t.Fatal("bad repo accepted")
+	}
+	st, j := a.do("POST", "/v1/ports", map[string]any{"repo": "https://github.com/rzrbld/renfs5", "title": "ReNFS5\x00 (NFS)",
+		"cover_url": "javascript:alert(1)", "config": map[string]any{"originals_dir": "source", "evil": "x",
+			"buy": []any{map[string]any{"store": "GOG", "url": "http://insecure"}}, "gog": map[string]any{"id": 123.0, "dest": "source"}}})
+	if st != 200 || j["listed"] != true || j["repo"] != "rzrbld/ReNFS5" {
+		t.Fatalf("share: %d %v", st, j)
+	}
+	// the list: GitHub's facts, the cleaned fields
+	_, j = anon.do("GET", "/v1/ports", nil)
+	ports := j["ports"].([]any)
+	if len(ports) != 1 {
+		t.Fatalf("list: %v", j)
+	}
+	p := ports[0].(map[string]any)
+	if p["title"] != "ReNFS5 (NFS)" || p["cover_url"] != "" || p["latest_tag"] != "v2" || p["gh_downloads"].(float64) != 100 || p["stars"].(float64) != 12 {
+		t.Fatalf("summary: %v", p)
+	}
+	_, d := anon.do("GET", "/v1/ports/rzrbld/ReNFS5", nil)
+	cfg := d["config"].(map[string]any)
+	if cfg["originals_dir"] != "source" || cfg["evil"] != nil || cfg["buy"] != nil || cfg["gog"].(map[string]any)["id"].(float64) != 123 {
+		t.Fatalf("config: %v", cfg)
+	}
+
+	// reviews: one per handheld, edited in place; ratings 1..5
+	if st, _ := a.do("POST", "/v1/ports/rzrbld/ReNFS5/reviews", map[string]any{"rating": 6}); st != 400 {
+		t.Fatal("rating 6 accepted")
+	}
+	a.do("POST", "/v1/ports/rzrbld/ReNFS5/reviews", map[string]any{"rating": 3, "text": "ok", "version": "v1", "device": "RG DS"})
+	a.do("POST", "/v1/ports/rzrbld/ReNFS5/reviews", map[string]any{"rating": 5, "text": "great\n\n\n\nnow <b>fast</b>", "version": "v2"})
+	b.do("POST", "/v1/ports/rzrbld/ReNFS5/reviews", map[string]any{"rating": 4, "text": "nice"})
+	_, d = b.do("GET", "/v1/ports/rzrbld/ReNFS5", nil)
+	rl := d["review_list"].([]any)
+	if len(rl) != 2 || d["rating"].(float64) != 4.5 || d["reviews"].(float64) != 2 {
+		t.Fatalf("reviews: %v", d)
+	}
+	mine := 0
+	for _, x := range rl {
+		r := x.(map[string]any)
+		if r["mine"] == true {
+			mine++
+			if r["text"] != "nice" {
+				t.Fatal("wrong mine")
+			}
+		}
+		if strings.Contains(r["text"].(string), "\n\n\n") {
+			t.Fatal("blank lines kept")
+		}
+	}
+	if mine != 1 {
+		t.Fatalf("mine: %d", mine)
+	}
+	// names: a made-up one, then a chosen one (unique)
+	_, me := a.do("GET", "/v1/me", nil)
+	if !strings.Contains(me["shown_as"].(string), " ") || len(me["shares"].([]any)) != 1 {
+		t.Fatalf("me: %v", me)
+	}
+	if st, _ := a.do("PUT", "/v1/me", map[string]any{"nick": "Razblade"}); st != 200 {
+		t.Fatal("nick")
+	}
+	if st, _ := b.do("PUT", "/v1/me", map[string]any{"nick": "razblade"}); st != 409 {
+		t.Fatal("nick taken twice")
+	}
+
+	// installs: once per handheld and version, community ports only
+	for i := 0; i < 3; i++ {
+		a.do("POST", "/v1/pulls", map[string]any{"repo": "rzrbld/ReNFS5", "tag": "v2", "device": "RG DS", "cfw": "BananaOS"})
+	}
+	b.do("POST", "/v1/pulls", map[string]any{"repo": "rzrbld/ReNFS5", "tag": "v2", "device": "RG40XX H", "cfw": "muOS"})
+	b.do("POST", "/v1/pulls", map[string]any{"repo": "rzrbld/ReNFS5", "tag": "v1", "device": "RG40XX H", "cfw": "muOS"})
+	if _, j := b.do("POST", "/v1/pulls", map[string]any{"repo": "other/port", "tag": "v1"}); j["counted"] != false {
+		t.Fatal("pull of a non-community port counted")
+	}
+	_, d = anon.do("GET", "/v1/ports/rzrbld/ReNFS5", nil)
+	if d["pulls"].(float64) != 3 || d["pulls_week"].(float64) != 3 || len(d["by_device"].([]any)) != 2 {
+		t.Fatalf("pulls: %v", d)
+	}
+
+	// the website: list, port page (escaped), about, 404
+	_, pg := anon.do("GET", "/", nil)
+	if !strings.Contains(pg["html"].(string), "ReNFS5 (NFS)") {
+		t.Fatal("index")
+	}
+	_, pg = anon.do("GET", "/p/rzrbld/ReNFS5", nil)
+	html := pg["html"].(string)
+	if !strings.Contains(html, "Razblade") || strings.Contains(html, "<b>fast</b>") || !strings.Contains(html, "RG40XX H") {
+		t.Fatal("port page")
+	}
+	if st, _ := anon.do("GET", "/p/nobody/nothing", nil); st != 404 {
+		t.Fatal("404")
+	}
+	if st, _ := anon.do("GET", "/about", nil); st != 200 {
+		t.Fatal("about")
+	}
+	if st, _ := anon.do("GET", "/?q=%25&sort=rating", nil); st != 200 {
+		t.Fatal("search")
+	}
+
+	// moderation: a banned handheld's reviews vanish and it can't write
+	var author string
+	db.QueryRow(`SELECT author FROM reviews WHERE text = 'nice'`).Scan(&author)
+	if err := admin(db, []string{"ban", author}); err != nil {
+		t.Fatal(err)
+	}
+	_, d = anon.do("GET", "/v1/ports/rzrbld/ReNFS5", nil)
+	if d["reviews"].(float64) != 1 {
+		t.Fatalf("banned review shown: %v", d["reviews"])
+	}
+	if st, _ := b.do("POST", "/v1/ports/rzrbld/ReNFS5/reviews", map[string]any{"rating": 1}); st != 403 {
+		t.Fatal("banned wrote")
+	}
+	// unsharing: listed while anyone shares it
+	b2 := client{t, srv.URL, strings.Repeat("c3", 32)}
+	b2.do("POST", "/v1/ports", map[string]any{"repo": "rzrbld/ReNFS5"})
+	a.do("DELETE", "/v1/ports/rzrbld/ReNFS5/share", nil)
+	if _, j := anon.do("GET", "/v1/ports", nil); len(j["ports"].([]any)) != 1 {
+		t.Fatal("gone while still shared")
+	}
+	b2.do("DELETE", "/v1/ports/rzrbld/ReNFS5/share", nil)
+	if _, j := anon.do("GET", "/v1/ports", nil); len(j["ports"].([]any)) != 0 {
+		t.Fatal("listed with no sharer")
+	}
+	// nothing that identifies a person is in the database
+	var n int
+	db.QueryRow(`SELECT COUNT(*) FROM authors WHERE id LIKE '%a1a1%'`).Scan(&n)
+	if n != 0 {
+		t.Fatal("device secret stored")
+	}
+}
+
+func TestRateLimit(t *testing.T) {
+	l := newLimiter(3, time.Hour)
+	for i := 0; i < 3; i++ {
+		if !l.allow("x") {
+			t.Fatal("blocked early")
+		}
+	}
+	if l.allow("x") || !l.allow("y") {
+		t.Fatal("limit")
+	}
+}

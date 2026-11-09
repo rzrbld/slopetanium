@@ -1,0 +1,29 @@
+[Unit]
+Description=Slopetanium community server (slopetanium.pw)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=slopetanium
+Group=slopetanium
+EnvironmentFile=-/etc/slopetanium/community.env
+ExecStart=/opt/slopetanium/slopetanium-community serve -listen 127.0.0.1:8787 -db /var/lib/slopetanium/community.db -base https://slopetanium.pw
+Restart=always
+RestartSec=3
+# nothing but its own data
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/slopetanium
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryMax=300M
+
+[Install]
+WantedBy=multi-user.target

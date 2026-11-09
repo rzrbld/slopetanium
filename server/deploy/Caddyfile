@@ -1,0 +1,22 @@
+# Caddy gets and renews the Let's Encrypt certificates by itself
+slopetanium.pw {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	request_body {
+		max_size 64KB
+	}
+	reverse_proxy 127.0.0.1:8787
+	log {
+		output discard
+	}
+}
+
+www.slopetanium.pw {
+	redir https://slopetanium.pw{uri} permanent
+	log {
+		output discard
+	}
+}

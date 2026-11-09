@@ -29,6 +29,7 @@ import urllib.request
 import urllib.error
 
 import gog as gog_mod
+import community as community_mod
 
 USER_AGENT = "slopetanium/0.1"
 API = "https://api.github.com"
@@ -426,6 +427,7 @@ class Core(object):
         self.http = Http(lambda: self.state["settings"].get("github_token", ""))
         self.gog = gog_mod.Gog(self.state["settings"].setdefault("gog", {}), self.save, self.log)
         self.gog.fits = lambda d, size, name: check_fits(d, size, name)
+        self.community = community_mod.Community(self.state["settings"], self.save, self.log)
         if catalogue:
             self._seed_catalogue()
         self._stop = threading.Event()
@@ -457,6 +459,7 @@ class Core(object):
         s.setdefault("pin", "%04d" % random.randint(0, 9999))
         s.setdefault("gog_auto", True)  # fetch a port's game files from GOG after installing it
         s.setdefault("catalogue_offered", [])
+        s.setdefault("count_installs", None)  # community install counts: None until the owner answered
         for r in state["repos"]:
             self._repo_defaults(r)
         return state
@@ -466,6 +469,7 @@ class Core(object):
         r.setdefault("prereleases", True)
         r.setdefault("port_name", "")  # harbourmaster's name: the zip file name, lower case
         r.setdefault("installed_tag", None)
+        r.setdefault("shared", False)  # shared with the community (slopetanium.pw)
         r.setdefault("installed_md5", None)
         r.setdefault("installed_at", None)
         r.setdefault("history", [])  # [{tag, at}] newest first
@@ -515,6 +519,13 @@ class Core(object):
                 s["keep_versions"] = max(1, min(20, int(data["keep_versions"])))
             if "gog_auto" in data:
                 s["gog_auto"] = bool(data["gog_auto"])
+            if "count_installs" in data:
+                s["count_installs"] = None if data["count_installs"] is None else bool(data["count_installs"])
+            if "community_url" in data:
+                u = str(data["community_url"] or "").strip().rstrip("/")
+                if u and not (u.startswith("https://") or u.startswith("http://127.0.0.1") or u.startswith("http://localhost")):
+                    raise ValueError("The community server is an https:// address")
+                s["community_url"] = u
             if data.get("new_pin"):
                 s["pin"] = "%04d" % random.randint(0, 9999)
             self.save()
@@ -540,7 +551,68 @@ class Core(object):
             self.save()
         self.log("watching %s" % repo)
         self.queue_check(r["id"])
+        if data.get("share"):
+            try:
+                self.share_repo(r["id"], True)
+            except Exception as e:
+                r["share_error"] = str(e)
         return r
+
+    # ---------------------------------------------------------------- the community
+    def share_repo(self, repo_id, on):
+        r = self.get_repo(repo_id)
+        if on:
+            res = self.community.share(r)
+            if res.get("repo") and res["repo"].lower() == r["repo"].lower():
+                r["repo"] = res["repo"]  # GitHub's own spelling
+            self.log("%s: shared with the community" % r["repo"])
+        else:
+            try:
+                res = self.community.unshare(r["repo"])
+            except community_mod.CommunityError as e:
+                if e.status != 404:
+                    raise
+                res = {"shared": False}
+            self.log("%s: no longer shared" % r["repo"])
+        with self.lock:
+            r["shared"] = bool(on)
+            self.save()
+        self.changed += 1
+        return res
+
+    def watched_by_repo(self):
+        return dict((r["repo"].lower(), r) for r in self.state["repos"])
+
+    def community_ports(self, q="", sort="popular"):
+        res = self.community.ports(q, sort)
+        mine = self.watched_by_repo()
+        for p in res.get("ports", []):
+            w = mine.get(p["repo"].lower())
+            p["watched"] = w["id"] if w else None
+        return res
+
+    def community_port(self, repo):
+        d = self.community.port(repo)
+        w = self.watched_by_repo().get(d["repo"].lower())
+        d["watched"] = w["id"] if w else None
+        d["installed_tag"] = w.get("installed_tag") if w else None
+        d["shared_here"] = bool(w and w.get("shared"))
+        return d
+
+    def community_review(self, repo, rating, text):
+        w = self.watched_by_repo().get(repo.lower())
+        res = self.community.review(repo, rating, text, (w or {}).get("installed_tag") or "")
+        self.log("%s: review posted (%d stars)" % (repo, int(rating)))
+        return res
+
+    def add_from_community(self, repo):
+        """Watch a community port, with what its sharer said it needs."""
+        d = self.community.port(repo)
+        if d["repo"].lower() in self.watched_by_repo():
+            raise ValueError("%s is already watched" % d["repo"])
+        data = dict((k, v) for k, v in (d.get("config") or {}).items() if k in community_mod.SHARED_FIELDS)
+        data.update({"repo": d["repo"], "title": d.get("title") or "", "cover_url": d.get("cover_url") or ""})
+        return self.add_repo(data)
 
     def _apply_repo_fields(self, r, data):
         if "asset_pattern" in data:
@@ -1109,6 +1181,7 @@ class Core(object):
             self._prune_cache(r)
             self.save()
         job.message = ("Installed %s" % tag) + ((" (was %s)" % prev) if prev and prev != tag else "")
+        self.community.count_install(r["repo"], tag)
         if pdir and os.path.realpath(pdir) == os.path.realpath(self.root):
             job.message += ": restart Slopetanium to use it"
         self.log("%s: %s" % (r["repo"], job.message))
@@ -2012,6 +2085,7 @@ class Core(object):
             "art": self._art(info),
             "cover": self.cover(r, info), "cover_url": r.get("cover_url", ""),
             "skipped": r.get("skipped", []),
+            "shared": bool(r.get("shared")),
             "upload_fs": fs_info(os.path.join(info["_dir"], r.get("originals_dir") or ".")) if info else None,
             "backup_fs": fs_info(self.backup_dir),
             "backups": self.backups(r, info["_dir"]) if info else [],
@@ -2044,6 +2118,8 @@ class Core(object):
             s["github_token"] = "set" if s.get("github_token") else ""
             s.pop("pin", None)
             s.pop("gog", None)  # its token never leaves the core
+            s.pop("device_secret", None)  # nor the handheld's community id
+            s["community_url"] = self.community.url
             return {
                 "repos": repos,
                 "other_ports": others,

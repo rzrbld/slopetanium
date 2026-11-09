@@ -235,6 +235,38 @@ details.adv > summary { cursor: pointer; color: var(--muted); font-weight: 600; 
 .up-list { margin-top: 12px; display: grid; gap: 8px; text-align: left; }
 .up-item { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 13px; }
 .up-item .progress { grid-column: 1 / -1; }
+/* community */
+.stars { position: relative; display: inline-block; font-size: 14px; letter-spacing: 1px; line-height: 1; color: var(--line-2); white-space: nowrap; vertical-align: -1px; }
+.stars::before { content: "★★★★★"; }
+.stars i { position: absolute; left: 0; top: 0; overflow: hidden; color: #ffc247; font-style: normal; white-space: nowrap; }
+.stars i::before { content: "★★★★★"; }
+.rate { display: inline-flex; gap: 2px; }
+.rate button { border: 0; background: none; padding: 2px; cursor: pointer; font-size: 28px; line-height: 1; color: var(--line-2); transition: transform .1s, color .1s; }
+.rate button.on { color: #ffc247; }
+.rate button:hover { transform: scale(1.12); }
+textarea.rv { width: 100%; min-height: 84px; resize: vertical; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--bg-2); color: var(--text); font: inherit; }
+textarea.rv:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 14px; }
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.switch .tr { width: 40px; height: 23px; border-radius: 99px; background: var(--surface-3); border: 1px solid var(--line-2); position: relative; transition: background .15s; flex: none; }
+.switch .tr::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.switch input:checked + .tr { background: var(--accent); border-color: transparent; }
+.switch input:checked + .tr::after { transform: translateX(17px); background: #fff; }
+.switch input:focus-visible + .tr { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ccard { display: grid; grid-template-columns: 84px 1fr; gap: 14px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); text-decoration: none; transition: transform .15s, border-color .15s; }
+.ccard:hover { transform: translateY(-2px); border-color: var(--line-2); }
+.ccard .cover { width: 84px; align-self: start; }
+.ccard h3 { margin: 0; font-size: 15.5px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ccard .desc { font-size: 13px; color: var(--muted); margin: 4px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cmeta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.cmeta b { color: var(--text); font-variant-numeric: tabular-nums; }
+.rev { padding: 12px 0; border-top: 1px solid var(--line); }
+.rev:first-child { border-top: 0; padding-top: 0; }
+.rev p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+.avatar { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-family: "Pixelify", sans-serif; font-size: 13px; flex: none; }
+.chead { display: grid; grid-template-columns: 140px 1fr; gap: 22px; align-items: start; }
+.chead .cover { width: 140px; }
+@media (max-width: 760px) { .chead { grid-template-columns: 90px 1fr; gap: 14px; } .chead .cover { width: 90px; } }
 /* file browser */
 .fb-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .crumbs { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; min-width: 0; font-size: 14px; }
@@ -344,6 +376,7 @@ dialog .dl-acts { display: flex; justify-content: flex-end; gap: 8px; padding: 0
       <a href="#library" data-p="library"><svg class="i"><use href="#i-grid"/></svg><span class="lbl">Library</span><span class="count hidden" id="ucount"></span></a>
       <a href="#add" data-p="add"><svg class="i"><use href="#i-plus"/></svg><span class="lbl">Add</span></a>
       <a href="#settings" data-p="settings"><svg class="i"><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
+      <a href="#community" data-p="community"><svg class="i"><use href="#i-globe"/></svg><span class="lbl">Community</span></a>
       <a href="#activity" data-p="activity"><svg class="i"><use href="#i-pulse"/></svg><span class="lbl">Activity</span></a>
     </nav>
     <div class="bar-right">
@@ -393,6 +426,9 @@ dialog .dl-acts { display: flex; justify-content: flex-end; gap: 8px; padding: 0
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
   <symbol id="i-newdir" viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M12 10.5v5M9.5 13h5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/></symbol>
   <symbol id="i-gog" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9.5h3v5H8zM13 9.5h3v5h-3"/></symbol>
 </svg>
 
@@ -505,7 +541,8 @@ let filter = 'all', query = '';
 function parseHash() {
   const h = location.hash.slice(1);
   if (h.startsWith('port=')) { const q = new URLSearchParams(h); route.port = q.get('port'); route.tab = q.get('tab') || 'overview'; }
-  else { route.port = null; route.page = ['library', 'add', 'settings', 'activity'].includes(h) ? h : 'library'; }
+  else if (h.startsWith('c=')) { route.port = null; route.page = 'community'; route.cport = decodeURIComponent(h.slice(2)); }
+  else { route.port = null; route.cport = null; route.page = ['library', 'add', 'settings', 'activity', 'community'].includes(h) ? h : 'library'; }
 }
 function go(h) { location.hash = h; }
 addEventListener('hashchange', () => { parseHash(); render(true); });
@@ -526,6 +563,7 @@ async function boot(fromLogin) {
   catch (e) { if (fromLogin) showLogin('That PIN didn’t work. Check the handheld’s Connect screen.'); return; }
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   parseHash(); render(true); poll();
+  askCountInstalls();
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S) poll(); });
 
@@ -596,7 +634,7 @@ function render(force) {
   $('#st-disk').innerHTML = d.free == null ? '' : `${ico('disk')}${size(d.free)} free`;
   const main = $('#main');
   if (main.dataset.page !== route.page) { main.dataset.page = route.page; main.innerHTML = ''; force = true; }
-  ({ library: renderLibrary, add: renderAdd, settings: renderSettings, activity: renderActivity })[route.page](main, force);
+  ({ library: renderLibrary, add: renderAdd, settings: renderSettings, activity: renderActivity, community: renderCommunity })[route.page](main, force);
   renderDrawer(force);
 }
 const typing = el => el && el.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
@@ -773,10 +811,12 @@ function paneOverview(body, r) {
   }
   if (latest) html += `<div class="panel"><h3>What's new in ${esc(shortTag(latest.tag))} <span class="faint small" style="font-weight:400">${day(latest.published)}</span></h3><div class="md">${md(latest.body)}</div>
     ${latest.url ? `<a class="chip" href="${esc(latest.url)}" target="_blank" rel="noopener" style="margin-top:6px">${ico('ext')}On GitHub</a>` : ''}</div>`;
+  html += `<div id="cpanel"></div>`;
   html += `<div class="panel danger"><h3>${ico('alert')}Danger zone</h3><div class="row">
     ${r.installed && !r.is_self ? `<button class="btn danger sm" onclick="uninstall('${r.id}')">${ico('trash')}Uninstall</button>` : ''}
     <button class="btn danger sm" onclick="unwatch('${r.id}')">${ico('x')}Stop watching</button></div></div></div>`;
   body.innerHTML = html;
+  communityPanel(r);
 }
 
 function paneVersions(body, r) {
@@ -1153,6 +1193,141 @@ function paneSettings(body, r) {
   };
 }
 
+// ---------- community (slopetanium.pw, through the handheld)
+const CP = {};          // repo (lower case) -> {t, d | err}
+const CL = { q: '', sort: 'popular', data: null, err: '', at: 0, key: '' };
+const starsHtml = v => `<span class="stars" title="${(+v).toFixed(1)} of 5"><i style="width:${Math.round(v / 5 * 100)}%"></i></span>`;
+const avatar = n => { const [c1, c2] = tint(n); return `<span class="avatar" style="background:linear-gradient(150deg,${c1},${c2})">${esc(initials(n))}</span>`; };
+const cname = repo => repo.split('/')[1];
+async function cport(repo, fresh) {
+  const k = repo.toLowerCase(), c = CP[k];
+  if (c && !fresh && Date.now() - c.t < 60000) return c;
+  try { CP[k] = { t: Date.now(), d: await api('GET', `/api/community/port?repo=${encodeURIComponent(repo)}`) }; }
+  catch (e) { CP[k] = { t: Date.now(), err: e.message, status: e.status }; }
+  return CP[k];
+}
+function askCountInstalls() {
+  if (!S || S.settings.count_installs !== null && S.settings.count_installs !== undefined) return;
+  confirmBox({ title: 'Help the community?', ok: 'Yes, count them', cancel: 'No thanks',
+    body: `Count your installs on <b>${esc(S.settings.community_url.replace(/^https?:\/\//, ''))}</b>, so others see which ports people use. Sent: the port, its version, your handheld model and firmware, once per version. Nothing about you or where you are. You can change this in Settings.` })
+    .then(yes => act(() => api('PUT', '/api/settings', { count_installs: yes }), yes ? 'Thanks! Installs are counted' : null));
+}
+async function changeNick() {
+  const cur = $('#mynick') ? $('#mynick').textContent : '';
+  const n = await askName('Your name in reviews', cur, 'Save');
+  if (n === null) return;
+  const m = await act(() => api('PUT', '/api/community/me', { nick: n }), 'Name saved');
+  if (m) $$('#mynick').forEach(x => x.textContent = m.shown_as);
+}
+function reviewForm(repo, mine) {
+  const r0 = mine ? mine.rating : 0;
+  return `<form class="stack" data-review="${esc(repo)}" style="gap:10px">
+    <div class="rate" data-v="${r0}">${[1, 2, 3, 4, 5].map(i => `<button type="button" data-s="${i}" class="${i <= r0 ? 'on' : ''}" aria-label="${i} star${i > 1 ? 's' : ''}">★</button>`).join('')}</div>
+    <textarea class="rv" name="text" maxlength="2000" placeholder="How does it run on your handheld? (optional)">${esc(mine ? mine.text : '')}</textarea>
+    <div class="row"><button class="btn primary sm">${ico('check')}${mine ? 'Update review' : 'Post review'}</button>
+      ${mine ? `<button type="button" class="btn ghost sm" data-unreview>Delete my review</button>` : ''}
+      <span class="faint tiny">Shown on the website as <b id="mynick">…</b></span></div></form>`;
+}
+function bindReview(root, after) {
+  const f = $('[data-review]', root); if (!f) return;
+  const rate = $('.rate', f);
+  rate.onclick = e => { const b = e.target.closest('[data-s]'); if (!b) return; rate.dataset.v = b.dataset.s; $$('button', rate).forEach(x => x.classList.toggle('on', +x.dataset.s <= +b.dataset.s)); };
+  f.onsubmit = async e => {
+    e.preventDefault();
+    if (!+rate.dataset.v) return toast('Pick 1 to 5 stars first', true);
+    if (await act(() => api('POST', '/api/community/review', { repo: f.dataset.review, rating: +rate.dataset.v, text: f.text.value }), 'Review posted. Thanks!')) after();
+  };
+  const del = $('[data-unreview]', f);
+  if (del) del.onclick = async () => { if (await confirmBox({ title: 'Delete your review?', ok: 'Delete', danger: true }) && await act(() => api('POST', '/api/community/unreview', { repo: f.dataset.review }), 'Review deleted')) after(); };
+  api('GET', '/api/community/me').then(m => $$('#mynick', root).forEach(x => x.textContent = m.shown_as)).catch(() => {});
+}
+// in a port's Overview: share it, its rating, this handheld's review
+async function communityPanel(r, fresh) {
+  const box = $('#cpanel'); if (!box) return;
+  const c = await cport(r.repo, fresh);
+  const box2 = $('#cpanel'); if (!box2 || route.port !== r.id) return;
+  const d = c.d, mine = d && d.review_list.find(x => x.mine);
+  const site = `${S.settings.community_url}/p/${(d && d.repo) || r.repo}`;
+  box2.innerHTML = `<div class="panel"><h3>${ico('globe')}Community ${d && d.reviews ? `<span class="row" style="gap:6px;font-weight:500">${starsHtml(d.rating)}<b>${d.rating.toFixed(1)}</b><span class="faint small">${d.reviews} review${d.reviews === 1 ? '' : 's'}</span></span>` : ''}
+      ${d ? `<span class="faint small" style="font-weight:500">${d.pulls} install${d.pulls === 1 ? '' : 's'}</span>` : ''}</h3>
+    <label class="switch"><input type="checkbox" id="shr" ${r.shared ? 'checked' : ''}><span class="tr"></span><span>Share with the community</span></label>
+    <p class="faint small" style="margin:6px 0 0">${d ? `Listed: <a href="${esc(site)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(site.replace(/^https?:\/\//, ''))}</a>${d.sharers > 1 ? ` · shared by ${d.sharers} handhelds` : ''}`
+      : c.status === 404 ? (r.shared ? 'Shared; it shows up once the server has checked its GitHub releases.' : 'Not in the community yet. Share it so others find it.')
+      : `The community server can't be reached right now${c.err ? ' (' + esc(c.err) + ')' : ''}.`}</p>
+    ${d ? `<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)"><h3 style="margin-bottom:10px">${mine ? 'Your review' : 'Rate it'}</h3>${reviewForm(d.repo, mine)}</div>` : ''}</div>`;
+  $('#shr', box2).onchange = async e => {
+    const on = e.target.checked;
+    const res = await act(() => api('POST', `/api/repos/${r.id}/share`, { share: on }), on ? 'Shared with the community' : 'No longer shared');
+    if (!res) e.target.checked = !on;
+    communityPanel(repo(r.id) || r, true);
+  };
+  bindReview(box2, () => communityPanel(r, true));
+}
+async function loadCommunity() {
+  const key = CL.q + '|' + CL.sort;
+  CL.key = key;
+  try { const d = await api('GET', `/api/community/ports?q=${encodeURIComponent(CL.q)}&sort=${CL.sort}`); if (CL.key === key) { CL.data = d.ports; CL.err = ''; CL.at = Date.now(); } }
+  catch (e) { CL.err = e.message; }
+  if (route.page === 'community') drawCommunity();
+}
+function renderCommunity(main, force) {
+  if (!force && (typing(main) || $('#cgrid', main) || $('#cdetail', main))) return;
+  main.innerHTML = '<div id="cx"></div>';
+  if (route.cport) return drawCommunityPort(route.cport);
+  if (!CL.data || Date.now() - CL.at > 60000) loadCommunity();
+  drawCommunity();
+}
+function ccover(p, w) {
+  const [c1, c2] = tint(p.repo);
+  return `<div class="cover"${w ? ` style="width:${w}px"` : ''}>${p.cover_url ? `<img src="${esc(p.cover_url)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="ph" style="--c1:${c1};--c2:${c2}">${esc(initials(p.title))}</div>`}</div>`;
+}
+function drawCommunity() {
+  const box = $('#cx'); if (!box || route.cport) return;
+  const list = CL.data;
+  box.innerHTML = `
+    <div class="page-head"><div class="grow"><h1 class="pixel">Community</h1><p class="muted">Ports other Slopetanium users share. Add one to watch and install it here. Also on <a href="${esc(S.settings.community_url)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(S.settings.community_url.replace(/^https?:\/\//, ''))}</a>.</p></div>
+      <div class="row small"><span class="muted">You post as</span><b id="mynick">…</b><button class="btn ghost sm" onclick="changeNick()">${ico('edit')}</button></div></div>
+    <div class="toolbar"><div class="search">${ico('search')}<input id="cq" placeholder="Search community ports" value="${esc(CL.q)}" autocomplete="off"></div>
+      <div class="seg" id="cseg">${[['popular', 'Popular'], ['rating', 'Top rated'], ['updated', 'Updated'], ['new', 'New']].map(([k, l]) => `<button data-s="${k}" class="${CL.sort === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+    <div id="cgrid" class="grid">${CL.err && !list ? `<div class="empty" style="grid-column:1/-1"><h2>Can't reach the community</h2><p>${esc(CL.err)}</p><p><button class="btn" onclick="loadCommunity()">${ico('refresh')}Try again</button></p></div>`
+      : !list ? `<div class="empty" style="grid-column:1/-1"><p>Loading…</p></div>`
+      : !list.length ? `<div class="empty" style="grid-column:1/-1"><h2>${CL.q ? 'Nothing matches' : 'Nothing shared yet'}</h2><p>Share a port from its page: Overview → Community.</p></div>`
+      : list.map(p => `<a class="ccard" href="#c=${encodeURIComponent(p.repo)}">${ccover(p)}
+          <div style="min-width:0"><h3>${esc(p.title)}</h3><div class="faint tiny">${esc(p.repo)}</div>${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
+            <div class="cmeta">${p.reviews ? `<span>${starsHtml(p.rating)} <b>${p.rating.toFixed(1)}</b></span>` : '<span class="faint">no reviews</span>'}<span><b>${p.pulls}</b> installs</span>
+              ${p.watched ? `<span class="chip ok" style="height:22px">${ico('check')}Watching</span>` : ''}</div></div></a>`).join('')}</div>`;
+  let t = null;
+  $('#cq', box).oninput = e => { clearTimeout(t); t = setTimeout(() => { CL.q = e.target.value.trim(); loadCommunity(); }, 300); };
+  $('#cseg', box).onclick = e => { const b = e.target.closest('[data-s]'); if (!b) return; CL.sort = b.dataset.s; CL.data = null; drawCommunity(); loadCommunity(); };
+  api('GET', '/api/community/me').then(m => $$('#mynick').forEach(x => x.textContent = m.shown_as)).catch(() => {});
+}
+async function drawCommunityPort(repoName, fresh) {
+  const box = $('#cx'); if (!box) return;
+  if (!CP[repoName.toLowerCase()]) box.innerHTML = '<div class="empty"><p>Loading…</p></div>';
+  const c = await cport(repoName, fresh), d = c.d;
+  if (route.cport !== repoName || !$('#cx')) return;
+  if (!d) { box.innerHTML = `<div class="empty"><h2>${c.status === 404 ? 'Not in the community' : 'Can\u2019t reach the community'}</h2><p>${esc(c.err)}</p><p><a class="btn" href="#community">Back</a></p></div>`; return; }
+  const mine = d.review_list.find(x => x.mine), w = d.watched;
+  const fact = (k, v) => `<div class="fact"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  box.innerHTML = `<div id="cdetail" class="stack">
+    <a href="#community" class="btn ghost sm" style="justify-self:start">${ico('back')}Community</a>
+    <div class="chead">${ccover(d)}<div style="min-width:0">
+      <h1 style="margin:0 0 4px;font-size:26px;line-height:1.2">${esc(d.title)}</h1>
+      <a class="chip" href="https://github.com/${esc(d.repo)}" target="_blank" rel="noopener">${ico('ext')}${esc(d.repo)}</a>
+      ${d.description ? `<p class="muted" style="white-space:pre-wrap;margin:10px 0 0">${esc(d.description)}</p>` : ''}
+      <div class="row" style="margin-top:14px">${w ? `<a class="btn primary" href="#port=${w}">${ico('arrow')}Open in my ports</a>` : `<button class="btn primary" id="cadd">${ico('plus')}Add to my ports</button>`}
+        <a class="btn ghost" href="${esc(S.settings.community_url)}/p/${esc(d.repo)}" target="_blank" rel="noopener">${ico('ext')}On the website</a></div></div></div>
+    <div class="facts">${fact('Rating', d.reviews ? `${starsHtml(d.rating)} ${d.rating.toFixed(1)}` : '—')}${fact('Installs', d.pulls + (d.pulls_week ? ` <span class="faint small">+${d.pulls_week} this week</span>` : ''))}${fact('Latest', esc(shortTag(d.latest_tag)))}${d.latest_size ? fact('Download', size(d.latest_size)) : ''}</div>
+    ${w ? `<div class="panel"><h3>${mine ? 'Your review' : 'Rate it'}</h3>${reviewForm(d.repo, mine)}</div>` : `<p class="faint small" style="margin:0">Add it to your ports to rate it.</p>`}
+    <div class="panel"><h3>Reviews ${d.reviews ? `<span class="faint small" style="font-weight:500">${d.reviews}</span>` : ''}</h3>
+      ${d.review_list.length ? d.review_list.map(v => `<div class="rev"><div class="row" style="gap:8px">${avatar(v.nick)}<b>${esc(v.nick)}</b>${v.mine ? '<span class="chip ok" style="height:22px">you</span>' : ''}${starsHtml(v.rating)}
+          <span class="faint tiny">${ago(v.updated)}${v.version ? ' · ' + esc(shortTag(v.version)) : ''}${v.device ? ' · ' + esc(v.device) : ''}</span></div>${v.text ? `<p>${esc(v.text)}</p>` : ''}</div>`).join('')
+        : '<p class="muted small" style="margin:0">No reviews yet.</p>'}</div></div>`;
+  const add = $('#cadd', box);
+  if (add) add.onclick = async () => { const j = await act(() => api('POST', '/api/community/add', { repo: d.repo }), `Watching ${d.title}: checking its releases…`); if (j) { delete CP[d.repo.toLowerCase()]; await poll(); go(`port=${j.id}`); } };
+  bindReview(box, () => drawCommunityPort(repoName, true));
+}
+
 // ---------- add
 function renderAdd(main, force) {
   if (!force && typing(main)) return;
@@ -1178,11 +1353,12 @@ function renderAdd(main, force) {
               <label class="f">Back up<input name="keep_on_uninstall" value="conf"></label>
             </div></details>
           <label class="check"><input type="checkbox" name="prereleases" checked> Include pre-releases</label>
+          <label class="switch"><input type="checkbox" name="share" checked><span class="tr"></span><span>Share with the community <span class="faint" style="font-weight:400">· others find it on <a href="${esc(S.settings.community_url)}" target="_blank" rel="noopener">${esc(S.settings.community_url.replace(/^https?:\/\//, ''))}</a> and in Slopetanium</span></span></label>
           <div><button class="btn primary">${ico('plus')}Watch it</button></div></form></section></div>`;
   main.onclick = e => { const b = e.target.closest('[data-cat]'); if (b) act(() => api('POST', '/api/catalogue/add', { repo: b.dataset.cat }), `Watching ${b.dataset.cat}`); };
   $('#addf', main).onsubmit = async e => {
     e.preventDefault(); const f = e.target;
-    const r = await act(() => api('POST', '/api/repos', { repo: f.repo.value, asset_pattern: f.asset_pattern.value, originals_dir: f.originals_dir.value, keep_on_uninstall: f.keep_on_uninstall.value, prereleases: f.prereleases.checked }), 'Added: checking its releases…');
+    const r = await act(() => api('POST', '/api/repos', { repo: f.repo.value, asset_pattern: f.asset_pattern.value, originals_dir: f.originals_dir.value, keep_on_uninstall: f.keep_on_uninstall.value, prereleases: f.prereleases.checked, share: f.share.checked }), 'Added: checking its releases…');
     if (r) go('library');
   };
 }
@@ -1202,6 +1378,11 @@ function renderSettings(main, force) {
               <li><span class="small">Copy that page's address and paste it here:</span>
                 <div class="row" style="margin-top:6px"><input id="gogcode" placeholder="https://embed.gog.com/on_login_success?origin=client&code=…" autocomplete="off" style="flex:1 1 300px"><button class="btn primary" id="goglink">Link</button></div></li></ol>`}
           <label class="check" style="margin-top:14px"><input type="checkbox" id="gogauto" ${s.gog_auto !== false ? 'checked' : ''}> Fetch a port's game files after installing it</label></div></section>
+      <section class="section"><header><h2 class="row" style="gap:8px">${ico('globe')}Community</h2><p>Ports Slopetanium users share, with reviews, at <a href="${esc(s.community_url)}" target="_blank" rel="noopener">${esc(s.community_url.replace(/^https?:\/\//, ''))}</a>. No account: the server knows this handheld only by a random id.</p></header>
+        <div class="content stack">
+          <label class="switch"><input type="checkbox" id="cnt" ${s.count_installs ? 'checked' : ''}><span class="tr"></span><span>Count my installs <span class="faint" style="font-weight:400">· the port, version, handheld model and firmware, once per version; never where you are</span></span></label>
+          <div class="row"><span class="muted small">You post reviews as</span><b id="mynick">…</b><button class="btn ghost sm" id="nickbtn">${ico('edit')}Change</button></div>
+          <details class="adv"><summary>Server</summary><div class="row" style="margin-top:8px"><input id="curl" value="${esc(s.community_url)}" style="flex:1 1 280px"><button class="btn sm" id="curlsave">Save</button></div></details></div></section>
       <section class="section"><header><h2>Checking for updates</h2></header>
         <form class="content stack" id="setf">
           <div class="form-grid">
@@ -1226,6 +1407,10 @@ function renderSettings(main, force) {
   q('#gogauto').onchange = e => act(() => api('PUT', '/api/settings', { gog_auto: e.target.checked }), 'Saved');
   q('#setf').onsubmit = e => { e.preventDefault(); const f = e.target; const b = { auto_check_minutes: +f.auto_check_minutes.value, keep_versions: +f.keep_versions.value }; if (f.github_token.value) b.github_token = f.github_token.value; act(() => api('PUT', '/api/settings', b), 'Saved'); };
   if (q('#notoken')) q('#notoken').onclick = () => act(() => api('PUT', '/api/settings', { github_token: '' }), 'Token removed');
+  q('#cnt').onchange = e => act(() => api('PUT', '/api/settings', { count_installs: e.target.checked }), e.target.checked ? 'Your installs count for the community. Thanks!' : 'Installs are no longer counted');
+  q('#curlsave').onclick = () => act(() => api('PUT', '/api/settings', { community_url: q('#curl').value }), 'Saved');
+  q('#nickbtn').onclick = () => changeNick();
+  api('GET', '/api/community/me').then(m => { const n = $('#mynick'); if (n) n.textContent = m.shown_as; }).catch(() => { const n = $('#mynick'); if (n) n.textContent = '(offline)'; });
   q('#newpin').onclick = async () => { if (await confirmBox({ title: 'Make a new PIN?', body: 'Every browser, this one too, then needs the new PIN from the handheld.', ok: 'New PIN' })) { if (await act(() => api('PUT', '/api/settings', { new_pin: true }))) showLogin('Enter the new PIN from the handheld.'); } };
 }
 
