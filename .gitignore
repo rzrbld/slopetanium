@@ -1,0 +1,10 @@
+dist/
+__pycache__/
+*.pyc
+port/slopetanium/conf/
+port/slopetanium/log.txt
+.venv/
+# built by tools/build-ui.sh (CI builds them for releases)
+ui/slopetanium-ui
+ui/slopetanium-ui.*
+port/slopetanium/slopetanium-ui.*

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<gameList>
+  <game>
+    <path>./Slopetanium.sh</path>
+    <name>Slopetanium</name>
+    <desc>Keeps PortMaster ports from GitHub releases up to date. Manage it from a browser on your PC, phone or tablet: watch repos, update, roll back, clean up original game files.</desc>
+    <developer>rzrbld</developer>
+    <genre>Tool</genre>
+    <image>./slopetanium/screenshot.png</image>
+  </game>
+</gameList>

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slopetanium</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--mut:#667085;--line:#e3e6ec;--acc:#2f6fed;--ok:#1a8f4c;--warn:#c27100;--bad:#c62f2f;--chip:#eef1f6}
+@media (prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1b2029;--fg:#e6e9ef;--mut:#98a2b3;--line:#2b3240;--acc:#6f9bff;--ok:#41c27a;--warn:#f0a73a;--bad:#ff6b6b;--chip:#252c38}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header h1{font-size:18px;margin:0 auto 0 0}
+main{max-width:980px;margin:0 auto;padding:16px}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button.bad{color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:100%}
+input[type=checkbox]{width:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1 1 auto;min-width:0}
+.title{font-weight:600;font-size:16px}
+.mut{color:var(--mut);font-size:13px}
+.chip{display:inline-block;background:var(--chip);border-radius:20px;padding:2px 9px;font-size:12px;margin-right:4px}
+.s-current{color:var(--ok)} .s-update{color:var(--warn)} .s-error{color:var(--bad)}
+.badge{background:var(--warn);color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;margin-left:6px}
+.bar{height:6px;background:var(--chip);border-radius:4px;overflow:hidden;margin-top:8px}
+.bar>i{display:block;height:100%;background:var(--acc);transition:width .3s}
+details summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:middle}
+.log{font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;max-height:300px;overflow:auto;background:var(--bg);padding:8px;border-radius:8px}
+.tabs button{border-radius:20px}
+.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:640px){.grid{grid-template-columns:1fr}}
+label{font-size:13px;color:var(--mut);display:block;margin-bottom:3px}
+.notes{white-space:pre-wrap;font-size:13px;color:var(--mut);max-height:160px;overflow:auto}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);max-width:520px;width:calc(100% - 32px)}
+dialog::backdrop{background:#0008}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;display:none;max-width:90%}
+</style>
+</head>
+<body>
+<header>
+  <h1>Slopetanium</h1>
+  <span class="tabs row">
+    <button data-tab="ports" class="on">Ports</button>
+    <button data-tab="add">Add</button>
+    <button data-tab="settings">Settings</button>
+    <button data-tab="log">Log</button>
+  </span>
+</header>
+<main>
+  <section id="login" class="card" hidden>
+    <div class="title">Enter the PIN shown on the handheld</div>
+    <form class="row" style="margin-top:10px" onsubmit="login(event)">
+      <input id="pin" inputmode="numeric" autocomplete="off" maxlength="4" style="max-width:120px">
+      <button class="pri">Unlock</button>
+    </form>
+  </section>
+
+  <section id="tab-ports">
+    <div class="row" style="margin-bottom:12px">
+      <span class="grow mut" id="summary"></span>
+      <button onclick="api('POST','/api/check').then(()=>toast('Checking GitHub…'))">Check now</button>
+      <button class="pri" id="updall" onclick="updateAll()">Update all</button>
+    </div>
+    <div id="repos"></div>
+    <details class="card" id="others-box"><summary>Installed ports not watched here</summary><div id="others"></div></details>
+  </section>
+
+  <section id="tab-add" hidden>
+    <form class="card" onsubmit="addRepo(event)">
+      <div class="title">Watch a GitHub repo</div>
+      <p class="mut">Any repo whose releases have a PortMaster port .zip (with port.json) attached.</p>
+      <div class="grid">
+        <div><label>Repo (owner/name or link)</label><input name="repo" required placeholder="rzrbld/TheFamilia"></div>
+        <div><label>Asset name pattern (optional, e.g. *.zip)</label><input name="asset_pattern" placeholder="first .zip"></div>
+        <div><label>Originals folder (user's game files, inside the port)</label><input name="originals_dir" value="source"></div>
+        <div><label>Back up before uninstall (comma separated)</label><input name="keep_on_uninstall" value="conf"></div>
+      </div>
+      <p class="row"><label class="row" style="margin:0"><input type="checkbox" name="prereleases" checked> Include pre-releases</label></p>
+      <button class="pri">Add</button>
+    </form>
+  </section>
+
+  <section id="tab-settings" hidden>
+    <form class="card" onsubmit="saveSettings(event)">
+      <div class="title">Settings</div>
+      <div class="grid" style="margin-top:10px">
+        <div><label>GitHub token (optional, raises the 60 checks/hour limit)</label><input name="github_token" type="password" placeholder="unchanged" autocomplete="off"></div>
+        <div><label>Check every (minutes, 0 = only on start)</label><input name="auto_check_minutes" type="number" min="0"></div>
+        <div><label>Versions kept for offline rollback</label><input name="keep_versions" type="number" min="1" max="20"></div>
+      </div>
+      <p class="row"><button class="pri">Save</button><button type="button" onclick="clearToken()">Remove token</button><button type="button" onclick="newPin()">New PIN</button></p>
+      <p class="mut" id="paths"></p>
+    </form>
+  </section>
+
+  <section id="tab-log" hidden>
+    <div class="card"><div class="title">Jobs</div><table id="jobs"></table></div>
+    <div class="card"><div class="title">Log</div><div class="log" id="log"></div></div>
+  </section>
+</main>
+
+<dialog id="dlg"><form method="dialog" id="dlgform"></form></dialog>
+<div id="toast"></div>
+
+<script>
+let PIN = localStorage.getItem('slop_pin') || new URLSearchParams(location.search).get('pin') || '';
+let S = null, tab = 'ports', open = {};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const size = n => { n = +n || 0; for (const u of ['B','KB','MB','GB']) { if (n < 1024 || u === 'GB') return (u==='B'? n : n.toFixed(1)) + ' ' + u; n /= 1024; } };
+const ago = t => { if (!t) return 'never'; const s = Date.now()/1000 - t; if (s < 90) return 'just now'; if (s < 5400) return Math.round(s/60) + ' min ago'; if (s < 129600) return Math.round(s/3600) + ' h ago'; return Math.round(s/86400) + ' days ago'; };
+const day = iso => iso ? iso.slice(0,10) : '';
+
+function toast(m){ const t=$('#toast'); t.textContent=m; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',3500); }
+
+async function api(method, path, body){
+  const r = await fetch(path, {method, headers:{'X-Pin':PIN,'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  const j = await r.json().catch(()=>({}));
+  if (r.status === 401) { showLogin(); throw new Error(j.error); }
+  if (!r.ok) { toast(j.error || ('Error ' + r.status)); throw new Error(j.error); }
+  return j;
+}
+function showLogin(){ $('#login').hidden = false; document.querySelectorAll('main>section:not(#login)').forEach(s=>s.hidden=true); }
+async function login(e){ e.preventDefault(); PIN = $('#pin').value.trim(); try{ localStorage.setItem('slop_pin', PIN);}catch(_){}; $('#login').hidden = true; setTab(tab); poll(); }
+
+function setTab(t){ tab=t; document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
+  ['ports','add','settings','log'].forEach(x=>$('#tab-'+x).hidden = x!==t); if (S) render(); }
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+
+const STATUS = {current:'Up to date', update:'Update available', unknown_version:'Installed (version unknown)', not_installed:'Not installed', error:'Error'};
+
+function repoCard(r){
+  const j = r.job, running = j && (j.state==='running'||j.state==='queued');
+  let main = '';
+  if (r.status==='update' || r.status==='unknown_version') main = `<button class="pri" ${running?'disabled':''} onclick="install('${r.id}','${esc(r.latest_tag)}')">Update to ${esc(r.latest_tag)}</button>`;
+  else if (r.status==='not_installed' && r.latest_tag) main = `<button class="pri" ${running?'disabled':''} onclick="install('${r.id}','${esc(r.latest_tag)}')">Install ${esc(r.latest_tag)}</button>`;
+  const rb = r.installed && r.previous_tag ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(r.previous_tag)}',true)">Roll back to ${esc(r.previous_tag)}</button>` : '';
+  const o = r.originals || {files:[]};
+  const orig = o.files.length ? `<button onclick="originals('${r.id}')">Original files · ${size(o.total)}</button>` : '';
+  const rels = r.releases.map(x=>`<tr><td><b>${esc(x.tag)}</b> ${x.prerelease?'<span class="chip">pre</span>':''}${x.installed?'<span class="chip s-current">installed</span>':''}${x.cached?'<span class="chip" title="Kept on the device, installs offline">cached</span>':''}<div class="mut">${day(x.published)} · ${x.asset?esc(x.asset.name)+' · '+size(x.asset.size):'no matching zip'}</div></td>
+     <td style="text-align:right">${x.asset && !x.installed ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(x.tag)}',true)">Install</button>` : ''} ${x.body?`<button onclick="notes('${r.id}','${esc(x.tag)}')">Notes</button>`:''}</td></tr>`).join('');
+  return `<div class="card" id="c-${r.id}">
+    <div class="row"><div class="grow"><div class="title">${esc(r.title)}${r.is_new?'<span class="badge">NEW</span>':''}</div>
+      <div class="mut"><a href="https://github.com/${esc(r.repo)}/releases" target="_blank" rel="noopener" style="color:inherit">${esc(r.repo)}</a>${r.port_dir?' · ports/'+esc(r.port_dir):''}</div></div>
+      <div style="text-align:right"><div class="s-${r.status}">${STATUS[r.status]||r.status}</div>
+      <div class="mut">${[r.installed?'installed '+esc(r.installed_tag||'?'):'', r.latest_tag?'latest '+esc(r.latest_tag):''].filter(Boolean).join(' · ')}</div></div></div>
+    ${r.error?`<div class="mut s-error">${esc(r.error)}</div>`:''}
+    ${j && j.state!=='done' ? `<div class="mut ${j.state==='failed'?'s-error':''}" style="margin-top:6px">${esc(j.label)}: ${esc(j.message||j.state)}</div>${running?`<div class="bar"><i style="width:${j.progress!=null?Math.round(j.progress*100):(j.state==='running'?100:0)}%;${j.progress==null&&j.state==='running'?'opacity:.35':''}"></i></div>`:''}` : ''}
+    <div class="row" style="margin-top:10px">${main}${rb}${orig}<span class="grow"></span>
+      <button onclick="api('POST','/api/repos/${r.id}/check')">Check</button>
+      <button onclick="edit('${r.id}')">Edit</button>
+      ${r.installed?`<button class="bad" onclick="uninstall('${r.id}')">Uninstall</button>`:''}
+      <button class="bad" onclick="unwatch('${r.id}')">Remove</button></div>
+    <details ${open[r.id]?'open':''} ontoggle="open['${r.id}']=this.open"><summary>Versions (${r.releases.length}) · checked ${ago(r.last_checked)}</summary><table>${rels||'<tr><td class="mut">No releases yet</td></tr>'}</table></details>
+  </div>`;
+}
+
+function render(){
+  if (!S) return;
+  const ups = S.repos.filter(r=>r.status==='update'||r.status==='unknown_version').length;
+  $('#summary').textContent = `${S.repos.length} watched · ${ups} update${ups==1?'':'s'}` + (S.rate_remaining!=null?` · GitHub checks left this hour: ${S.rate_remaining}`:'');
+  $('#updall').disabled = !ups || S.busy;
+  if (tab==='ports') {
+    const scroll = window.scrollY;
+    $('#repos').innerHTML = S.repos.length ? S.repos.map(repoCard).join('') : '<div class="card mut">Nothing watched yet. Use “Add” to watch a GitHub repo.</div>';
+    $('#others').innerHTML = S.other_ports.map(p=>`<div class="row" style="padding:4px 0"><span class="grow">${esc(p.title)} <span class="mut">${esc(p.name)}</span></span></div>`).join('') || '<div class="mut">None</div>';
+    window.scrollTo(0, scroll);
+  }
+  if (tab==='log') {
+    $('#jobs').innerHTML = S.jobs.map(j=>`<tr><td>${esc(j.label)}</td><td class="${j.state==='failed'?'s-error':''}">${esc(j.state)}</td><td class="mut">${esc(j.message)}</td></tr>`).join('') || '<tr><td class="mut">No jobs</td></tr>';
+    const l=$('#log'); const atEnd = l.scrollTop + l.clientHeight >= l.scrollHeight - 20;
+    l.textContent = S.log.join('\n'); if (atEnd) l.scrollTop = l.scrollHeight;
+  }
+  if (tab==='settings') {
+    const f = document.querySelector('#tab-settings form');
+    if (document.activeElement.form !== f) { f.auto_check_minutes.value = S.settings.auto_check_minutes; f.keep_versions.value = S.settings.keep_versions;
+      f.github_token.placeholder = S.settings.github_token ? 'set (unchanged)' : 'not set'; }
+    $('#paths').textContent = `Ports folder: ${S.ports_dir} · PortMaster: ${S.controlfolder}`;
+  }
+}
+
+let lastChanged = -1, timer = null;
+async function poll(){
+  clearTimeout(timer);
+  try { S = await api('GET','/api/state'); if (S.changed !== lastChanged || tab==='ports') { lastChanged = S.changed; if (!document.querySelector('dialog[open]')) render(); } }
+  catch(e) {}
+  timer = setTimeout(poll, S && (S.busy || S.jobs.some(j=>j.state==='running')) ? 800 : 3000);
+}
+
+function repo(id){ return S.repos.find(r=>r.id===id); }
+async function install(id, tag, confirmIt){
+  const r = repo(id);
+  if (confirmIt && !confirm(`Install ${r.title} ${tag}? Your imported game files, settings and saves stay.`)) return;
+  await api('POST',`/api/repos/${id}/install`,{tag}); toast(`Queued ${r.title} ${tag}`); poll();
+}
+async function updateAll(){ const j = await api('POST','/api/update-all'); toast(`${j.queued} update(s) queued`); poll(); }
+async function uninstall(id){
+  const r = repo(id);
+  dialog(`<div class="title">Uninstall ${esc(r.title)}?</div>
+   <p>PortMaster removes the whole port folder <b>ports/${esc(r.port_dir)}</b>, including imported game data and saves.</p>
+   <label class="row"><input type="checkbox" id="bk" checked> First copy <b>${esc((r.keep_on_uninstall||[]).join(', ')||'nothing')}</b> to Slopetanium's backups</label>
+   <p class="row"><button value="cancel">Cancel</button><button class="pri bad" value="ok" id="okb">Uninstall</button></p>`,
+   async v=>{ if (v!=='ok') return; await api('POST',`/api/repos/${id}/uninstall`,{confirm:'uninstall', backup: $('#bk').checked}); poll(); });
+}
+async function unwatch(id){
+  const r = repo(id);
+  if (!confirm(`Stop watching ${r.repo}? The installed port stays; downloaded versions kept for rollback are deleted.`)) return;
+  await api('DELETE',`/api/repos/${id}`); poll();
+}
+function notes(id, tag){ const x = repo(id).releases.find(x=>x.tag===tag);
+  dialog(`<div class="title">${esc(x.name)}</div><div class="notes" style="max-height:60vh">${esc(x.body)}</div><p class="row"><a href="${esc(x.url)}" target="_blank" rel="noopener">Open on GitHub</a><span class="grow"></span><button value="ok">Close</button></p>`); }
+function originals(id){
+  const r = repo(id), o = r.originals;
+  const hint = o.imported_hint ? `The port has an imported <b>${esc(o.imported_hint)}/</b> folder, so these are probably no longer needed.` : `<b class="s-update">No imported game data found yet.</b> Start the port once so it imports these files before you delete them.`;
+  dialog(`<div class="title">Original game files · ${esc(r.title)}</div>
+   <p class="mut">ports/${esc(o.dir)}</p><p>${hint}</p>
+   <table>${o.files.map((f,i)=>`<tr><td><label class="row" style="margin:0;color:inherit"><input type="checkbox" class="of" value="${esc(f.name)}" checked> ${esc(f.name)}${f.dir?'/':''}</label></td><td class="mut" style="text-align:right">${size(f.size)}</td></tr>`).join('')}</table>
+   <p class="row"><button value="cancel">Cancel</button><button class="pri bad" value="ok">Delete selected</button></p>`,
+   async v=>{ if (v!=='ok') return; const names=[...document.querySelectorAll('.of:checked')].map(x=>x.value); if(!names.length) return;
+     const j = await api('POST',`/api/repos/${id}/originals-delete`,{names}); toast(`Freed ${size(j.freed)}`); poll(); });
+}
+function edit(id){
+  const r = repo(id);
+  dialog(`<div class="title">Edit ${esc(r.repo)}</div>
+   <label>Repo</label><input id="e_repo" value="${esc(r.repo)}">
+   <label style="margin-top:8px">Asset name pattern</label><input id="e_pat" value="${esc(r.asset_pattern)}" placeholder="first .zip">
+   <label style="margin-top:8px">Port name (zip name PortMaster records)</label><input id="e_pn" value="${esc(r.port_name)}">
+   <label style="margin-top:8px">Originals folder</label><input id="e_od" value="${esc(r.originals_dir)}">
+   <label style="margin-top:8px">Back up before uninstall</label><input id="e_keep" value="${esc((r.keep_on_uninstall||[]).join(', '))}">
+   <p><label class="row" style="color:inherit"><input type="checkbox" id="e_pre" ${r.prereleases?'checked':''}> Include pre-releases</label></p>
+   <p class="row"><button value="cancel">Cancel</button><button class="pri" value="ok">Save</button></p>`,
+   async v=>{ if (v!=='ok') return; await api('PATCH',`/api/repos/${id}`,{repo:$('#e_repo').value, asset_pattern:$('#e_pat').value, port_name:$('#e_pn').value, originals_dir:$('#e_od').value, keep_on_uninstall:$('#e_keep').value, prereleases:$('#e_pre').checked}); poll(); });
+}
+function dialog(html, cb){ const d=$('#dlg'); $('#dlgform').innerHTML=html; d.onclose=()=>{ cb && cb(d.returnValue); render(); }; d.returnValue=''; d.showModal(); }
+async function addRepo(e){ e.preventDefault(); const f=e.target;
+  await api('POST','/api/repos',{repo:f.repo.value, asset_pattern:f.asset_pattern.value, originals_dir:f.originals_dir.value, keep_on_uninstall:f.keep_on_uninstall.value, prereleases:f.prereleases.checked});
+  f.repo.value=''; toast('Added, checking releases…'); setTab('ports'); poll(); }
+async function saveSettings(e){ e.preventDefault(); const f=e.target; const b={auto_check_minutes:+f.auto_check_minutes.value, keep_versions:+f.keep_versions.value};
+  if (f.github_token.value) b.github_token=f.github_token.value; await api('PUT','/api/settings',b); f.github_token.value=''; toast('Saved'); poll(); }
+async function clearToken(){ await api('PUT','/api/settings',{github_token:''}); toast('Token removed'); poll(); }
+async function newPin(){ if(!confirm('Make a new PIN? Other browsers will have to enter it again.')) return; await api('PUT','/api/settings',{new_pin:true}); toast('New PIN is on the handheld screen'); showLogin(); }
+
+if (new URLSearchParams(location.search).get('pin')) { try{ localStorage.setItem('slop_pin', PIN);}catch(_){}; history.replaceState(null,'',location.pathname); }
+if (!PIN) showLogin(); else poll();
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) poll(); });
+</script>
+</body>
+</html>

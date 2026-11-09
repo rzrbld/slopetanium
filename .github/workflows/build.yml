@@ -1,0 +1,73 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Core tests (offline: fake GitHub, fake harbourmaster)
+        run: |
+          python3 -m py_compile port/slopetanium/app/*.py
+          python3 tests/test_core.py
+
+      - name: Core stays Python 3.7 compatible
+        run: |
+          python3 -m pip install --quiet vermin
+          vermin -q --no-tips --violations -t=3.7- port/slopetanium/app/
+
+      - name: Cross toolchain (cached)
+        uses: actions/cache@v4
+        with:
+          path: /tmp/cross-image.tar
+          key: cross-${{ hashFiles('docker/Dockerfile.cross') }}
+
+      - name: Load or build the cross image
+        run: |
+          if [ -f /tmp/cross-image.tar ]; then docker load -i /tmp/cross-image.tar; fi
+          docker image inspect slopetanium-cross:bullseye >/dev/null 2>&1 || \
+            docker build -t slopetanium-cross:bullseye -f docker/Dockerfile.cross docker
+          [ -f /tmp/cross-image.tar ] || docker save slopetanium-cross:bullseye -o /tmp/cross-image.tar
+
+      - name: Build the menu (aarch64)
+        run: tools/build-ui.sh
+
+      - name: Check the binary (glibc floor, libraries)
+        run: |
+          docker run --rm -v "$PWD:/s" slopetanium-cross:bullseye sh -c '
+            f=/s/port/slopetanium/slopetanium-ui.aarch64
+            aarch64-linux-gnu-readelf -d $f | grep NEEDED
+            v=$(aarch64-linux-gnu-objdump -T $f | grep -o "GLIBC_[0-9.]*" | sort -Vu | tail -1)
+            echo "needs $v"
+            [ "$v" = "GLIBC_2.30" ] || [ "$(printf "%s\nGLIBC_2.30\n" "$v" | sort -V | tail -1)" = "GLIBC_2.30" ]'
+
+      - name: Package
+        run: tools/build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slopetanium
+          path: |
+            dist/slopetanium.zip
+            dist/slopetanium.zip.md5
+
+      - name: Release (tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          pre=""
+          case "$tag" in *-*) pre="--prerelease" ;; esac
+          gh release create "$tag" dist/slopetanium.zip dist/slopetanium.zip.md5 $pre \
+            --title "Slopetanium ${tag#v}" --generate-notes

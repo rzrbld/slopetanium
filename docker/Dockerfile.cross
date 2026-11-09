@@ -1,0 +1,11 @@
+# aarch64 cross toolchain for slopetanium-ui. Debian 11 (glibc 2.31): runs on older firmware too (ArkOS-era);
+# SDL2 and FreeType come from the device (PortMaster's GUI needs both), libstdc++ is linked in.
+FROM debian:bullseye
+# (Debian 11 lives on archive.debian.org now)
+RUN printf 'deb http://archive.debian.org/debian bullseye main\ndeb http://archive.debian.org/debian-security bullseye-security main\n' > /etc/apt/sources.list && \
+    dpkg --add-architecture arm64 && apt-get -o Acquire::Check-Valid-Until=false update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      g++-aarch64-linux-gnu make pkg-config ca-certificates libsdl2-dev:arm64 libfreetype-dev:arm64 && \
+    rm -rf /var/lib/apt/lists/*
+ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
+WORKDIR /src

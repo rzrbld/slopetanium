@@ -1,0 +1,34 @@
+{
+  "version": 4,
+  "name": "slopetanium.zip",
+  "items": [
+    "Slopetanium.sh",
+    "slopetanium/"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Slopetanium",
+    "porter": [
+      "rzrbld"
+    ],
+    "desc": "Updater for PortMaster ports published as GitHub releases. Watch repos from a browser on your PC, phone or tablet, get told about new releases, update or roll back with one press, and delete the original game files a port has already imported.",
+    "desc_md": null,
+    "inst": "Copy Slopetanium.sh into your Ports folder and slopetanium into ports, or install the zip with PortMaster. Start it, then open the address shown on screen in a browser on the same network and enter the PIN.",
+    "inst_md": null,
+    "genres": [
+      "other"
+    ],
+    "image": null,
+    "rtr": true,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": [
+      "aarch64",
+      "armhf",
+      "x86_64"
+    ]
+  }
+}
