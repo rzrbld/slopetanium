@@ -76,6 +76,7 @@ class Gog(object):
         self._access_until = 0
         self._owned = None
         self._owned_at = 0
+        self.fits = None  # (dir, size, name): raises when the card can't hold the file
 
     # ------------------------------------------------------------ account
     def linked(self):
@@ -199,6 +200,8 @@ class Gog(object):
             raise GogError("GOG download: HTTP %d" % r.status_code)
         total = int(r.headers.get("Content-Length") or 0)
         r.close()
+        if self.fits:
+            self.fits(dest_dir, total, name)
         if not os.path.isdir(dest_dir):
             os.makedirs(dest_dir)
         final = os.path.join(dest_dir, name)

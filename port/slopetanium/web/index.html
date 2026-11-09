@@ -2,428 +2,1066 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
 <title>Slopetanium</title>
-<link rel="icon" href="data:image/png;base64,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">
+<link rel="icon" href="/static/icons/slopetanium-mark.png">
 <style>
-:root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--mut:#667085;--line:#e3e6ec;--acc:#2f6fed;--ok:#1a8f4c;--warn:#c27100;--bad:#c62f2f;--chip:#eef1f6}
-@media (prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1b2029;--fg:#e6e9ef;--mut:#98a2b3;--line:#2b3240;--acc:#6f9bff;--ok:#41c27a;--warn:#f0a73a;--bad:#ff6b6b;--chip:#252c38}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-header h1{font-size:18px;margin:0 auto 0 0}
-main{max-width:980px;margin:0 auto;padding:16px}
-button,select,input{font:inherit;color:inherit}
-button{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
-button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
-button.bad{color:var(--bad)}
-button:disabled{opacity:.5;cursor:default}
-input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:100%}
-input[type=checkbox]{width:auto}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.grow{flex:1 1 auto;min-width:0}
-.title{font-weight:600;font-size:16px}
-.mut{color:var(--mut);font-size:13px}
-.chip{display:inline-block;background:var(--chip);border-radius:20px;padding:2px 9px;font-size:12px;margin-right:4px}
-.s-current{color:var(--ok)} .s-update{color:var(--warn)} .s-error{color:var(--bad)}
-.badge{background:var(--warn);color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;margin-left:6px}
-.bar{height:6px;background:var(--chip);border-radius:4px;overflow:hidden;margin-top:8px}
-.bar>i{display:block;height:100%;background:var(--acc);transition:width .3s}
-details summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:8px}
-table{width:100%;border-collapse:collapse;font-size:14px}
-td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:middle}
-.log{font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;max-height:300px;overflow:auto;background:var(--bg);padding:8px;border-radius:8px}
-.tabs button{border-radius:20px}
-.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media (max-width:640px){.grid{grid-template-columns:1fr}}
-label{font-size:13px;color:var(--mut);display:block;margin-bottom:3px}
-.notes{white-space:pre-wrap;font-size:13px;color:var(--mut);max-height:160px;overflow:auto}
-dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);max-width:520px;width:calc(100% - 32px)}
-dialog::backdrop{background:#0008}
-#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;display:none;max-width:90%}
+@font-face { font-family: "Pixelify"; src: url("/static/fonts/PixelifySans-Medium.ttf") format("truetype"); font-display: swap; }
+
+:root {
+  --bg: #0e1219; --bg-2: #121722; --surface: #161c27; --surface-2: #1c2331; --surface-3: #232b3b;
+  --line: #273041; --line-2: #323d52;
+  --text: #e9eef7; --muted: #95a1b6; --faint: #66728a;
+  --accent: #3ed9b0; --accent-2: #7febcb; --accent-ink: #04261d; --accent-soft: rgba(62, 217, 176, .13);
+  --warn: #ffb547; --warn-soft: rgba(255, 181, 71, .14);
+  --danger: #ff5d6c; --danger-soft: rgba(255, 93, 108, .13);
+  --info: #6aa7ff; --info-soft: rgba(106, 167, 255, .14);
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.28);
+  --shadow-lg: 0 24px 60px rgba(0,0,0,.5);
+  --r: 14px;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f5f9; --bg-2: #eef1f6; --surface: #ffffff; --surface-2: #f6f8fb; --surface-3: #edf1f6;
+    --line: #e1e6ee; --line-2: #d3dae5; --text: #131925; --muted: #5a6579; --faint: #8a94a6;
+    --accent: #10a684; --accent-2: #0c8a6d; --accent-ink: #ffffff; --accent-soft: rgba(16, 166, 132, .11);
+    --warn: #c47a00; --warn-soft: rgba(230, 150, 20, .13); --danger: #d8334a; --danger-soft: rgba(216, 51, 74, .1);
+    --info: #2f6fd8; --info-soft: rgba(47, 111, 216, .1);
+    --shadow: 0 1px 2px rgba(20,30,50,.06), 0 8px 24px rgba(20,30,50,.07); --shadow-lg: 0 24px 60px rgba(20,30,50,.22);
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f3f5f9; --bg-2: #eef1f6; --surface: #ffffff; --surface-2: #f6f8fb; --surface-3: #edf1f6;
+  --line: #e1e6ee; --line-2: #d3dae5; --text: #131925; --muted: #5a6579; --faint: #8a94a6;
+  --accent: #10a684; --accent-2: #0c8a6d; --accent-ink: #ffffff; --accent-soft: rgba(16, 166, 132, .11);
+  --warn: #c47a00; --warn-soft: rgba(230, 150, 20, .13); --danger: #d8334a; --danger-soft: rgba(216, 51, 74, .1);
+  --info: #2f6fd8; --info-soft: rgba(47, 111, 216, .1);
+  --shadow: 0 1px 2px rgba(20,30,50,.06), 0 8px 24px rgba(20,30,50,.07); --shadow-lg: 0 24px 60px rgba(20,30,50,.22);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {   /* the slope: faint diagonals across the top of the page */
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: .5;
+  background: repeating-linear-gradient(135deg, transparent 0 13px, color-mix(in srgb, var(--line) 45%, transparent) 13px 14px);
+  -webkit-mask-image: linear-gradient(180deg, #000, transparent 70%); mask-image: linear-gradient(180deg, #000, transparent 70%);
+}
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+img { display: block; }
+code { background: var(--surface-3); padding: 1px 5px; border-radius: 5px; font-size: 12.5px; }
+.pixel { font-family: "Pixelify", ui-sans-serif, system-ui, sans-serif; font-weight: normal; letter-spacing: .02em; }
+.muted { color: var(--muted); } .faint { color: var(--faint); }
+.small { font-size: 13px; } .tiny { font-size: 12px; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stack { display: grid; gap: 14px; }
+.hidden { display: none !important; }
+svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- app bar ---------- */
+.bar { position: sticky; top: 0; z-index: 20; backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 1180px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand img { width: 34px; height: 34px; filter: drop-shadow(0 3px 8px rgba(255, 90, 60, .25)); }
+.brand .word { font-size: 22px; line-height: 1; }
+.brand .word b { color: var(--accent); font-weight: normal; }
+.nav { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); padding: 4px; border-radius: 12px; }
+.nav a { text-decoration: none; padding: 6px 13px; border-radius: 9px; color: var(--muted); font-weight: 550; font-size: 14px;
+  display: flex; align-items: center; gap: 7px; transition: background .15s, color .15s; }
+.nav a:hover { color: var(--text); background: var(--surface-2); }
+.nav a.on { color: var(--text); background: var(--surface-3); }
+.nav .count { background: var(--warn); color: #1d1300; border-radius: 99px; font-size: 11px; font-weight: 700; padding: 0 6px; line-height: 17px; }
+.bar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.stat { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; padding: 0 4px; white-space: nowrap; }
+.stat svg { width: 16px; height: 16px; }
+.stat.low { color: var(--danger); }
+
+/* ---------- buttons ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 15px; border-radius: 10px;
+  border: 1px solid var(--line-2); background: var(--surface-2); font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap;
+  text-decoration: none; color: var(--text); transition: transform .06s, background .15s, border-color .15s; user-select: none; }
+.btn:hover { background: var(--surface-3); border-color: var(--faint); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible, .nav a:focus-visible, .tab:focus-visible, .card-hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn[disabled] { opacity: .45; cursor: default; transform: none; }
+.btn.primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); box-shadow: 0 6px 18px -8px var(--accent); }
+.btn.primary:hover { background: var(--accent-2); }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line-2)); background: var(--danger-soft); }
+.btn.danger:hover { background: color-mix(in srgb, var(--danger) 20%, transparent); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn.sm { height: 32px; padding: 0 11px; font-size: 13px; border-radius: 8px; }
+.btn.icon { width: 38px; padding: 0; }
+.btn.sm.icon { width: 32px; }
+
+/* ---------- layout ---------- */
+main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 90px; }
+.page-head { display: flex; align-items: flex-end; gap: 12px; margin: 6px 0 18px; flex-wrap: wrap; }
+.page-head h1 { margin: 0; font-size: 28px; line-height: 1.1; }
+.page-head p { margin: 4px 0 0; }
+.section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.section > header { padding: 16px 18px 0; }
+.section > header h2 { margin: 0; font-size: 17px; }
+.section > header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.section > .content { padding: 16px 18px 18px; }
+
+/* ---------- badges & chips ---------- */
+.badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 99px; font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.b-current { color: var(--accent); background: var(--accent-soft); }
+.b-update, .b-unknown_version { color: var(--warn); background: var(--warn-soft); }
+.b-not_installed { color: var(--muted); background: var(--surface-3); }
+.b-error, .b-failed { color: var(--danger); background: var(--danger-soft); }
+.b-working { color: var(--info); background: var(--info-soft); }
+.b-working::before { animation: pulse 1.1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); text-decoration: none; white-space: nowrap; }
+a.chip:hover { color: var(--text); border-color: var(--line-2); }
+.chip svg { width: 14px; height: 14px; }
+.chip.ok { color: var(--accent); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--danger); }
+
+/* ---------- library ---------- */
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.search { position: relative; flex: 1 1 240px; max-width: 380px; }
+.search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); }
+.search input { padding-left: 40px !important; }
+.search svg { z-index: 1; pointer-events: none; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; flex-wrap: wrap; }
+.seg button { border: 0; background: none; padding: 5px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 13px; cursor: pointer; }
+.seg button.on { background: var(--surface-3); color: var(--text); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+.card { position: relative; display: grid; grid-template-columns: 104px 1fr; gap: 16px; padding: 14px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); transition: border-color .15s, transform .15s, box-shadow .15s; }
+.card:hover { border-color: var(--line-2); transform: translateY(-2px); box-shadow: var(--shadow), 0 14px 30px -18px rgba(0,0,0,.6); }
+.card.attn { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.card-hit { position: absolute; inset: 0; border-radius: var(--r); z-index: 1; }
+.cover { position: relative; width: 104px; aspect-ratio: 3 / 4; border-radius: 9px; overflow: hidden; background: var(--surface-3);
+  box-shadow: 0 10px 22px -10px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.05) inset; }
+.cover img { width: 100%; height: 100%; object-fit: cover; }
+.cover img.bg { position: absolute; inset: -12%; width: 124%; height: 124%; filter: blur(14px) brightness(.55) saturate(1.2); }
+.cover img.fg { position: relative; }
+.cover.wide img.fg { object-fit: contain; }
+.cover .ph { position: absolute; inset: 0; display: grid; place-items: center; font-family: "Pixelify", sans-serif; font-size: 34px; color: rgba(255,255,255,.88);
+  background: linear-gradient(150deg, var(--c1), var(--c2)); text-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(255,255,255,.14), transparent 40%); pointer-events: none; }
+.card-body { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.card-top { display: grid; gap: 2px; }
+.meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; }
+.meta .vtag { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.meta svg { width: 14px; height: 14px; color: var(--faint); }
+.card h3 { margin: 0; font-size: 16.5px; line-height: 1.25; font-weight: 700; }
+.card .repo { font-size: 12.5px; color: var(--faint); text-decoration: none; position: relative; z-index: 2; }
+.card .repo:hover { color: var(--muted); text-decoration: underline; }
+.vers { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.vers b { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; }
+.vers svg { width: 14px; height: 14px; color: var(--faint); }
+.card .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.card-actions { margin-top: auto; display: flex; gap: 8px; align-items: center; position: relative; z-index: 2; }
+.progress { height: 6px; background: var(--surface-3); border-radius: 99px; overflow: hidden; }
+.progress > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 99px; transition: width .35s; }
+.progress.indet > i { width: 30% !important; animation: indet 1.2s ease-in-out infinite; }
+@keyframes indet { from { transform: translateX(-110%); } to { transform: translateX(340%); } }
+.job-line { font-size: 12.5px; color: var(--info); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-line.bad { color: var(--danger); }
+.empty { text-align: center; padding: 56px 20px; color: var(--muted); }
+.empty img { width: 72px; height: 72px; margin: 0 auto 14px; }
+.empty h2 { color: var(--text); margin: 0 0 6px; font-size: 19px; }
+
+/* ---------- drawer ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(5, 8, 13, .55); z-index: 40; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(640px, 100vw); z-index: 41; background: var(--bg-2);
+  border-left: 1px solid var(--line); box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+  transform: translateX(104%); transition: transform .26s cubic-bezier(.2, .8, .2, 1); }
+.drawer.on { transform: none; }
+.d-head { display: grid; grid-template-columns: 76px 1fr auto; gap: 16px; padding: 18px 20px 14px; align-items: start; border-bottom: 1px solid var(--line); }
+.d-head .cover { width: 76px; }
+.d-head h2 { margin: 0 0 6px; font-size: 20px; line-height: 1.2; }
+.tabs { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tab { border: 0; background: none; padding: 12px 10px; color: var(--muted); font-weight: 600; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--text); border-bottom-color: var(--accent); }
+.d-body { flex: 1; overflow-y: auto; padding: 18px 20px 30px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 10px; }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; min-width: 0; }
+.fact .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 650; }
+.fact .v { font-weight: 650; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.panel h3 { margin: 0 0 8px; font-size: 14.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.panel.callout { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.panel.danger { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
+.md { font-size: 14px; color: var(--text); overflow-wrap: anywhere; }
+.md h4 { margin: 12px 0 4px; font-size: 14px; }
+.md p { margin: 6px 0; color: var(--muted); }
+.md ul { margin: 4px 0 8px; padding-left: 20px; color: var(--muted); }
+.md li { margin: 3px 0; }
+.md a { color: var(--accent); }
+.list { display: grid; }
+.li { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-top: 1px solid var(--line); }
+.li:first-child { border-top: 0; }
+.li .t { font-weight: 650; }
+.li .acts { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+details.notes summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+details.notes .md { margin-top: 8px; padding: 10px 12px; background: var(--surface-2); border-radius: 9px; }
+
+/* ---------- forms ---------- */
+label.f { display: grid; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; align-content: start; }
+label.f .hint { font-weight: 400; color: var(--faint); font-size: 12.5px; }
+input[type=text], input[type=number], input[type=password], input:not([type]) {
+  height: 40px; width: 100%; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--bg-2); transition: border-color .15s, box-shadow .15s; }
+input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.check { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+details.adv > summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13.5px; margin: 4px 0; }
+
+/* ---------- drop zone ---------- */
+.drop { border: 1.5px dashed var(--line-2); border-radius: 14px; padding: 26px 18px; text-align: center; background: var(--surface); transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop svg.big { width: 36px; height: 36px; color: var(--accent); margin: 0 auto 8px; display: block; }
+.drop h3 { margin: 0 0 4px; font-size: 16px; }
+.up-list { margin-top: 12px; display: grid; gap: 8px; text-align: left; }
+.up-item { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 13px; }
+.up-item .progress { grid-column: 1 / -1; }
+
+/* ---------- catalogue, activity ---------- */
+.cat { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.cat-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
+.cat-item .ph { width: 40px; height: 40px; border-radius: 9px; display: grid; place-items: center; font-family: "Pixelify", sans-serif; color: #fff; background: linear-gradient(150deg, var(--c1), var(--c2)); flex: none; }
+.log { font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; max-height: 420px; overflow: auto;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; color: var(--muted); }
+.jobs .li .badge { min-width: 86px; justify-content: center; }
+
+/* ---------- dialog, toasts, menu, uploader ---------- */
+dialog { border: 1px solid var(--line-2); border-radius: 16px; background: var(--surface); color: var(--text); padding: 0; width: min(460px, calc(100vw - 32px)); box-shadow: var(--shadow-lg); }
+dialog::backdrop { background: rgba(5, 8, 13, .6); }
+dialog .dl-in { padding: 20px 20px 16px; }
+dialog h3 { margin: 0 0 8px; font-size: 18px; }
+dialog .dl-acts { display: flex; justify-content: flex-end; gap: 8px; padding: 0 20px 18px; }
+.toasts { position: fixed; right: 18px; bottom: 18px; display: grid; gap: 8px; z-index: 60; max-width: min(380px, calc(100vw - 36px)); }
+.toast { background: var(--surface-3); border: 1px solid var(--line-2); border-radius: 12px; padding: 11px 14px; box-shadow: var(--shadow-lg);
+  display: flex; gap: 10px; align-items: flex-start; font-size: 14px; animation: tin .22s ease-out; }
+.toast svg { color: var(--accent); margin-top: 1px; } .toast.bad svg { color: var(--danger); }
+@keyframes tin { from { opacity: 0; transform: translateY(8px); } }
+.menu { position: fixed; z-index: 50; min-width: 210px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; padding: 6px; box-shadow: var(--shadow-lg); }
+.menu button { display: flex; width: 100%; align-items: center; gap: 10px; border: 0; background: none; padding: 9px 10px; border-radius: 8px; font-size: 14px; cursor: pointer; text-align: left; color: var(--text); }
+.menu button:hover { background: var(--surface-3); }
+.menu button.bad { color: var(--danger); }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 5px 4px; }
+.uploader { position: fixed; left: 18px; bottom: 18px; z-index: 55; background: var(--surface-3); border: 1px solid var(--line-2); border-radius: 12px; padding: 10px 14px; width: 290px; box-shadow: var(--shadow-lg); font-size: 13px; }
+
+/* ---------- login ---------- */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+.login .box { width: min(380px, 100%); text-align: center; }
+.login img { width: 96px; height: 96px; margin: 0 auto 10px; filter: drop-shadow(0 10px 24px rgba(255, 90, 60, .3)); }
+.login h1 { margin: 0; font-size: 34px; }
+.pin { display: flex; gap: 10px; justify-content: center; margin: 22px 0 12px; }
+.pin input { width: 58px; height: 66px; text-align: center; font-size: 30px; font-family: "Pixelify", sans-serif; border-radius: 14px; padding: 0; }
+
+/* ---------- small screens ---------- */
+@media (max-width: 760px) {
+  .bar-in { padding: 10px 14px; gap: 10px; flex-wrap: wrap; }
+  .brand .word { font-size: 19px; }
+  .nav { order: 3; width: 100%; }
+  .nav a { flex: 1; justify-content: center; padding: 7px 6px; }
+  .nav a span.lbl { display: none; }
+  .stat.hide-sm { display: none; }
+  main { padding: 16px 14px 90px; }
+  .page-head h1 { font-size: 23px; }
+  .grid { grid-template-columns: 1fr; }
+  .card { grid-template-columns: 84px 1fr; gap: 13px; }
+  .card .cover { width: 84px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .d-head { grid-template-columns: 60px 1fr auto; padding: 14px; }
+  .d-head .cover { width: 60px; }
+  .d-body { padding: 16px 14px 30px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
-<header>
-  <h1 style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,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" width="32" height="32" alt="" style="image-rendering:pixelated">Slopetanium</h1>
-  <span class="tabs row">
-    <button data-tab="ports" class="on">Ports</button>
-    <button data-tab="add">Add</button>
-    <button data-tab="settings">Settings</button>
-    <button data-tab="log">Log</button>
-  </span>
-</header>
-<main>
-  <section id="login" class="card" hidden>
-    <div class="title">Enter the PIN shown on the handheld</div>
-    <form class="row" style="margin-top:10px" onsubmit="login(event)">
-      <input id="pin" inputmode="numeric" autocomplete="off" maxlength="4" style="max-width:120px">
-      <button class="pri">Unlock</button>
-    </form>
-  </section>
 
-  <section id="tab-ports">
-    <div class="row" style="margin-bottom:12px">
-      <span class="grow mut" id="summary"></span>
-      <button onclick="api('POST','/api/check').then(()=>toast('Checking GitHub…'))">Check now</button>
-      <button class="pri" id="updall" onclick="updateAll()">Update all</button>
+<div id="login" class="login hidden">
+  <form class="box" onsubmit="event.preventDefault(); unlock()">
+    <img src="/static/icons/slopetanium-icon-96.png" alt="">
+    <h1 class="pixel"><span style="color:var(--accent)">slope</span>tanium</h1>
+    <p class="muted">Enter the PIN from the handheld's <b>Connect</b> screen.</p>
+    <div class="pin" id="pinboxes">
+      <input inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="PIN digit 1">
+      <input inputmode="numeric" maxlength="1" aria-label="PIN digit 2">
+      <input inputmode="numeric" maxlength="1" aria-label="PIN digit 3">
+      <input inputmode="numeric" maxlength="1" aria-label="PIN digit 4">
     </div>
-    <div id="repos"></div>
-    <details class="card" id="others-box"><summary>Installed ports not watched here</summary><div id="others"></div></details>
-  </section>
+    <p id="loginerr" class="small" style="color:var(--danger);min-height:20px"></p>
+    <button class="btn primary" style="width:100%">Unlock</button>
+  </form>
+</div>
 
-  <section id="tab-add" hidden>
-    <div class="card"><div class="title">Catalogue</div>
-      <p class="mut">Ports Slopetanium knows. They are watched from the first start; one you removed can come back here.</p>
-      <div id="catalogue"></div></div>
-    <form class="card" onsubmit="addRepo(event)">
-      <div class="title">Watch a GitHub repo</div>
-      <p class="mut">Any repo whose releases have a PortMaster port .zip (with port.json) attached.</p>
-      <div class="grid">
-        <div><label>Repo (owner/name or link)</label><input name="repo" required placeholder="rzrbld/TheFamilia"></div>
-        <div><label>Asset name pattern (optional, e.g. *.zip)</label><input name="asset_pattern" placeholder="first .zip"></div>
-        <div><label>Originals folder (user's game files, inside the port)</label><input name="originals_dir" value="source"></div>
-        <div><label>Back up before uninstall (comma separated)</label><input name="keep_on_uninstall" value="conf"></div>
-      </div>
-      <p class="row"><label class="row" style="margin:0"><input type="checkbox" name="prereleases" checked> Include pre-releases</label></p>
-      <button class="pri">Add</button>
-    </form>
-  </section>
+<div id="app" class="hidden">
+  <header class="bar"><div class="bar-in">
+    <a class="brand" href="#library"><img src="/static/icons/slopetanium-icon-96.png" alt=""><span class="word pixel"><b>slope</b>tanium</span></a>
+    <nav class="nav" id="nav">
+      <a href="#library" data-p="library"><svg class="i"><use href="#i-grid"/></svg><span class="lbl">Library</span><span class="count hidden" id="ucount"></span></a>
+      <a href="#add" data-p="add"><svg class="i"><use href="#i-plus"/></svg><span class="lbl">Add</span></a>
+      <a href="#settings" data-p="settings"><svg class="i"><use href="#i-gear"/></svg><span class="lbl">Settings</span></a>
+      <a href="#activity" data-p="activity"><svg class="i"><use href="#i-pulse"/></svg><span class="lbl">Activity</span></a>
+    </nav>
+    <div class="bar-right">
+      <span class="stat hide-sm" id="st-disk" title="Free space on the ports' card"></span>
+      <span class="stat" id="st-bat"></span>
+      <button class="btn ghost icon" title="Light / dark" onclick="toggleTheme()"><svg class="i"><use href="#i-moon"/></svg></button>
+    </div>
+  </div></header>
+  <main id="main"></main>
+</div>
 
-  <section id="tab-settings" hidden>
-    <form class="card" onsubmit="saveSettings(event)">
-      <div class="title">Settings</div>
-      <div class="grid" style="margin-top:10px">
-        <div><label>GitHub token (optional, raises the 60 checks/hour limit)</label><input name="github_token" type="password" placeholder="unchanged" autocomplete="off"></div>
-        <div><label>Check every (minutes, 0 = only on start)</label><input name="auto_check_minutes" type="number" min="0"></div>
-        <div><label>Versions kept for offline rollback</label><input name="keep_versions" type="number" min="1" max="20"></div>
-      </div>
-      <p class="row"><button class="pri">Save</button><button type="button" onclick="clearToken()">Remove token</button><button type="button" onclick="newPin()">New PIN</button></p>
-      <p class="mut" id="paths"></p>
-    </form>
-    <div class="card" id="gogcard"></div>
-  </section>
+<div class="scrim" id="scrim" onclick="closePort()"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<dialog id="dlg"></dialog>
+<div class="toasts" id="toasts"></div>
+<div class="uploader hidden" id="uploader"></div>
 
-  <section id="tab-log" hidden>
-    <div class="card"><div class="title">Jobs</div><table id="jobs"></table></div>
-    <div class="card"><div class="title">Log</div><div class="log" id="log"></div></div>
-  </section>
-</main>
-
-<dialog id="dlg"><form method="dialog" id="dlgform"></form></dialog>
-<div id="toast"></div>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12M6 11l6 6 6-6M4 20h16"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V8M6 13l6-6 6 6M4 4h16"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+  <symbol id="i-bat" viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-disk" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v5h8V3M8 21v-6h8v6"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zM18 5v14"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 7h16l-1 12H5zM9 7a3 3 0 0 1 6 0"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M17 6l3 3"/></symbol>
+  <symbol id="i-gog" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9.5h3v5H8zM13 9.5h3v5h-3"/></symbol>
+</svg>
 
 <script>
-let PIN = localStorage.getItem('slop_pin') || new URLSearchParams(location.search).get('pin') || '';
-let S = null, tab = 'ports', open = {};
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const size = n => { n = +n || 0; for (const u of ['B','KB','MB','GB']) { if (n < 1024 || u === 'GB') return (u==='B'? n : n.toFixed(1)) + ' ' + u; n /= 1024; } };
-const ago = t => { if (!t) return 'never'; const s = Date.now()/1000 - t; if (s < 90) return 'just now'; if (s < 5400) return Math.round(s/60) + ' min ago'; if (s < 129600) return Math.round(s/3600) + ' h ago'; return Math.round(s/86400) + ' days ago'; };
-const day = iso => iso ? iso.slice(0,10) : '';
+'use strict';
+// ---------------------------------------------------------------- basics
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ico = (n, cls = 'i') => `<svg class="${cls}"><use href="#i-${n}"/></svg>`;
+const size = n => { n = +n || 0; for (const u of ['B', 'KB', 'MB', 'GB', 'TB']) { if (n < 1024 || u === 'TB') return (u === 'B' ? n : n.toFixed(n < 10 ? 1 : 0)) + ' ' + u; n /= 1024; } };
+const ago = t => { if (!t) return 'never'; const s = Date.now() / 1000 - t; if (s < 60) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago'; };
+const day = iso => iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+const dur = s => s < 90 ? Math.round(s) + ' s' : s < 5400 ? Math.round(s / 60) + ' min' : (s / 3600).toFixed(1) + ' h';
+// a release tag short enough to read: portmaster-v20261107-lan-alpha -> 2026.11.07
+function shortTag(t) {
+  if (!t) return '—';
+  const s = t.replace(/^portmaster-/, '');
+  const m = s.match(/^v?(\d{4})(\d{2})(\d{2})(\d{2,6})?([-_]|$)/);
+  if (m) return `${m[1]}.${m[2]}.${m[3]}`;
+  return s.length > 16 ? s.slice(0, 15) + '…' : s;
+}
+const TINTS = [['#ff7a59', '#b8326a'], ['#3ed9b0', '#1f6f8b'], ['#6aa7ff', '#5b3fd1'], ['#ffb547', '#d4542b'], ['#c06bff', '#5038c7'], ['#2bd4d4', '#227a52']];
+const tint = s => TINTS[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % TINTS.length];
+const initials = s => (String(s).match(/[A-Za-z0-9]+/g) || ['?']).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
-function toast(m){ const t=$('#toast'); t.textContent=m; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',3500); }
+let PIN = '';
+try { PIN = localStorage.getItem('slop_pin') || ''; } catch (_) {}
+{ const q = new URLSearchParams(location.search).get('pin'); if (q) { PIN = q; try { localStorage.setItem('slop_pin', q); } catch (_) {} history.replaceState(null, '', location.pathname + location.hash); } }
 
-async function api(method, path, body){
-  const r = await fetch(path, {method, headers:{'X-Pin':PIN,'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
-  const j = await r.json().catch(()=>({}));
-  if (r.status === 401) { showLogin(); throw new Error(j.error); }
-  if (!r.ok) { toast(j.error || ('Error ' + r.status)); throw new Error(j.error); }
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { 'X-Pin': PIN, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { showLogin(); throw Object.assign(new Error(j.error || 'PIN'), { status: 401 }); }
+  if (!r.ok) throw Object.assign(new Error(j.error || 'Error ' + r.status), { status: r.status, body: j });
   return j;
 }
-function showLogin(){ $('#login').hidden = false; document.querySelectorAll('main>section:not(#login)').forEach(s=>s.hidden=true); }
-async function login(e){ e.preventDefault(); PIN = $('#pin').value.trim(); try{ localStorage.setItem('slop_pin', PIN);}catch(_){}; $('#login').hidden = true; setTab(tab); poll(); }
-
-function setTab(t){ tab=t; try { history.replaceState(null,'',location.pathname+(t==='ports'?'':'#'+t)); } catch(_){} document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
-  ['ports','add','settings','log'].forEach(x=>$('#tab-'+x).hidden = x!==t); if (S) render(); }
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
-
-const STATUS = {current:'Up to date', update:'Update available', unknown_version:'Installed (version unknown)', not_installed:'Not installed', error:'Error'};
-
-function repoCard(r){
-  const j = r.job, running = j && (j.state==='running'||j.state==='queued');
-  let main = '';
-  if (r.status==='update' || r.status==='unknown_version') main = `<button class="pri" ${running?'disabled':''} onclick="install('${r.id}','${esc(r.latest_tag)}')">Update to ${esc(r.latest_tag)}</button>`;
-  else if (r.status==='not_installed' && r.latest_tag) main = `<button class="pri" ${running?'disabled':''} onclick="install('${r.id}','${esc(r.latest_tag)}')">Install ${esc(r.latest_tag)}</button>`;
-  const rb = r.installed && r.previous_tag ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(r.previous_tag)}',true)">Roll back to ${esc(r.previous_tag)}</button>` : '';
-  const o = r.originals || {files:[]};
-  const orig = o.files.length ? `<button onclick="originals('${r.id}')">Original files · ${size(o.total)}</button>` : '';
-  const g = r.gog, acct = S.gog_account || {};
-  let gogBtn = '';
-  if (g && r.installed && !g.present && acct.linked && g.owned !== false)
-    gogBtn = `<button ${running?'disabled':''} onclick="gogGet('${r.id}')">Get game files from GOG</button>`;
-  const reBtn = r.installed && !r.is_self && (r.installed_tag || r.latest_tag) ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(r.installed_tag||r.latest_tag)}',true,'Reinstall')">Reinstall</button>` : '';
-  const bkBtn = r.installed && !r.is_self ? `<button onclick="backupsDlg('${r.id}')">Backups${(r.backups||[]).length?' · '+r.backups.length:''}</button>` : '';
-  const upBtn = r.installed && r.upload_dir ? `<button ${running?'disabled':''} onclick="upload('${r.id}')">Upload game files</button>` : '';
-  const buy = (r.buy||[]).map(b=>`<a class="chip" href="${esc(b.url)}" target="_blank" rel="noopener" title="The version this port is made for">Buy on ${esc(b.store)}</a>`).join('');
-  const gogChip = !g ? '' : `<span class="chip" title="${esc(g.title||'')} on GOG.com">GOG · ${!acct.linked ? 'sign in to fetch the game' : g.owned===true ? (g.present ? 'game files here' : 'in your library') : g.owned===false ? 'not in your library' : 'checking…'}</span>`;
-  const rels = r.releases.map(x=>`<tr><td><b>${esc(x.tag)}</b> ${x.prerelease?'<span class="chip">pre</span>':''}${x.installed?'<span class="chip s-current">installed</span>':''}${x.cached?'<span class="chip" title="Kept on the device, installs offline">cached</span>':''}${x.skipped?'<span class="chip s-error" title="Marked unstable: never offered as the update">skipped</span>':''}<div class="mut">${day(x.published)} · ${x.asset?esc(x.asset.name)+' · '+size(x.asset.size):'no matching zip'}</div></td>
-     <td style="text-align:right">${x.asset && !x.installed ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(x.tag)}',true)">Install</button>` : ''} ${x.body?`<button onclick="notes('${r.id}','${esc(x.tag)}')">Notes</button>`:''}
-       <button title="${x.skipped?'Offer it as an update again':'Unstable: stay on an earlier version until a newer release'}" onclick="skip('${r.id}','${esc(x.tag)}',${!x.skipped})">${x.skipped?'Unskip':'Skip'}</button></td></tr>`).join('');
-  return `<div class="card" id="c-${r.id}">
-    <div class="row"><div class="grow"><div class="title">${esc(r.title)}${r.is_new?'<span class="badge">NEW</span>':''}</div>
-      <div class="mut"><a href="https://github.com/${esc(r.repo)}/releases" target="_blank" rel="noopener" style="color:inherit">${esc(r.repo)}</a>${r.port_dir?' · ports/'+esc(r.port_dir):''}</div></div>
-      <div style="text-align:right"><div class="s-${r.status}">${STATUS[r.status]||r.status}</div>
-      <div class="mut">${[r.installed?'installed '+esc(r.installed_tag||'?'):'', r.latest_tag?'latest '+esc(r.latest_tag):''].filter(Boolean).join(' · ')}</div></div></div>
-    ${r.error?`<div class="mut s-error">${esc(r.error)}</div>`:''}
-    ${j && j.state!=='done' ? `<div class="mut ${j.state==='failed'?'s-error':''}" style="margin-top:6px">${esc(j.label)}: ${esc(j.message||j.state)}</div>${running?`<div class="bar"><i style="width:${j.progress!=null?Math.round(j.progress*100):(j.state==='running'?100:0)}%;${j.progress==null&&j.state==='running'?'opacity:.35':''}"></i></div>`:''}` : ''}
-    ${gogChip||buy?`<div style="margin-top:6px">${gogChip}${buy}</div>`:''}
-    <div class="row" style="margin-top:10px">${main}${rb}${gogBtn}${upBtn}${orig}${bkBtn}${reBtn}<span class="grow"></span>
-      <button onclick="api('POST','/api/repos/${r.id}/check')">Check</button>
-      <button onclick="edit('${r.id}')">Edit</button>
-      ${r.installed && !r.is_self?`<button class="bad" onclick="uninstall('${r.id}')">Uninstall</button>`:''}
-      <button class="bad" onclick="unwatch('${r.id}')">Remove</button></div>
-    <details ${open[r.id]?'open':''} ontoggle="open['${r.id}']=this.open"><summary>Versions (${r.releases.length}) · checked ${ago(r.last_checked)}</summary><table>${rels||'<tr><td class="mut">No releases yet</td></tr>'}</table></details>
-  </div>`;
+async function act(fn, okMsg) {
+  try { const r = await fn(); if (okMsg) toast(typeof okMsg === 'function' ? okMsg(r) : okMsg); poll(); return r; }
+  catch (e) { if (e.status !== 401) toast(e.message, true); return null; }
 }
+const dl = (id, q) => `/api/repos/${id}/${q}${q.includes('?') ? '&' : '?'}pin=${encodeURIComponent(PIN)}`;
+const coverUrl = r => `/api/repos/${r.id}/cover?pin=${encodeURIComponent(PIN)}&v=${r.cover ? 'c' : 'a'}${(r.cover || r.art || '').length}`;
 
-function render(){
-  if (!S) return;
-  const ups = S.repos.filter(r=>r.status==='update'||r.status==='unknown_version').length;
-  $('#summary').textContent = `${S.repos.length} watched · ${ups} update${ups==1?'':'s'}` + (S.rate_remaining!=null?` · GitHub checks left this hour: ${S.rate_remaining}`:'');
-  $('#updall').disabled = !ups || S.busy;
-  if (tab==='ports') {
-    const scroll = window.scrollY;
-    $('#repos').innerHTML = S.repos.length ? S.repos.map(repoCard).join('') : '<div class="card mut">Nothing watched yet. Use “Add” to watch a GitHub repo.</div>';
-    $('#others').innerHTML = S.other_ports.map(p=>`<div class="row" style="padding:4px 0"><span class="grow">${esc(p.title)} <span class="mut">${esc(p.name)}</span></span></div>`).join('') || '<div class="mut">None</div>';
-    window.scrollTo(0, scroll);
-  }
-  if (tab==='log') {
-    $('#jobs').innerHTML = S.jobs.map(j=>`<tr><td>${esc(j.label)}</td><td class="${j.state==='failed'?'s-error':''}">${esc(j.state)}</td><td class="mut">${esc(j.message)}</td></tr>`).join('') || '<tr><td class="mut">No jobs</td></tr>';
-    const l=$('#log'); const atEnd = l.scrollTop + l.clientHeight >= l.scrollHeight - 20;
-    l.textContent = S.log.join('\n'); if (atEnd) l.scrollTop = l.scrollHeight;
-  }
-  if (tab==='add') {
-    $('#catalogue').innerHTML = (S.catalogue||[]).map(c=>`<div class="row" style="padding:5px 0"><span class="grow"><a href="https://github.com/${esc(c.repo)}" target="_blank" rel="noopener" style="color:inherit">${esc(c.repo)}</a>${c.gog?' <span class="chip">GOG</span>':''}</span>${c.watched?'<span class="mut">watched</span>':`<button onclick="catAdd('${esc(c.repo)}')">Add</button>`}</div>`).join('');
-  }
-  if (tab==='settings') {
-    const a = S.gog_account || {}, gc = $('#gogcard');
-    if (!gc.contains(document.activeElement)) gc.innerHTML = `<div class="title">GOG.com account</div>
-      <p class="mut">For ports of games sold on GOG: after installing one, Slopetanium downloads the game's installer from your GOG library into the port's folder. Only a sign-in token is kept on the handheld, never your password.</p>
-      ${a.linked ? `<p>Signed in as <b>${esc(a.user||'?')}</b></p><p class="row"><button type="button" onclick="gogUnlink()">Sign out</button></p>`
-      : `<p><b>1.</b> <a href="${esc(a.login_url)}" target="_blank" rel="noopener">Sign in on GOG.com</a> (a new tab). You end up on an empty GOG page.</p>
-         <p><b>2.</b> Copy that page's address from the address bar and paste it here:</p>
-         <div class="row"><input id="gogcode" class="grow" placeholder="https://embed.gog.com/on_login_success?origin=client&code=…" autocomplete="off"><button class="pri" type="button" onclick="gogLink()">Link</button></div>`}
-      <p><label class="row" style="color:inherit"><input type="checkbox" id="gogauto" ${S.settings.gog_auto!==false?'checked':''} onchange="api('PUT','/api/settings',{gog_auto:this.checked})"> Fetch a port's game files after installing it</label></p>`;
-    const f = document.querySelector('#tab-settings form');
-    if (document.activeElement.form !== f) { f.auto_check_minutes.value = S.settings.auto_check_minutes; f.keep_versions.value = S.settings.keep_versions;
-      f.github_token.placeholder = S.settings.github_token ? 'set (unchanged)' : 'not set'; }
-    $('#paths').textContent = `Ports folder: ${S.ports_dir} · PortMaster: ${S.controlfolder}`;
-  }
+// ---------------------------------------------------------------- theme
+function toggleTheme() {
+  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('slop_theme', next); } catch (_) {}
 }
+try { const t = localStorage.getItem('slop_theme'); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
 
-let lastChanged = -1, timer = null;
-async function poll(){
+// ---------------------------------------------------------------- toasts, dialogs, menus
+function toast(msg, bad) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (bad ? ' bad' : '');
+  el.innerHTML = ico(bad ? 'alert' : 'check') + `<div>${esc(msg)}</div>`;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, bad ? 6000 : 3200);
+}
+function confirmBox({ title, body = '', ok = 'OK', danger = false, cancel = 'Cancel' }) {
+  return new Promise(res => {
+    const d = $('#dlg');
+    d.innerHTML = `<div class="dl-in"><h3>${esc(title)}</h3><div class="muted">${body}</div></div>
+      <div class="dl-acts"><button class="btn ghost" data-v="0">${esc(cancel)}</button><button class="btn ${danger ? 'danger' : 'primary'}" data-v="1">${esc(ok)}</button></div>`;
+    d.onclick = e => { const b = e.target.closest('[data-v]'); if (b) { d.close(); res(b.dataset.v === '1'); } };
+    d.oncancel = () => res(false);
+    d.showModal();
+    $('[data-v="1"]', d).focus();
+  });
+}
+function openMenu(btn, items) {
+  closeMenu();
+  const m = document.createElement('div');
+  m.className = 'menu'; m.id = 'menu';
+  m.innerHTML = items.map((it, i) => it === '-' ? '<hr>' : `<button data-i="${i}" class="${it.bad ? 'bad' : ''}">${ico(it.icon || 'arrow')}${esc(it.label)}</button>`).join('');
+  document.body.appendChild(m);
+  const r = btn.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, r.right - mw)) + 'px';
+  m.style.top = (r.bottom + mh + 8 > innerHeight ? Math.max(8, r.top - mh - 6) : r.bottom + 6) + 'px';
+  m.onclick = e => { const b = e.target.closest('[data-i]'); if (b) { closeMenu(); items[+b.dataset.i].fn(); } };
+  setTimeout(() => addEventListener('click', closeMenu, { once: true }), 0);
+}
+function closeMenu() { const m = $('#menu'); if (m) m.remove(); }
+addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); if (!$('#dlg').open) closePort(); } });
+
+// ---------------------------------------------------------------- login
+function showLogin(msg) {
+  $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+  $('#loginerr').textContent = msg || '';
+  const bs = $$('#pinboxes input'); bs.forEach(b => b.value = ''); bs[0].focus();
+}
+function unlock() {
+  const v = $$('#pinboxes input').map(b => b.value).join('');
+  if (v.length !== 4) return;
+  PIN = v; try { localStorage.setItem('slop_pin', v); } catch (_) {}
+  boot(true);
+}
+$$('#pinboxes input').forEach((b, i, all) => {
+  b.addEventListener('input', () => { b.value = b.value.replace(/\D/g, '').slice(-1); if (b.value && all[i + 1]) all[i + 1].focus(); if (all.every(x => x.value)) unlock(); });
+  b.addEventListener('keydown', e => { if (e.key === 'Backspace' && !b.value && all[i - 1]) all[i - 1].focus(); });
+  b.addEventListener('paste', e => { const t = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 4); if (t.length) { e.preventDefault(); t.split('').forEach((c, k) => all[k] && (all[k].value = c)); if (t.length === 4) unlock(); } });
+});
+
+// ---------------------------------------------------------------- state & routing
+let S = null;
+const route = { page: 'library', port: null, tab: 'overview' };
+let filter = 'all', query = '';
+function parseHash() {
+  const h = location.hash.slice(1);
+  if (h.startsWith('port=')) { const q = new URLSearchParams(h); route.port = q.get('port'); route.tab = q.get('tab') || 'overview'; }
+  else { route.port = null; route.page = ['library', 'add', 'settings', 'activity'].includes(h) ? h : 'library'; }
+}
+function go(h) { location.hash = h; }
+addEventListener('hashchange', () => { parseHash(); render(true); });
+
+let timer = null, lastSig = '';
+async function poll() {
   clearTimeout(timer);
-  try { S = await api('GET','/api/state'); if (S.changed !== lastChanged || tab==='ports') { lastChanged = S.changed; if (!document.querySelector('dialog[open]')) render(); } }
-  catch(e) {}
-  timer = setTimeout(poll, S && (S.busy || S.jobs.some(j=>j.state==='running')) ? 800 : 3000);
+  try {
+    S = await api('GET', '/api/state');
+    const sig = JSON.stringify([S.changed, S.jobs.map(j => [j.state, j.progress, j.message]), S.web, S.battery, S.disk && S.disk.free]);
+    if (sig !== lastSig) { lastSig = sig; render(); }
+  } catch (e) {}
+  const busy = S && (S.busy || S.jobs.some(j => j.state === 'running'));
+  timer = setTimeout(poll, busy ? 900 : 3000);
 }
+async function boot(fromLogin) {
+  try { S = await api('GET', '/api/state'); }
+  catch (e) { if (fromLogin) showLogin('That PIN didn’t work. Check the handheld’s Connect screen.'); return; }
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  parseHash(); render(true); poll();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S) poll(); });
 
-function repo(id){ return S.repos.find(r=>r.id===id); }
-async function post(path, body){
-  const r = await fetch(path, {method:'POST', headers:{'X-Pin':PIN,'Content-Type':'application/json'}, body: JSON.stringify(body||{})});
-  const j = await r.json().catch(()=>({}));
-  if (r.status === 401) { showLogin(); throw new Error(j.error); }
-  return {status: r.status, ok: r.ok, j};
+// ---------------------------------------------------------------- model helpers
+const STATUS = { current: 'Up to date', update: 'Update', unknown_version: 'Version unknown', not_installed: 'Not installed', error: 'Error' };
+const repo = id => S.repos.find(r => r.id === id);
+const busyJob = r => r.job && (r.job.state === 'running' || r.job.state === 'queued') ? r.job : null;
+function statusOf(r) {
+  if (busyJob(r)) return ['working', r.job.state === 'queued' ? 'Queued' : 'Working'];
+  if (r.job && r.job.state === 'failed') return ['failed', 'Failed'];
+  return [r.status, STATUS[r.status] || r.status];
 }
-// battery or space say "not now": ask before insisting
-async function guarded(path, body, what){
-  let res = await post(path, body);
-  if (res.status === 409 && res.j.blocked) {
-    if (!confirm(`${res.j.problems.join('\n')}\n\n${what} anyway?`)) return null;
-    res = await post(path, Object.assign({}, body, {force:true}));
+function mainAction(r) {
+  if (busyJob(r)) return null;
+  if (r.status === 'update' || r.status === 'unknown_version') return { label: `Update to ${shortTag(r.latest_tag)}`, fn: () => install(r.id, r.latest_tag) };
+  if (r.status === 'not_installed' && r.latest_tag) return { label: `Install ${shortTag(r.latest_tag)}`, fn: () => install(r.id, r.latest_tag) };
+  return null;
+}
+const updates = () => S.repos.filter(r => r.status === 'update' || r.status === 'unknown_version');
+
+// ---------------------------------------------------------------- actions
+async function guarded(path, body, verb) {
+  try { return await api('POST', path, body); }
+  catch (e) {
+    if (e.status === 409 && e.body && e.body.blocked) {
+      if (!await confirmBox({ title: `${verb} anyway?`, body: e.body.problems.map(esc).join('<br>'), ok: `${verb} anyway`, danger: true })) return null;
+      try { return await api('POST', path, Object.assign({}, body, { force: true })); } catch (e2) { toast(e2.message, true); return null; }
+    }
+    if (e.status !== 401) toast(e.message, true);
+    return null;
   }
-  if (!res.ok) { toast(res.j.error || ('Error ' + res.status)); return null; }
-  return res.j;
 }
-async function install(id, tag, confirmIt, verb){
-  const r = repo(id); verb = verb || 'Install';
-  if (confirmIt && !confirm(`${verb} ${r.title} ${tag}? Your saves are backed up first; imported game files and settings stay.`)) return;
-  if (await guarded(`/api/repos/${id}/install`, {tag}, verb)) toast(`Queued ${r.title} ${tag}`);
+async function install(id, tag, verb = 'Install', ask = false) {
+  const r = repo(id);
+  if (ask && !await confirmBox({ title: `${verb} ${r.title} ${shortTag(tag)}?`, body: 'Saves are backed up first. Imported game files and settings stay.', ok: verb })) return;
+  if (await guarded(`/api/repos/${id}/install`, { tag }, verb)) toast(`${r.title}: ${verb.toLowerCase()} ${shortTag(tag)} queued`);
   poll();
 }
-async function updateAll(){ const j = await guarded('/api/update-all', {}, 'Update'); if (j) toast(`${j.queued} update(s) queued`); poll(); }
-async function skip(id, tag, on){
-  await api('POST',`/api/repos/${id}/skip`,{tag, skip:on});
-  toast(on ? `${tag} skipped: not offered as an update` : `${tag} offered again`); poll();
+async function updateAll() { const j = await guarded('/api/update-all', {}, 'Update'); if (j) toast(j.queued ? `${j.queued} update${j.queued === 1 ? '' : 's'} queued` : 'Nothing to update'); poll(); }
+async function checkAll() { await act(() => api('POST', '/api/check'), 'Checking GitHub for new releases…'); }
+async function skip(id, tag, on) { await act(() => api('POST', `/api/repos/${id}/skip`, { tag, skip: on }), on ? `${shortTag(tag)} skipped: not offered as an update` : `${shortTag(tag)} offered again`); }
+function uninstall(id) {
+  const r = repo(id), d = $('#dlg');
+  d.innerHTML = `<div class="dl-in"><h3>Uninstall ${esc(r.title)}?</h3>
+    <p class="muted">PortMaster removes <b>ports/${esc(r.port_dir)}</b>, with its imported game data and saves.</p>
+    <label class="check"><input type="checkbox" id="bk" checked> First back up ${esc((r.keep_on_uninstall || ['conf']).join(', '))}</label></div>
+    <div class="dl-acts"><button class="btn ghost" data-v="0">Cancel</button><button class="btn danger" data-v="1">Uninstall</button></div>`;
+  d.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; const keep = $('#bk').checked; d.close();
+    if (b.dataset.v === '1') act(() => api('POST', `/api/repos/${id}/uninstall`, { confirm: 'uninstall', backup: keep }), `Uninstalling ${r.title}`); };
+  d.showModal();
 }
-function backupsDlg(id){
-  const r = repo(id), bs = r.backups || [];
-  const dl = (q) => `/api/repos/${id}/${q}${q.includes('?')?'&':'?'}pin=${encodeURIComponent(PIN)}`;
-  const rows = bs.map(b=>`<tr><td>${esc(b.name.replace('.zip',''))}${b.auto?' <span class="chip">auto</span>':''}<div class="mut">${size(b.size)} · ${ago(b.at)}</div></td>
-     <td style="text-align:right"><a class="chip" href="${dl('backup-file?name='+encodeURIComponent(b.name))}">Download</a>
-     <button type="button" onclick="restoreB('${id}','${esc(b.name)}')">Restore</button>
-     <button type="button" class="bad" onclick="delB('${id}','${esc(b.name)}')">Delete</button></td></tr>`).join('');
-  dialog(`<div class="title">Backups · ${esc(r.title)}</div>
-   <p class="mut">Saves and settings (${esc((r.keep_on_uninstall||['conf']).join(', '))}) are backed up by themselves before every update. To move the game to another handheld: download the whole game here, install the port there, and restore the zip on its page.</p>
-   <p class="row"><button type="button" onclick="backupNow('${id}')">Back up saves now</button>
-     <a class="chip" href="${dl('backup-download?kind=saves')}">Download saves (.zip)</a>
-     <a class="chip" href="${dl('backup-download?kind=full')}" title="The port with its imported game data, without the original files">Download whole game (.zip)</a></p>
-   <table>${rows || '<tr><td class="mut">No backups on the handheld yet.</td></tr>'}</table>
-   <label style="margin-top:10px">Restore a backup from this computer (from this or another handheld)</label>
-   <div class="row"><input type="file" id="bkf" accept=".zip"><button type="button" class="pri" onclick="importB('${id}')">Upload and restore</button></div>
-   <div id="bkst" class="mut"></div><div class="bar" id="bkbar" hidden><i style="width:0%"></i></div>
-   <p class="row"><span class="grow"></span><button value="cancel">Close</button></p>`, () => { UP.stop = true; });
+async function unwatch(id) {
+  const r = repo(id);
+  if (!await confirmBox({ title: `Stop watching ${r.title}?`, body: 'The installed port stays. The versions kept on the handheld for rollback are deleted.', ok: 'Stop watching', danger: true })) return;
+  if (await act(() => api('DELETE', `/api/repos/${id}`), `No longer watching ${r.repo}`) !== null) closePort();
 }
-async function backupNow(id){ const j = await api('POST',`/api/repos/${id}/backup`); toast('Saves backed up: '+j.name); await poll(); backupsDlg(id); }
-async function restoreB(id, name){
-  if (!confirm(`Restore ${name}? Its files replace the port's own (your current saves are backed up first).`)) return;
-  await api('POST',`/api/repos/${id}/restore`,{name}); toast('Restoring…'); $('#dlg').close(); poll();
+async function gogGet(id) { await act(() => api('POST', `/api/repos/${id}/gog-download`), 'Downloading the game files from GOG…'); }
+
+// ---------------------------------------------------------------- render
+function render(force) {
+  if (!S) return;
+  const ups = updates().length, uc = $('#ucount');
+  uc.textContent = ups; uc.classList.toggle('hidden', !ups);
+  $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.p === route.page));
+  const b = S.battery || {}, d = S.disk || {};
+  $('#st-bat').innerHTML = b.percent == null ? '' : `${ico(b.charging ? 'bolt' : 'bat')}${b.percent}%`;
+  $('#st-bat').classList.toggle('low', b.percent != null && b.percent < (S.low_battery || 20) && !b.charging);
+  $('#st-disk').innerHTML = d.free == null ? '' : `${ico('disk')}${size(d.free)} free`;
+  const main = $('#main');
+  if (main.dataset.page !== route.page) { main.dataset.page = route.page; main.innerHTML = ''; force = true; }
+  ({ library: renderLibrary, add: renderAdd, settings: renderSettings, activity: renderActivity })[route.page](main, force);
+  renderDrawer(force);
 }
-async function delB(id, name){ if (!confirm(`Delete ${name}?`)) return; await api('POST',`/api/repos/${id}/backup-delete`,{name}); await poll(); backupsDlg(id); }
-async function importB(id){
-  const f = $('#bkf').files[0]; if (!f) return;
-  UP = { stop: false }; const mine = UP;
-  $('#bkbar').hidden = false;
-  const qs = `name=${encodeURIComponent(f.name)}&total=${f.size}`;
-  try {
-    const st = await api('GET', `/api/repos/${id}/backup-upload?${qs}`);
-    if (st.free != null && st.free < f.size - st.have) throw new Error(`Not enough space on the handheld: ${size(st.free)} free`);
-    let off = st.have, done = false, saved = st.saved_as;
-    while (!done) {
-      if (mine.stop) throw new Error('Stopped');
-      const end = Math.min(f.size, off + 8 * 1024 * 1024);
-      let tries = 0;
-      for (;;) {
-        let res = null;
-        try { res = await fetch(`/api/repos/${id}/backup-upload?${qs}&offset=${off}`, { method: 'PUT', headers: { 'X-Pin': PIN }, body: f.slice(off, end) }); } catch (e) {}
-        if (res && res.status === 409) { off = (await res.json()).have; break; }
-        if (res && res.ok) { const j = await res.json(); off = j.have; done = j.done; saved = j.saved_as || saved; break; }
-        if (res && res.status < 500) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `HTTP ${res.status}`); }
-        if (++tries >= 6) throw new Error('The connection keeps dropping. Upload again: it continues where it stopped.');
-        await new Promise(r => setTimeout(r, 1500 * tries));
-      }
-      $('#bkst').textContent = `${size(off)} of ${size(f.size)}`;
-      $('#bkbar i').style.width = Math.round(off * 100 / Math.max(1, f.size)) + '%';
+const typing = el => el && el.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
+
+// ---------- library
+function coverHtml(r, big) {
+  const [c1, c2] = tint(r.repo), pic = r.cover || r.art;
+  // a wide picture (a logo) shows whole, over a soft copy of itself: no crop, no bars
+  return `<div class="cover">${pic ? `<img class="bg" loading="lazy" src="${coverUrl(r)}" alt=""><img class="fg" loading="lazy" src="${coverUrl(r)}" alt="" onload="if(this.naturalWidth>this.naturalHeight*1.05)this.parentNode.classList.add('wide')">`
+    : `<div class="ph" style="--c1:${c1};--c2:${c2}${big ? '' : ';font-size:24px'}">${esc(initials(r.title))}</div>`}</div>`;
+}
+function card(r) {
+  const [st, label] = statusOf(r), job = r.job, a = mainAction(r);
+  const vers = `<span class="vtag">${r.installed
+    ? `<b>${esc(r.installed_tag ? shortTag(r.installed_tag) : '?')}</b>${r.status === 'update' || r.status === 'unknown_version' ? `${ico('arrow')}<b>${esc(shortTag(r.latest_tag))}</b>` : ''}`
+    : `<b>${esc(shortTag(r.latest_tag))}</b>${r.size ? `<span class="faint">· ${size(r.size)}</span>` : ''}`}</span>`;
+  const chips = [];
+  if (r.gog) chips.push(`<span class="chip ${r.gog.present ? 'ok' : ''}">${ico('gog')}${!S.gog_account.linked ? 'On GOG' : r.gog.present ? 'Game files here' : r.gog.owned === true ? 'In your GOG library' : r.gog.owned === false ? 'Not in your library' : 'On GOG'}</span>`);
+  if (r.originals && r.originals.total) chips.push(`<span class="chip">${ico('folder')}${size(r.originals.total)} originals</span>`);
+  if ((r.skipped || []).length) chips.push(`<span class="chip warn">${ico('skip')}${r.skipped.length} skipped</span>`);
+  let jobHtml = '';
+  if (busyJob(r)) {
+    const ind = job.progress == null;
+    jobHtml = `<div class="job-line">${esc(job.message || job.state)}</div><div class="progress ${ind ? 'indet' : ''}"><i style="width:${ind ? 30 : Math.round(job.progress * 100)}%"></i></div>`;
+  } else if (job && job.state === 'failed') jobHtml = `<div class="job-line bad" title="${esc(job.message)}">${esc(job.message)}</div>`;
+  else if (r.error && r.status === 'error') jobHtml = `<div class="job-line bad">${esc(r.error)}</div>`;
+  return `<article class="card ${st === 'update' ? 'attn' : ''}" data-id="${r.id}">
+    <a class="card-hit" href="#port=${r.id}" aria-label="${esc(r.title)}"></a>
+    ${coverHtml(r, true)}
+    <div class="card-body">
+      <div class="card-top"><h3>${esc(r.title)}</h3><a class="repo" href="https://github.com/${esc(r.repo)}" target="_blank" rel="noopener">${esc(r.repo)}</a></div>
+      <div class="meta"><span class="badge b-${st}">${label}</span>${vers}</div>
+      ${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
+      ${jobHtml}
+      <div class="card-actions">
+        ${a ? `<button class="btn primary sm" data-act="main">${ico('down')}${esc(a.label)}</button>` : `<a class="btn sm" href="#port=${r.id}">Details</a>`}
+        <span class="grow"></span>
+        <button class="btn ghost sm icon" data-act="more" title="More" aria-label="More">${ico('more')}</button>
+      </div>
+    </div></article>`;
+}
+function renderLibrary(main, force) {
+  if (force || !$('#lib', main)) {
+    main.innerHTML = `
+      <div class="page-head"><div class="grow"><h1 class="pixel">Library</h1><p class="muted" id="lib-sum"></p></div>
+        <button class="btn" onclick="checkAll()">${ico('refresh')}Check now</button>
+        <button class="btn primary" id="updall" onclick="updateAll()">${ico('down')}Update all</button></div>
+      <div class="toolbar"><div class="search">${ico('search')}<input id="q" placeholder="Search ports" value="${esc(query)}" autocomplete="off"></div>
+        <div class="seg" id="seg">${[['all', 'All'], ['updates', 'Updates'], ['installed', 'Installed'], ['available', 'Not installed']].map(([k, l]) => `<button data-f="${k}" class="${filter === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+      <div id="lib" class="grid"></div>`;
+    $('#q', main).oninput = e => { query = e.target.value; drawCards(); };
+    $('#seg', main).onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; filter = b.dataset.f; $$('#seg button').forEach(x => x.classList.toggle('on', x === b)); drawCards(); };
+    $('#lib', main).onclick = e => {
+      const btn = e.target.closest('[data-act]'); if (!btn) return;
+      e.preventDefault(); const r = repo(btn.closest('[data-id]').dataset.id);
+      if (btn.dataset.act === 'main') { const a = mainAction(r); if (a) a.fn(); }
+      else openMenu(btn, portMenu(r));
+    };
+  }
+  const ups = updates().length;
+  $('#lib-sum').textContent = `${S.repos.length} watched · ${ups ? ups + (ups === 1 ? ' update' : ' updates') : 'everything up to date'}` + (S.rate_remaining != null ? ` · ${S.rate_remaining} GitHub checks left this hour` : '');
+  $('#updall').disabled = !ups || S.busy;
+  drawCards();
+}
+function drawCards() {
+  const q = query.trim().toLowerCase(), lib = $('#lib');
+  const list = S.repos.filter(r => (!q || (r.title + ' ' + r.repo).toLowerCase().includes(q)) &&
+    (filter === 'all' || (filter === 'updates' && (r.status === 'update' || r.status === 'unknown_version')) || (filter === 'installed' && r.installed) || (filter === 'available' && !r.installed)));
+  if (!list.length) {
+    lib.innerHTML = S.repos.length ? `<div class="empty" style="grid-column:1/-1"><h2>Nothing here</h2><p>No port matches.</p></div>`
+      : `<div class="empty" style="grid-column:1/-1"><img src="/static/icons/slopetanium-icon-96.png" alt=""><h2>No ports watched yet</h2><p>Add a GitHub repo, or pick one from the catalogue.</p><p><a class="btn primary" href="#add">${ico('plus')}Add a port</a></p></div>`;
+    return;
+  }
+  // only the cards whose look changed are replaced: nothing flickers under the pointer
+  const want = list.map(r => r.id).join(), have = $$('.card', lib).map(c => c.dataset.id).join();
+  if (want !== have) { lib.innerHTML = list.map(card).join(''); $$('.card', lib).forEach((c, i) => c.dataset.h = card(list[i])); return; }
+  list.forEach(r => {
+    const html = card(r), el = lib.querySelector(`[data-id="${r.id}"]`);
+    if (el && el.dataset.h !== html) { const t = document.createElement('div'); t.innerHTML = html; const n = t.firstElementChild; n.dataset.h = html; el.replaceWith(n); }
+  });
+}
+function portMenu(r) {
+  const items = [{ label: 'Open', icon: 'arrow', fn: () => go(`port=${r.id}`) }];
+  if (r.installed && !r.is_self && (r.installed_tag || r.latest_tag)) items.push({ label: `Reinstall ${shortTag(r.installed_tag || r.latest_tag)}`, icon: 'refresh', fn: () => install(r.id, r.installed_tag || r.latest_tag, 'Reinstall', true) });
+  items.push({ label: 'Versions', icon: 'box', fn: () => go(`port=${r.id}&tab=versions`) });
+  if (r.installed && r.upload_dir) items.push({ label: 'Game files', icon: 'folder', fn: () => go(`port=${r.id}&tab=files`) });
+  if (r.installed && !r.is_self) items.push({ label: 'Backups', icon: 'archive', fn: () => go(`port=${r.id}&tab=backups`) });
+  items.push({ label: 'Check for updates', icon: 'refresh', fn: () => act(() => api('POST', `/api/repos/${r.id}/check`), `Checking ${r.title}`) });
+  items.push('-');
+  if (r.installed && !r.is_self) items.push({ label: 'Uninstall…', icon: 'trash', bad: true, fn: () => uninstall(r.id) });
+  items.push({ label: 'Stop watching', icon: 'x', bad: true, fn: () => unwatch(r.id) });
+  return items;
+}
+
+// ---------- port drawer
+const TABS = [['overview', 'Overview'], ['versions', 'Versions'], ['files', 'Game files'], ['backups', 'Backups'], ['settings', 'Settings']];
+function openPort(id, tab) { go(`port=${id}${tab && tab !== 'overview' ? '&tab=' + tab : ''}`); }
+function closePort() { if (route.port) { history.pushState(null, '', '#' + route.page); route.port = null; renderDrawer(true); } }
+let drawerSig = '';
+function renderDrawer(force) {
+  const dr = $('#drawer'), sc = $('#scrim'), r = route.port && S && repo(route.port);
+  if (!r) { dr.classList.remove('on'); sc.classList.remove('on'); dr.setAttribute('aria-hidden', 'true'); drawerSig = ''; return; }
+  dr.classList.add('on'); sc.classList.add('on'); dr.setAttribute('aria-hidden', 'false');
+  if (!force && typing(dr)) return;   // a form being filled in stays as it is
+  const sig = JSON.stringify([route.tab, r, S.gog_account, S.disk && S.disk.free]);
+  if (!force && sig === drawerSig) return;
+  drawerSig = sig;
+  const [st, label] = statusOf(r), a = mainAction(r);
+  const tabs = TABS.filter(([k]) => !((k === 'files' && !r.upload_dir) || (k === 'backups' && (!r.installed || r.is_self))));
+  if (!tabs.find(([k]) => k === route.tab)) route.tab = 'overview';
+  const old = $('.d-body', dr), scroll = old && dr.dataset.tab === route.tab ? old.scrollTop : 0;
+  dr.dataset.tab = route.tab;
+  dr.innerHTML = `
+    <div class="d-head">${coverHtml(r, false)}
+      <div style="min-width:0"><h2>${esc(r.title)}</h2>
+        <div class="row" style="gap:8px"><span class="badge b-${st}">${label}</span><a class="chip" href="https://github.com/${esc(r.repo)}" target="_blank" rel="noopener">${ico('ext')}${esc(r.repo)}</a></div>
+        ${a ? `<div style="margin-top:12px"><button class="btn primary" id="d-main">${ico('down')}${esc(a.label)}</button></div>` : ''}</div>
+      <button class="btn ghost icon" onclick="closePort()" title="Close" aria-label="Close">${ico('x')}</button>
+    </div>
+    <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${k === route.tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+    <div class="d-body"></div>`;
+  $('.tabs', dr).onclick = e => { const b = e.target.closest('[data-tab]'); if (b) openPort(r.id, b.dataset.tab); };
+  if (a) $('#d-main', dr).onclick = a.fn;
+  const body = $('.d-body', dr);
+  ({ overview: paneOverview, versions: paneVersions, files: paneFiles, backups: paneBackups, settings: paneSettings })[route.tab](body, r);
+  body.scrollTop = scroll;
+}
+
+function md(text) {
+  // markdown, plainly: headings, lists, bold, code, links
+  const inline = s => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|\s)(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  let out = '', list = false;
+  for (const l of esc(text || '').split(/\r?\n/)) {
+    const m = l.match(/^\s*[-*]\s+(.*)/);
+    if (m) { if (!list) { out += '<ul>'; list = true; } out += `<li>${inline(m[1])}</li>`; continue; }
+    if (list) { out += '</ul>'; list = false; }
+    const h = l.match(/^\s*#{1,6}\s+(.*)/);
+    if (h) out += `<h4>${inline(h[1])}</h4>`; else if (l.trim()) out += `<p>${inline(l)}</p>`;
+  }
+  if (list) out += '</ul>';
+  return out || '<p class="faint">No release notes.</p>';
+}
+
+function paneOverview(body, r) {
+  const latest = r.releases.find(x => x.tag === r.latest_tag), job = r.job;
+  const facts = [['Installed', r.installed ? (r.installed_tag ? shortTag(r.installed_tag) : 'unknown') : 'no'], ['Latest', shortTag(r.latest_tag)],
+    ['Download', r.size ? size(r.size) : '—'], ['Folder', r.port_dir ? 'ports/' + r.port_dir : '—'], ['Checked', ago(r.last_checked)]];
+  let html = '<div class="stack">';
+  if (job && (busyJob(r) || job.state === 'failed')) {
+    const ind = job.progress == null, bad = job.state === 'failed';
+    html += `<div class="panel"><h3>${ico(bad ? 'alert' : 'refresh')}${esc(job.label)}</h3><div class="job-line ${bad ? 'bad' : ''}" style="white-space:normal">${esc(job.message || job.state)}</div>
+      ${bad ? '' : `<div class="progress ${ind ? 'indet' : ''}" style="margin-top:8px"><i style="width:${ind ? 30 : Math.round(job.progress * 100)}%"></i></div>`}</div>`;
+  }
+  html += `<div class="facts">${facts.map(([k, v]) => `<div class="fact"><div class="k">${k}</div><div class="v" title="${esc(v)}">${esc(v)}</div></div>`).join('')}</div>`;
+  const o = r.originals || {}, noFiles = r.installed && r.upload_dir && !o.total && !o.imported_hint && !(r.gog && r.gog.present);
+  if (noFiles || r.gog || (r.buy || []).length) {
+    const btns = [];
+    if (r.installed && r.upload_dir) btns.push(`<button class="btn sm" onclick="openPort('${r.id}','files')">${ico('up')}Upload from this computer</button>`);
+    if (r.gog && r.installed && !r.gog.present) {
+      if (!S.gog_account.linked) btns.push(`<a class="btn sm" href="#settings">${ico('gog')}Sign in to GOG</a>`);
+      else if (r.gog.owned !== false) btns.push(`<button class="btn sm" onclick="gogGet('${r.id}')">${ico('down')}Get from GOG</button>`);
     }
-    await api('POST',`/api/repos/${id}/restore`,{name: saved});
-    toast('Uploaded, restoring…'); $('#dlg').close(); poll();
-  } catch (e) { $('#bkst').textContent = e.message; }
+    (r.buy || []).forEach(b => btns.push(`<a class="btn sm ghost" href="${esc(b.url)}" target="_blank" rel="noopener">${ico('store')}Buy on ${esc(b.store)}</a>`));
+    const state = r.gog && r.gog.present ? `<span class="chip ok">${ico('check')}Game files here</span>` : o.imported_hint ? `<span class="chip ok">${ico('check')}Imported</span>` : '';
+    html += `<div class="panel ${noFiles ? 'callout' : ''}"><h3>${ico('folder')}Game files ${state}</h3>
+      ${r.hint ? `<p class="small" style="margin:0 0 10px">${esc(r.hint)}</p>` : ''}<div class="row">${btns.join('')}</div>
+      ${r.gog && S.gog_account.linked && r.gog.owned === false ? `<p class="small" style="margin:10px 0 0;color:var(--warn)">${esc(r.gog.title || 'This game')} is not in your GOG library.</p>` : ''}</div>`;
+  }
+  if (latest) html += `<div class="panel"><h3>What's new in ${esc(shortTag(latest.tag))} <span class="faint small" style="font-weight:400">${day(latest.published)}</span></h3><div class="md">${md(latest.body)}</div>
+    ${latest.url ? `<a class="chip" href="${esc(latest.url)}" target="_blank" rel="noopener" style="margin-top:6px">${ico('ext')}On GitHub</a>` : ''}</div>`;
+  html += `<div class="panel danger"><h3>${ico('alert')}Danger zone</h3><div class="row">
+    ${r.installed && !r.is_self ? `<button class="btn danger sm" onclick="uninstall('${r.id}')">${ico('trash')}Uninstall</button>` : ''}
+    <button class="btn danger sm" onclick="unwatch('${r.id}')">${ico('x')}Stop watching</button></div></div></div>`;
+  body.innerHTML = html;
 }
-async function uninstall(id){
-  const r = repo(id);
-  dialog(`<div class="title">Uninstall ${esc(r.title)}?</div>
-   <p>PortMaster removes the whole port folder <b>ports/${esc(r.port_dir)}</b>, including imported game data and saves.</p>
-   <label class="row"><input type="checkbox" id="bk" checked> First copy <b>${esc((r.keep_on_uninstall||[]).join(', ')||'nothing')}</b> to Slopetanium's backups</label>
-   <p class="row"><button value="cancel">Cancel</button><button class="pri bad" value="ok" id="okb">Uninstall</button></p>`,
-   async v=>{ if (v!=='ok') return; await api('POST',`/api/repos/${id}/uninstall`,{confirm:'uninstall', backup: $('#bk').checked}); poll(); });
-}
-async function unwatch(id){
-  const r = repo(id);
-  if (!confirm(`Stop watching ${r.repo}? The installed port stays; downloaded versions kept for rollback are deleted.`)) return;
-  await api('DELETE',`/api/repos/${id}`); poll();
-}
-function notes(id, tag){ const x = repo(id).releases.find(x=>x.tag===tag);
-  dialog(`<div class="title">${esc(x.name)}</div><div class="notes" style="max-height:60vh">${esc(x.body)}</div><p class="row"><a href="${esc(x.url)}" target="_blank" rel="noopener">Open on GitHub</a><span class="grow"></span><button value="ok">Close</button></p>`); }
-function originals(id){
-  const r = repo(id), o = r.originals;
-  const hint = o.imported_hint ? `The port has an imported <b>${esc(o.imported_hint)}/</b> folder, so these are probably no longer needed.` : `<b class="s-update">No imported game data found yet.</b> Start the port once so it imports these files before you delete them.`;
-  dialog(`<div class="title">Original game files · ${esc(r.title)}</div>
-   <p class="mut">ports/${esc(o.dir)}</p><p>${hint}</p>
-   <table>${o.files.map((f,i)=>`<tr><td><label class="row" style="margin:0;color:inherit"><input type="checkbox" class="of" value="${esc(f.name)}" checked> ${esc(f.name)}${f.dir?'/':''}</label></td><td class="mut" style="text-align:right">${size(f.size)}</td></tr>`).join('')}</table>
-   <p class="row"><button value="cancel">Cancel</button><button class="pri bad" value="ok">Delete selected</button></p>`,
-   async v=>{ if (v!=='ok') return; const names=[...document.querySelectorAll('.of:checked')].map(x=>x.value); if(!names.length) return;
-     const j = await api('POST',`/api/repos/${id}/originals-delete`,{names}); toast(`Freed ${size(j.freed)}`); poll(); });
-}
-function edit(id){
-  const r = repo(id);
-  dialog(`<div class="title">Edit ${esc(r.repo)}</div>
-   <label>Repo</label><input id="e_repo" value="${esc(r.repo)}">
-   <label style="margin-top:8px">Asset name pattern</label><input id="e_pat" value="${esc(r.asset_pattern)}" placeholder="first .zip">
-   <label style="margin-top:8px">Port name (zip name PortMaster records)</label><input id="e_pn" value="${esc(r.port_name)}">
-   <label style="margin-top:8px">Originals folder</label><input id="e_od" value="${esc(r.originals_dir)}">
-   <label style="margin-top:8px">Original files pattern (optional, e.g. *.iso,*.cue)</label><input id="e_opat" value="${esc(r.originals_pattern||'')}">
-   <label style="margin-top:8px">Back up before uninstall</label><input id="e_keep" value="${esc((r.keep_on_uninstall||[]).join(', '))}">
-   <label style="margin-top:8px">Cover image (https:// address of the game's box art; empty: the port's screenshot)</label><input id="e_cover" value="${esc(r.cover_url||'')}">
-   <label style="margin-top:8px">GOG game id (gog.com product id; empty: none)</label><input id="e_gid" value="${esc(r.gog?r.gog.id:'')}" inputmode="numeric">
-   <div class="grid"><div><label>GOG files go to</label><input id="e_gdest" value="${esc(r.gog?r.gog.dest:'source')}"></div>
-   <div><label>GOG installer names</label><input id="e_gfiles" value="${esc(r.gog?r.gog.files:'')}" placeholder="setup_*.exe"></div></div>
-   <p><label class="row" style="color:inherit"><input type="checkbox" id="e_pre" ${r.prereleases?'checked':''}> Include pre-releases</label></p>
-   <p class="row"><button value="cancel">Cancel</button><button class="pri" value="ok">Save</button></p>`,
-   async v=>{ if (v!=='ok') return; await api('PATCH',`/api/repos/${id}`,{repo:$('#e_repo').value, asset_pattern:$('#e_pat').value, port_name:$('#e_pn').value, originals_dir:$('#e_od').value, originals_pattern:$('#e_opat').value, cover_url:$('#e_cover').value, keep_on_uninstall:$('#e_keep').value, prereleases:$('#e_pre').checked,
-     gog: $('#e_gid').value.trim() ? {id:+$('#e_gid').value, title:(r.gog&&r.gog.title)||'', dest:$('#e_gdest').value, files:$('#e_gfiles').value} : null}); poll(); });
-}
-function dialog(html, cb){ const d=$('#dlg'); $('#dlgform').innerHTML=html; d.onclose=()=>{ cb && cb(d.returnValue); render(); }; d.returnValue=''; d.showModal(); }
-async function addRepo(e){ e.preventDefault(); const f=e.target;
-  await api('POST','/api/repos',{repo:f.repo.value, asset_pattern:f.asset_pattern.value, originals_dir:f.originals_dir.value, keep_on_uninstall:f.keep_on_uninstall.value, prereleases:f.prereleases.checked});
-  f.repo.value=''; toast('Added, checking releases…'); setTab('ports'); poll(); }
-async function saveSettings(e){ e.preventDefault(); const f=e.target; const b={auto_check_minutes:+f.auto_check_minutes.value, keep_versions:+f.keep_versions.value};
-  if (f.github_token.value) b.github_token=f.github_token.value; await api('PUT','/api/settings',b); f.github_token.value=''; toast('Saved'); poll(); }
-let UP = { stop: false };
-function upload(id){
-  const r = repo(id);
-  dialog(`<div class="title">Game files · ${esc(r.title)}</div>
-   ${r.hint?`<p>${esc(r.hint)}</p>`:''}
-   <p class="mut">They go to <b>ports/${esc(r.upload_dir)}</b> on the handheld. Start the port afterwards: its first start imports them.</p>
-   <div class="grid"><div><label>Files</label><input type="file" id="upf" multiple></div>
-   <div><label>Or a whole folder</label><input type="file" id="upd" webkitdirectory multiple></div></div>
-   <div id="upst" class="mut" style="margin-top:10px"></div><div class="bar" id="upbar" hidden><i style="width:0%"></i></div>
-   <p class="row"><button value="cancel">Close</button><span class="grow"></span><button type="button" class="pri" id="upgo" onclick="startUpload('${r.id}')">Upload</button></p>`,
-   () => { UP.stop = true; });
-}
-async function startUpload(id){
-  const files = [...$('#upf').files, ...$('#upd').files];
-  if (!files.length) return;
-  UP = { stop: false };
-  const mine = UP;
-  $('#upgo').disabled = true; $('#upbar').hidden = false;
-  const total = files.reduce((a, f) => a + f.size, 0), single = files.length === 1, t0 = Date.now();
-  let before = 0, fresh = 0;
-  const show = (name, at) => {
-    const done = before + at, secs = (Date.now() - t0) / 1000;
-    const rate = secs > 1 ? ` · ${size(fresh / secs)}/s` : '';
-    $('#upst').textContent = `${name} · ${size(done)} of ${size(total)}${rate}`;
-    $('#upbar i').style.width = (total ? Math.round(done * 100 / total) : 100) + '%';
+
+function paneVersions(body, r) {
+  const running = !!busyJob(r);
+  if (!r.releases.length) { body.innerHTML = `<div class="empty"><h2>No releases yet</h2><p>Nothing published on GitHub.</p></div>`; return; }
+  body.innerHTML = `<p class="muted small" style="margin-top:0">Install any release. If the newest one misbehaves, <b>Skip</b> it: it won't be offered as the update until a newer release arrives.</p>
+  <div class="list">${r.releases.map(x => `
+    <div class="li" style="align-items:flex-start">
+      <div class="grow">
+        <div class="row" style="gap:6px"><span class="t">${esc(x.tag)}</span>
+          ${x.installed ? `<span class="badge b-current">Installed</span>` : ''}${x.prerelease ? '<span class="chip">pre-release</span>' : ''}${x.cached ? '<span class="chip" title="Kept on the handheld: installs offline">on the handheld</span>' : ''}${x.skipped ? `<span class="chip warn">${ico('skip')}skipped</span>` : ''}</div>
+        <div class="faint small">${day(x.published)}${x.asset ? ' · ' + esc(x.asset.name) + ' · ' + size(x.asset.size) : ' · no port zip'}</div>
+        ${x.body ? `<details class="notes"><summary>Release notes</summary><div class="md">${md(x.body)}</div></details>` : ''}
+      </div>
+      <div class="acts">
+        ${x.asset && !x.installed ? `<button class="btn sm" ${running ? 'disabled' : ''} data-inst="${esc(x.tag)}">Install</button>` : ''}
+        <button class="btn ghost sm" data-skip="${esc(x.tag)}" data-on="${!x.skipped}" title="${x.skipped ? 'Offer it as an update again' : 'Unstable: never offer it as the update'}">${x.skipped ? 'Unskip' : 'Skip'}</button>
+      </div>
+    </div>`).join('')}</div>`;
+  body.onclick = e => {
+    const i = e.target.closest('[data-inst]'); if (i) return install(r.id, i.dataset.inst, 'Install', true);
+    const s = e.target.closest('[data-skip]'); if (s) skip(r.id, s.dataset.skip, s.dataset.on === 'true');
   };
-  try {
-    for (const f of files) {
-      const name = f.webkitRelativePath || f.name;
-      const qs = `name=${encodeURIComponent(name)}&total=${f.size}${single ? '&single=1' : ''}`;
-      const st = await api('GET', `/api/repos/${id}/upload?${qs}`);
-      if (st.free != null && st.free < f.size - st.have) throw new Error(`Not enough space on the handheld: ${size(st.free)} free`);
-      let off = st.have, done = st.done;
-      show(name, off);
-      while (!done) {
-        if (mine.stop) throw new Error('Stopped');
-        const end = Math.min(f.size, off + 8 * 1024 * 1024);
-        let tries = 0;
-        for (;;) {
-          let res = null;
-          try { res = await fetch(`/api/repos/${id}/upload?${qs}&offset=${off}`, { method: 'PUT', headers: { 'X-Pin': PIN }, body: f.slice(off, end) }); } catch (e) {}
-          if (res && res.status === 409) { off = (await res.json()).have; break; }   // the handheld has more (or less): from there
-          if (res && res.ok) { fresh += end - off; const j = await res.json(); off = j.have; done = j.done; break; }
-          if (res && res.status < 500 && res.status !== 408) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `HTTP ${res.status}`); }
-          if (++tries >= 6) throw new Error('The connection to the handheld keeps dropping. Upload again: it continues where it stopped.');
-          $('#upst').textContent = `${name}: connection lost, trying again…`;
-          await new Promise(r => setTimeout(r, 1500 * tries));
-        }
-        show(name, off);
-      }
-      before += f.size;
+}
+
+// ---------- game files: drop zone, uploads (they keep going when the panel closes)
+const UPQ = { items: [], running: false };
+function fsNote(info) {
+  return info && info.max_file ? `The card holding this port is <b>${esc(info.fs || 'FAT32')}</b>: a single file can be at most ${size(info.max_file)} there.` : '';
+}
+function paneFiles(body, r) {
+  const o = r.originals || { files: [] }, lim = r.upload_fs || {};
+  body.innerHTML = `<div class="stack">
+    ${r.hint ? `<div class="panel callout"><h3>${ico('folder')}What this port wants</h3><p class="small" style="margin:0">${esc(r.hint)}</p></div>` : ''}
+    <div class="drop" id="drop">${ico('up', 'i big')}
+      <h3>Drop game files or a folder here</h3>
+      <p class="muted small" style="margin:0 0 12px">They go to <b>ports/${esc(r.upload_dir)}</b> on the handheld; the port imports them on its next start. Uploads resume if the Wi-Fi drops.${lim.max_file ? '<br>' + fsNote(lim) : ''}</p>
+      <div class="row" style="justify-content:center"><label class="btn sm">${ico('box')}Choose files<input type="file" multiple hidden id="pf"></label>
+        <label class="btn sm">${ico('folder')}Choose a folder<input type="file" webkitdirectory multiple hidden id="pd"></label></div>
+      <div class="up-list" id="uplist"></div></div>
+    <div class="panel"><h3>${ico('folder')}On the handheld ${o.total ? `<span class="faint small" style="font-weight:400">${size(o.total)}</span>` : ''}</h3>
+      ${(o.files || []).length ? `<p class="small" style="margin:0 0 8px;color:${o.imported_hint ? 'var(--accent)' : 'var(--warn)'}">${o.imported_hint ? `Imported already (${esc(o.imported_hint)}/): these can go.` : 'Not imported yet: start the port once before deleting these.'}</p>
+        <div class="list">${o.files.map(f => `<div class="li"><span class="grow" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}${f.dir ? '/' : ''}</span><span class="faint small">${size(f.size)}</span>
+          <button class="btn ghost sm icon" title="Delete" aria-label="Delete" data-del="${esc(f.name)}">${ico('trash')}</button></div>`).join('')}</div>
+        <div class="row" style="margin-top:10px"><button class="btn danger sm" id="delall">${ico('trash')}Delete all (${size(o.total)})</button></div>`
+      : `<p class="muted small" style="margin:0">No original game files in the port's folder.</p>`}</div></div>`;
+  const drop = $('#drop', body);
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = async e => { e.preventDefault(); drop.classList.remove('over'); queueFiles(r.id, await droppedFiles(e.dataTransfer)); };
+  $('#pf', body).onchange = e => queueFiles(r.id, [...e.target.files].map(f => ({ file: f, name: f.name })));
+  $('#pd', body).onchange = e => queueFiles(r.id, [...e.target.files].map(f => ({ file: f, name: f.webkitRelativePath || f.name })));
+  body.onclick = async e => {
+    const d = e.target.closest('[data-del]');
+    if (d && await confirmBox({ title: `Delete ${d.dataset.del}?`, ok: 'Delete', danger: true })) act(() => api('POST', `/api/repos/${r.id}/originals-delete`, { names: [d.dataset.del] }), j => `Freed ${size(j.freed)}`);
+    if (e.target.closest('#delall') && await confirmBox({ title: 'Delete all original files?', body: o.imported_hint ? 'The port has imported them already.' : '<b style="color:var(--warn)">Nothing imported yet.</b> Start the port once first, or you will need these again.', ok: `Delete ${size(o.total)}`, danger: true }))
+      act(() => api('POST', `/api/repos/${r.id}/originals-delete`, {}), j => `Freed ${size(j.freed)}`);
+  };
+  drawUploads();
+}
+async function droppedFiles(dt) {
+  const out = [], entries = [...dt.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!entries.length) return [...dt.files].map(f => ({ file: f, name: f.name }));
+  async function walk(en, prefix) {
+    if (en.isFile) { const f = await new Promise((res, rej) => en.file(res, rej)); out.push({ file: f, name: prefix + f.name }); return; }
+    const rd = en.createReader();
+    for (;;) { const batch = await new Promise((res, rej) => rd.readEntries(res, rej)); if (!batch.length) break; for (const c of batch) await walk(c, prefix + en.name + '/'); }
+  }
+  for (const en of entries) await walk(en, '');
+  return out;
+}
+function queueFiles(id, files) {
+  if (!files.length) return;
+  const r = repo(id), lim = (r && r.upload_fs) || {};
+  // what the card can't hold: said now, not after an hour of uploading
+  if (lim.max_file) {
+    const big = files.filter(f => f.file.size > lim.max_file);
+    if (big.length) { toast(`${big.map(f => f.name).join(', ')}: over ${size(lim.max_file)}, the most one file can be on this card (${lim.fs || 'FAT32'}). Format the card as exFAT, or use a smaller copy.`, true); files = files.filter(f => f.file.size <= lim.max_file); }
+  }
+  const total = files.reduce((a, f) => a + f.file.size, 0);
+  if (S.disk && S.disk.free != null && total > S.disk.free) { toast(`${size(total)} won't fit: ${size(S.disk.free)} free on the handheld`, true); return; }
+  if (!files.length) return;
+  const single = files.length === 1;
+  files.forEach(f => UPQ.items.push({ id, file: f.file, name: f.name, single, done: 0, state: 'waiting', err: '', t0: 0, d0: 0 }));
+  drawUploads(); runUploads();
+}
+async function runUploads() {
+  if (UPQ.running) return;
+  UPQ.running = true;
+  for (const it of UPQ.items) {
+    if (it.state !== 'waiting') continue;
+    it.state = 'up'; drawUploads();
+    try { await uploadOne(it); it.state = 'done'; } catch (e) { it.state = 'bad'; it.err = e.message; }
+    drawUploads();
+  }
+  UPQ.running = false;
+  const bad = UPQ.items.filter(i => i.state === 'bad').length, ok = UPQ.items.filter(i => i.state === 'done').length;
+  if (ok || bad) toast(bad ? `${bad} upload${bad === 1 ? '' : 's'} stopped: drop the same files again to continue where they stopped` : `${ok} file${ok === 1 ? '' : 's'} uploaded: start the port to import them`, !!bad);
+  setTimeout(() => { if (!UPQ.running) { UPQ.items = UPQ.items.filter(i => i.state === 'waiting' || i.state === 'up'); drawUploads(); } }, 6000);
+  poll();
+}
+// one file in 8 MB pieces; the handheld says how much it has, so a cut (or a new page) continues from there
+async function sendChunks(url, f, start, onProgress) {
+  let off = start, done = false, last = {};
+  while (!done) {
+    const end = Math.min(f.size, off + 8 * 1024 * 1024);
+    let tries = 0;
+    for (;;) {
+      let res = null;
+      try { res = await fetch(`${url}&offset=${off}`, { method: 'PUT', headers: { 'X-Pin': PIN }, body: f.slice(off, end) }); } catch (_) {}
+      if (res && res.status === 409) { off = (await res.json()).have; break; }
+      if (res && res.ok) { last = await res.json(); off = last.have; done = last.done; break; }
+      if (res && res.status < 500) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'HTTP ' + res.status); }
+      if (++tries >= 8) throw new Error('The connection to the handheld keeps dropping');
+      await new Promise(r => setTimeout(r, Math.min(15000, 1500 * tries)));
     }
-    $('#upst').textContent = `Done: ${files.length} file${files.length == 1 ? '' : 's'}, ${size(total)}. Start the port to import them.`;
-    toast('Game files uploaded');
-  } catch (e) {
-    $('#upst').textContent = e.message;
-  } finally {
-    const b = $('#upgo'); if (b) b.disabled = false;
-    poll();
+    onProgress(off);
+  }
+  return last;
+}
+async function uploadOne(it) {
+  const f = it.file, qs = `name=${encodeURIComponent(it.name)}&total=${f.size}${it.single ? '&single=1' : ''}`;
+  const st = await api('GET', `/api/repos/${it.id}/upload?${qs}`);
+  if (st.max_file && f.size > st.max_file) throw new Error(`Over ${size(st.max_file)}, the most one file can be on this card (${st.fs || 'FAT32'})`);
+  if (st.free != null && st.free < f.size - st.have) throw new Error(`Not enough space on the handheld (${size(st.free)} free)`);
+  it.done = st.have; it.t0 = Date.now(); it.d0 = st.have;
+  if (st.done) return;
+  await sendChunks(`/api/repos/${it.id}/upload?${qs}`, f, st.have, off => { it.done = off; drawUploads(); });
+}
+function rate(i) { const s = (Date.now() - i.t0) / 1000; return s > 2 ? (i.done - i.d0) / s : 0; }
+function drawUploads() {
+  const items = UPQ.items;
+  const row = i => {
+    const sp = rate(i), left = sp ? (i.file.size - i.done) / sp : 0;
+    const what = i.state === 'bad' ? esc(i.err) : i.state === 'done' ? 'done' : i.state === 'waiting' ? 'waiting'
+      : `${size(i.done)} / ${size(i.file.size)}${sp ? ` · ${size(sp)}/s · ${dur(left)} left` : ''}`;
+    return `<div class="up-item"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.name)}</span>
+      <span class="small ${i.state === 'bad' ? '' : 'faint'}" style="${i.state === 'bad' ? 'color:var(--danger)' : ''}">${what}</span>
+      <div class="progress"><i style="width:${i.file.size ? Math.round(i.done * 100 / i.file.size) : 100}%"></i></div></div>`;
+  };
+  const list = $('#uplist');
+  if (list) list.innerHTML = items.filter(i => i.id === route.port).map(row).join('');
+  const box = $('#uploader'), active = items.filter(i => i.state === 'up' || i.state === 'waiting');
+  const visibleHere = list && items.some(i => i.id === route.port);
+  box.classList.toggle('hidden', !(active.length && !visibleHere));
+  if (active.length && !visibleHere) {
+    const tot = active.reduce((a, i) => a + i.file.size, 0), dn = active.reduce((a, i) => a + i.done, 0);
+    box.innerHTML = `<div class="row" style="justify-content:space-between"><b>Uploading ${active.length} file${active.length === 1 ? '' : 's'}</b><span class="faint">${size(dn)} / ${size(tot)}</span></div>
+      <div class="progress" style="margin-top:8px"><i style="width:${tot ? Math.round(dn * 100 / tot) : 0}%"></i></div><div class="faint tiny" style="margin-top:6px">Keep this page open until it's done.</div>`;
   }
 }
-async function gogGet(id){ await api('POST',`/api/repos/${id}/gog-download`); toast('Downloading from GOG…'); poll(); }
-async function gogLink(){ const v=$('#gogcode').value.trim(); if(!v) return; try { const j = await api('POST','/api/gog/link',{code:v}); toast('Signed in to GOG as '+(j.user||'?')); } catch(e) {} poll(); }
-async function gogUnlink(){ if(!confirm('Sign out of GOG on this handheld?')) return; await api('POST','/api/gog/unlink'); poll(); }
-async function catAdd(repo){ await api('POST','/api/catalogue/add',{repo}); toast('Added '+repo); poll(); }
-async function clearToken(){ await api('PUT','/api/settings',{github_token:''}); toast('Token removed'); poll(); }
-async function newPin(){ if(!confirm('Make a new PIN? Other browsers will have to enter it again.')) return; await api('PUT','/api/settings',{new_pin:true}); toast('New PIN is on the handheld screen'); showLogin(); }
+addEventListener('beforeunload', e => { if (UPQ.items.some(i => i.state === 'up' || i.state === 'waiting')) { e.preventDefault(); e.returnValue = ''; } });
 
-if (new URLSearchParams(location.search).get('pin')) { try{ localStorage.setItem('slop_pin', PIN);}catch(_){}; history.replaceState(null,'',location.pathname+location.hash); }
-{ const h = location.hash.slice(1); if (['ports','add','settings','log'].includes(h)) tab = h; }
-if (!PIN) showLogin(); else { setTab(tab); poll(); }
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) poll(); });
+// ---------- backups
+function paneBackups(body, r) {
+  const bs = r.backups || [], lim = r.backup_fs || {};
+  body.innerHTML = `<div class="stack">
+    <div class="panel callout"><h3>${ico('archive')}Move this game to another handheld</h3>
+      <p class="small" style="margin:0 0 10px">Download the whole game: the port with its imported data, without the original files. On the other handheld, install the port, open this tab there and restore the zip. It starts without importing again.</p>
+      <div class="row"><a class="btn primary sm" href="${dl(r.id, 'backup-download?kind=full')}">${ico('down')}Download whole game</a>
+        <a class="btn sm" href="${dl(r.id, 'backup-download?kind=saves')}">${ico('down')}Download saves</a></div>
+      <p class="faint tiny" style="margin:8px 0 0">The download is made while it streams, so the browser can't show its size; a big game takes a while over Wi-Fi.</p></div>
+    <div class="panel"><h3>${ico('archive')}Saves on the handheld</h3>
+      <p class="small muted" style="margin:0 0 6px">${esc((r.keep_on_uninstall || ['conf']).join(', '))} is backed up by itself before every update, rollback and restore; the last five are kept.</p>
+      <div class="list">${bs.length ? bs.map(b => `<div class="li"><div class="grow"><div style="font-weight:600">${esc(b.name.replace(/\.zip$/, ''))} ${b.auto ? '<span class="chip">auto</span>' : ''}</div><div class="faint small">${size(b.size)} · ${ago(b.at)}</div></div>
+        <div class="acts"><a class="btn ghost sm icon" title="Download" aria-label="Download" href="${dl(r.id, 'backup-file?name=' + encodeURIComponent(b.name))}">${ico('down')}</a>
+          <button class="btn sm" data-restore="${esc(b.name)}">Restore</button><button class="btn ghost sm icon" title="Delete" aria-label="Delete" data-delb="${esc(b.name)}">${ico('trash')}</button></div></div>`).join('')
+        : '<p class="muted small" style="margin:6px 0 0">No backups yet.</p>'}</div>
+      <div class="row" style="margin-top:10px"><button class="btn sm" id="bknow">${ico('archive')}Back up saves now</button></div></div>
+    <div class="drop" id="bdrop">${ico('up', 'i big')}<h3>Restore from this computer</h3>
+      <p class="muted small" style="margin:0 0 12px">A Slopetanium backup zip of this port, from this handheld or another. The current saves are backed up first.${lim.max_file ? '<br>' + fsNote(lim) : ''}</p>
+      <label class="btn sm">${ico('archive')}Choose a backup<input type="file" accept=".zip" hidden id="bf"></label>
+      <div class="up-list" id="bkst"></div></div></div>`;
+  body.onclick = async e => {
+    const rs = e.target.closest('[data-restore]');
+    if (rs && await confirmBox({ title: `Restore ${rs.dataset.restore}?`, body: 'Its files replace the port’s own. Your current saves are backed up first.', ok: 'Restore' }))
+      act(() => api('POST', `/api/repos/${r.id}/restore`, { name: rs.dataset.restore }), 'Restoring…');
+    const db = e.target.closest('[data-delb]');
+    if (db && await confirmBox({ title: `Delete ${db.dataset.delb}?`, ok: 'Delete', danger: true })) act(() => api('POST', `/api/repos/${r.id}/backup-delete`, { name: db.dataset.delb }), 'Backup deleted');
+    if (e.target.closest('#bknow')) act(() => api('POST', `/api/repos/${r.id}/backup`), j => `Saves backed up: ${j.name}`);
+  };
+  const drop = $('#bdrop', body), pick = f => f && restoreFile(r.id, f);
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); pick(e.dataTransfer.files[0]); };
+  $('#bf', body).onchange = e => pick(e.target.files[0]);
+}
+async function restoreFile(id, f) {
+  if (!/\.zip$/i.test(f.name)) return toast('A backup is a .zip file', true);
+  const show = (t, p) => { const st = $('#bkst'); if (st) st.innerHTML = `<div class="up-item"><span>${esc(f.name)}</span><span class="faint small">${t}</span><div class="progress"><i style="width:${p}%"></i></div></div>`; };
+  const qs = `name=${encodeURIComponent(f.name)}&total=${f.size}`;
+  try {
+    const s0 = await api('GET', `/api/repos/${id}/backup-upload?${qs}`);
+    if (s0.max_file && f.size > s0.max_file) throw new Error(`This backup is ${size(f.size)}: over ${size(s0.max_file)}, the most one file can be on this card (${s0.fs || 'FAT32'})`);
+    if (s0.free != null && s0.free < f.size - s0.have) throw new Error(`Not enough space on the handheld (${size(s0.free)} free)`);
+    const t0 = Date.now(), d0 = s0.have;
+    const last = await sendChunks(`/api/repos/${id}/backup-upload?${qs}`, f, s0.have, off => {
+      const sp = (off - d0) / Math.max(1, (Date.now() - t0) / 1000);
+      show(`${size(off)} / ${size(f.size)}${sp > 0 ? ` · ${dur((f.size - off) / sp)} left` : ''}`, Math.round(off * 100 / Math.max(1, f.size)));
+    });
+    await api('POST', `/api/repos/${id}/restore`, { name: last.saved_as || s0.saved_as });
+    toast('Uploaded: restoring…'); poll();
+  } catch (e) { toast(e.message, true); show(esc(e.message), 0); }
+}
+
+// ---------- the port's settings
+function paneSettings(body, r) {
+  body.innerHTML = `<form class="stack" id="pform">
+    <div class="form-grid">
+      <label class="f">GitHub repo<input name="repo" value="${esc(r.repo)}"></label>
+      <label class="f">Release zip <span class="hint">a pattern, for releases with several zips</span><input name="asset_pattern" value="${esc(r.asset_pattern)}" placeholder="the first .zip"></label>
+      <label class="f">Game files folder <span class="hint">inside the port; "." is the port's own folder</span><input name="originals_dir" value="${esc(r.originals_dir)}"></label>
+      <label class="f">Game files pattern <span class="hint">optional, e.g. *.iso,*.cue</span><input name="originals_pattern" value="${esc(r.originals_pattern || '')}"></label>
+      <label class="f">Back up <span class="hint">folders, comma separated</span><input name="keep_on_uninstall" value="${esc((r.keep_on_uninstall || []).join(', '))}"></label>
+      <label class="f">Port name <span class="hint">the zip name PortMaster records</span><input name="port_name" value="${esc(r.port_name)}"></label>
+    </div>
+    <label class="f">Cover picture <span class="hint">an https:// address of the game's box art; empty: the port's screenshot</span><input name="cover_url" value="${esc(r.cover_url || '')}"></label>
+    <details class="adv" ${r.gog ? 'open' : ''}><summary>GOG.com game</summary>
+      <div class="form-grid" style="margin-top:10px">
+        <label class="f">GOG product id <span class="hint">empty: none</span><input name="gog_id" inputmode="numeric" value="${esc(r.gog ? r.gog.id : '')}"></label>
+        <label class="f">Its files go to<input name="gog_dest" value="${esc(r.gog ? r.gog.dest : 'source')}"></label>
+        <label class="f">Installer names<input name="gog_files" value="${esc(r.gog ? r.gog.files : '')}" placeholder="setup_*.exe"></label>
+      </div></details>
+    <label class="check"><input type="checkbox" name="prereleases" ${r.prereleases ? 'checked' : ''}> Include pre-releases</label>
+    <div class="row"><button class="btn primary">${ico('check')}Save</button><span class="faint small">Saving checks GitHub again.</span></div></form>`;
+  $('#pform', body).onsubmit = e => {
+    e.preventDefault(); const f = e.target;
+    act(() => api('PATCH', `/api/repos/${r.id}`, {
+      repo: f.repo.value, asset_pattern: f.asset_pattern.value, originals_dir: f.originals_dir.value, originals_pattern: f.originals_pattern.value,
+      keep_on_uninstall: f.keep_on_uninstall.value, port_name: f.port_name.value, cover_url: f.cover_url.value, prereleases: f.prereleases.checked,
+      gog: f.gog_id.value.trim() ? { id: +f.gog_id.value, title: (r.gog && r.gog.title) || '', dest: f.gog_dest.value, files: f.gog_files.value } : null }), 'Saved');
+  };
+}
+
+// ---------- add
+function renderAdd(main, force) {
+  if (!force && typing(main)) return;
+  const cat = S.catalogue || [];
+  main.innerHTML = `
+    <div class="page-head"><div class="grow"><h1 class="pixel">Add a port</h1><p class="muted">Watch any GitHub repo whose releases carry a PortMaster port zip.</p></div></div>
+    <div class="stack">
+      <section class="section"><header><h2>Catalogue</h2><p>Ports Slopetanium knows: where their game files go, their box art, GOG where it applies.</p></header>
+        <div class="content"><div class="cat">${cat.map(c => { const [c1, c2] = tint(c.repo), name = c.title || c.repo.split('/')[1];
+          // the handheld's own copy of the cover when it has one; else the store's, else initials
+          const src = c.id ? `/api/repos/${c.id}/cover?pin=${encodeURIComponent(PIN)}` : c.cover_url;
+          const ph = `<div class="ph" style="--c1:${c1};--c2:${c2}">${esc(initials(name))}</div>`;
+          return `<div class="cat-item">${src ? `<img src="${esc(src)}" alt="" loading="lazy" style="width:40px;height:54px;object-fit:cover;border-radius:6px;flex:none" referrerpolicy="no-referrer" onerror="this.outerHTML=this.dataset.ph" data-ph="${esc(ph)}">` : ph}
+            <div class="grow"><div style="font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(name)}">${esc(name)}</div><div class="faint tiny">${esc(c.repo)}${c.gog ? ' · GOG' : ''}</div></div>
+            ${c.watched ? `<span class="chip ok">${ico('check')}Watching</span>` : `<button class="btn sm" data-cat="${esc(c.repo)}">${ico('plus')}Add</button>`}</div>`; }).join('')}</div></div></section>
+      <section class="section"><header><h2>Any GitHub repo</h2><p>Paste <code>owner/name</code> or a github.com link.</p></header>
+        <form class="content stack" id="addf">
+          <label class="f">Repo<input name="repo" required placeholder="rzrbld/TheFamilia" autocomplete="off"></label>
+          <details class="adv"><summary>More options</summary>
+            <div class="form-grid" style="margin-top:10px">
+              <label class="f">Release zip pattern<input name="asset_pattern" placeholder="the first .zip"></label>
+              <label class="f">Game files folder<input name="originals_dir" value="source"></label>
+              <label class="f">Back up<input name="keep_on_uninstall" value="conf"></label>
+            </div></details>
+          <label class="check"><input type="checkbox" name="prereleases" checked> Include pre-releases</label>
+          <div><button class="btn primary">${ico('plus')}Watch it</button></div></form></section></div>`;
+  main.onclick = e => { const b = e.target.closest('[data-cat]'); if (b) act(() => api('POST', '/api/catalogue/add', { repo: b.dataset.cat }), `Watching ${b.dataset.cat}`); };
+  $('#addf', main).onsubmit = async e => {
+    e.preventDefault(); const f = e.target;
+    const r = await act(() => api('POST', '/api/repos', { repo: f.repo.value, asset_pattern: f.asset_pattern.value, originals_dir: f.originals_dir.value, keep_on_uninstall: f.keep_on_uninstall.value, prereleases: f.prereleases.checked }), 'Added: checking its releases…');
+    if (r) go('library');
+  };
+}
+
+// ---------- settings
+function renderSettings(main, force) {
+  if (!force && typing(main)) return;
+  const a = S.gog_account || {}, s = S.settings;
+  main.innerHTML = `
+    <div class="page-head"><div class="grow"><h1 class="pixel">Settings</h1><p class="muted">Kept on the handheld, for every browser that connects.</p></div></div>
+    <div class="stack">
+      <section class="section"><header><h2 class="row" style="gap:8px">${ico('gog')}GOG.com</h2><p>For ports of games sold on GOG: after installing one, Slopetanium downloads the game's installer from your library into the port. Only a sign-in token is kept on the handheld, never your password.</p></header>
+        <div class="content">${a.linked
+          ? `<div class="row"><span class="chip ok">${ico('check')}Signed in as ${esc(a.user || '?')}</span><span class="grow"></span><button class="btn danger sm" id="gogout">Sign out</button></div>`
+          : `<ol style="margin:0;padding-left:20px;display:grid;gap:12px">
+              <li><a class="btn sm" href="${esc(a.login_url)}" target="_blank" rel="noopener">${ico('ext')}Sign in on GOG.com</a> <span class="muted small">opens a new tab; you end up on an almost empty GOG page</span></li>
+              <li><span class="small">Copy that page's address and paste it here:</span>
+                <div class="row" style="margin-top:6px"><input id="gogcode" placeholder="https://embed.gog.com/on_login_success?origin=client&code=…" autocomplete="off" style="flex:1 1 300px"><button class="btn primary" id="goglink">Link</button></div></li></ol>`}
+          <label class="check" style="margin-top:14px"><input type="checkbox" id="gogauto" ${s.gog_auto !== false ? 'checked' : ''}> Fetch a port's game files after installing it</label></div></section>
+      <section class="section"><header><h2>Checking for updates</h2></header>
+        <form class="content stack" id="setf">
+          <div class="form-grid">
+            <label class="f">Check every <span class="hint">minutes while Slopetanium runs; 0: only when it starts</span><input type="number" min="0" name="auto_check_minutes" value="${s.auto_check_minutes}"></label>
+            <label class="f">Versions kept for rollback <span class="hint">on the handheld, to roll back offline</span><input type="number" min="1" max="20" name="keep_versions" value="${s.keep_versions}"></label>
+            <label class="f">GitHub token <span class="hint">optional: more than 60 checks an hour</span><input type="password" name="github_token" placeholder="${s.github_token ? 'set (unchanged)' : 'not set'}" autocomplete="off"></label>
+          </div>
+          <div class="row"><button class="btn primary">${ico('check')}Save</button>${s.github_token ? '<button type="button" class="btn ghost" id="notoken">Remove token</button>' : ''}</div></form></section>
+      <section class="section"><header><h2 class="row" style="gap:8px">${ico('key')}Access</h2><p>This page asks for the PIN shown on the handheld's Connect screen.</p></header>
+        <div class="content row"><button class="btn" id="newpin">New PIN</button><span class="muted small">Every browser then needs the new one.</span></div></section>
+      <section class="section"><header><h2>The handheld</h2></header>
+        <div class="content"><div class="facts">
+          <div class="fact"><div class="k">Ports folder</div><div class="v" title="${esc(S.ports_dir)}">${esc(S.ports_dir)}</div></div>
+          <div class="fact"><div class="k">PortMaster</div><div class="v" title="${esc(S.controlfolder)}">${esc(S.controlfolder)}</div></div>
+          <div class="fact"><div class="k">Free space</div><div class="v">${S.disk && S.disk.free != null ? size(S.disk.free) : '—'}</div></div>
+          <div class="fact"><div class="k">Card</div><div class="v">${S.disk && S.disk.fs ? esc(S.disk.fs) + (S.disk.max_file ? ' · files up to ' + size(S.disk.max_file) : '') : '—'}</div></div>
+          <div class="fact"><div class="k">Battery</div><div class="v">${S.battery && S.battery.percent != null ? S.battery.percent + '%' + (S.battery.charging ? ', charging' : '') : '—'}</div></div>
+        </div></div></section></div>`;
+  const q = s => $(s, main);
+  if (q('#gogout')) q('#gogout').onclick = async () => { if (await confirmBox({ title: 'Sign out of GOG on this handheld?', ok: 'Sign out', danger: true })) act(() => api('POST', '/api/gog/unlink'), 'Signed out of GOG'); };
+  if (q('#goglink')) q('#goglink').onclick = () => { const v = q('#gogcode').value.trim(); if (v) act(() => api('POST', '/api/gog/link', { code: v }), j => `Signed in to GOG as ${j.user || '?'}`); };
+  q('#gogauto').onchange = e => act(() => api('PUT', '/api/settings', { gog_auto: e.target.checked }), 'Saved');
+  q('#setf').onsubmit = e => { e.preventDefault(); const f = e.target; const b = { auto_check_minutes: +f.auto_check_minutes.value, keep_versions: +f.keep_versions.value }; if (f.github_token.value) b.github_token = f.github_token.value; act(() => api('PUT', '/api/settings', b), 'Saved'); };
+  if (q('#notoken')) q('#notoken').onclick = () => act(() => api('PUT', '/api/settings', { github_token: '' }), 'Token removed');
+  q('#newpin').onclick = async () => { if (await confirmBox({ title: 'Make a new PIN?', body: 'Every browser, this one too, then needs the new PIN from the handheld.', ok: 'New PIN' })) { if (await act(() => api('PUT', '/api/settings', { new_pin: true }))) showLogin('Enter the new PIN from the handheld.'); } };
+}
+
+// ---------- activity
+function renderActivity(main, force) {
+  if (force || !$('#jobs', main)) main.innerHTML = `
+    <div class="page-head"><div class="grow"><h1 class="pixel">Activity</h1><p class="muted">What Slopetanium did, and is doing.</p></div></div>
+    <div class="stack"><section class="section"><header><h2>Jobs</h2></header><div class="content"><div class="list jobs" id="jobs"></div></div></section>
+      <section class="section"><header><h2>Log</h2></header><div class="content"><div class="log" id="log"></div></div></section></div>`;
+  const B = { running: ['working', 'Running'], queued: ['working', 'Queued'], done: ['current', 'Done'], failed: ['failed', 'Failed'] };
+  $('#jobs').innerHTML = S.jobs.length ? S.jobs.map(j => `<div class="li"><span class="badge b-${B[j.state][0]}">${B[j.state][1]}</span><div class="grow"><div style="font-weight:600">${esc(j.label)}</div><div class="faint small">${esc(j.message || '')}</div></div><span class="faint small">${ago(j.finished || j.started)}</span></div>`).join('')
+    : '<p class="muted small" style="margin:0">Nothing yet.</p>';
+  const l = $('#log'), atEnd = l.scrollTop + l.clientHeight >= l.scrollHeight - 30;
+  l.textContent = S.log.join('\n'); if (atEnd) l.scrollTop = l.scrollHeight;
+}
+
+// ---------------------------------------------------------------- start
+if (!PIN) showLogin(); else boot(false);
 </script>
 </body>
 </html>

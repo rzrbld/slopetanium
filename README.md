@@ -44,6 +44,11 @@ a console-style home menu on the device and a web interface for your PC, phone o
   folder on your PC or phone. They go straight into the port's game-files folder on the handheld,
   in chunks that resume if the Wi-Fi drops, after a free-space check. Each catalogue port tells
   you what it wants; The ReThing's ISO is saved as the `the_thing.iso` it needs.
+- **Big files, up to what the card holds.** Uploads, backup restores and whole-game downloads
+  of 4 to 9 GB work (tested with 5 and 6 GB files; ZIP64 for big backups). Slopetanium reads
+  the card's filesystem from `/proc/mounts`: on exFAT or ext4 there is no file size limit, while
+  FAT32 holds at most 4 GB per file. A file too big for the card is refused before the upload,
+  the GOG download or the install starts, with a message saying why.
 - **Where to buy a game.** Ports whose game is still sold, in the version the port is made for,
   link to the store: ReRed Faction II and ReConflict on GOG.com. The link is on the web card,
   and in the handheld menu while the port has no game files yet.
@@ -172,6 +177,7 @@ Slopetanium.sh ──> app/slopetanium.py --serve   (Python: GitHub, downloads, 
 tools/build-ui.sh        # slopetanium-ui.aarch64 in Docker (Debian 11 cross toolchain, glibc 2.30+)
 tools/build.sh           # dist/slopetanium.zip (+ .md5): the port, with the menu binary when built
 python3 tests/test_core.py   # the core end to end, offline (fake GitHub + fake harbourmaster)
+python3 tests/test_large.py  # 5-6 GB uploads, downloads and restores over HTTP (needs ~20 GB free)
 ```
 
 To build the menu for your PC, use `make -C ui` (it needs the SDL2 and FreeType headers).

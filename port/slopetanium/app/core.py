@@ -144,6 +144,48 @@ def free_space(path):
         return None
 
 
+# the most one file can be, by filesystem (the rest: as big as the card)
+FS_MAX_FILE = {"vfat": 4 * 1024 ** 3 - 1, "msdos": 4 * 1024 ** 3 - 1, "fat": 4 * 1024 ** 3 - 1, "umsdos": 4 * 1024 ** 3 - 1}
+_fs_cache = {}
+
+
+def fs_info(path):
+    """{"fs": the filesystem holding path, "max_file": its largest file in bytes, or None for no practical limit}.
+    From /proc/mounts: the longest mount point the path is under (a card can be FAT32 on one handheld, exFAT or ext4
+    on another)."""
+    try:
+        real = os.path.realpath(path)
+    except OSError:
+        real = path
+    hit = _fs_cache.get(real)
+    if hit and time.time() - hit[0] < 60:
+        return hit[1]
+    best, fs = "", None
+    try:
+        with open("/proc/mounts") as fh:
+            for line in fh:
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                mp = parts[1].replace("\\040", " ")
+                if (real == mp or real.startswith(mp.rstrip("/") + "/")) and len(mp) >= len(best):
+                    best, fs = mp, parts[2]
+    except (IOError, OSError):
+        pass
+    if fs == "fuseblk" or (fs or "").startswith("fuse"):
+        fs = fs  # (exFAT/NTFS through FUSE: no 4 GB limit)
+    info = {"fs": {"vfat": "FAT32", "msdos": "FAT", "fat": "FAT"}.get(fs, fs), "max_file": FS_MAX_FILE.get(fs)}
+    _fs_cache[real] = (time.time(), info)
+    return info
+
+
+def check_fits(path, size, what="This file"):
+    lim = fs_info(path)
+    if lim["max_file"] and size > lim["max_file"]:
+        raise ValueError("%s is %s: over %s, the most one file can be on this card (%s). Format the card as exFAT, "
+                         "or use a smaller copy." % (what, human_size(size), human_size(lim["max_file"]), lim["fs"]))
+
+
 BACKUP_MANIFEST = "slopetanium-backup.json"
 LOW_BATTERY = 20
 
@@ -348,6 +390,7 @@ class Core(object):
         self.save()  # persists a new PIN at once
         self.http = Http(lambda: self.state["settings"].get("github_token", ""))
         self.gog = gog_mod.Gog(self.state["settings"].setdefault("gog", {}), self.save, self.log)
+        self.gog.fits = lambda d, size, name: check_fits(d, size, name)
         if catalogue:
             self._seed_catalogue()
         self._stop = threading.Event()
@@ -557,9 +600,11 @@ class Core(object):
             self.log("watching %s (catalogue)" % a)
 
     def catalogue(self):
-        watched = set(r["repo"].lower() for r in self.state["repos"])
-        return [{"repo": c["repo"], "watched": c["repo"].lower() in watched, "gog": bool(c.get("gog"))}
-                for c in CATALOGUE]
+        watched = dict((r["repo"].lower(), r["id"]) for r in self.state["repos"])
+        return [{"repo": c["repo"], "watched": c["repo"].lower() in watched, "gog": bool(c.get("gog")),
+                 "id": watched.get(c["repo"].lower()),
+                 "title": c.get("title") or c["repo"].split("/")[1], "cover_url": c.get("cover_url") or "",
+                 "hint": c.get("hint") or ""} for c in CATALOGUE]
 
     def add_from_catalogue(self, repo):
         for c in CATALOGUE:
@@ -994,6 +1039,8 @@ class Core(object):
         import zipfile
         with zipfile.ZipFile(zip_path) as zf:
             unpacked = sum(i.file_size for i in zf.infolist())
+            biggest = max([i.file_size for i in zf.infolist()] or [0])
+        check_fits(self.ports_dir, biggest, "A file in this release")
         free = free_space(self.ports_dir)
         if free is not None and free < unpacked:
             raise RuntimeError("Not enough space to unpack: %s free, %s needed" % (human_size(free), human_size(unpacked)))
@@ -1245,6 +1292,14 @@ class Core(object):
         self.changed += 1
         return freed
 
+    def _disk(self):
+        lim = fs_info(self.ports_dir)
+        try:
+            u = shutil.disk_usage(self.ports_dir)
+            return {"free": u.free, "total": u.total, "fs": lim["fs"], "max_file": lim["max_file"]}
+        except OSError:
+            return {"free": None, "total": None, "fs": lim["fs"], "max_file": lim["max_file"]}
+
     # ---------------------------------------------------------------- backups: saves, and whole games to move
     def _backup_dir(self, r, pdir):
         d = os.path.join(self.backup_dir, os.path.basename(pdir))
@@ -1422,11 +1477,13 @@ class Core(object):
         if have > total:
             os.unlink(part)
             have = 0
+        lim = fs_info(os.path.dirname(path))
         return {"have": have, "done": False, "free": free_space(os.path.dirname(path)),
-                "saved_as": os.path.basename(path)}
+                "saved_as": os.path.basename(path), "fs": lim["fs"], "max_file": lim["max_file"]}
 
     def import_chunk(self, repo_id, name, offset, total, read, length):
         path = self.import_path(repo_id, name)
+        check_fits(os.path.dirname(path), total, "This backup")
         part = path + ".part"
         have = os.path.getsize(part) if os.path.isfile(part) else 0
         if offset != have:
@@ -1543,23 +1600,26 @@ class Core(object):
     def upload_status(self, repo_id, name, total, single=False):
         r = self.get_repo(repo_id)
         dest, path = self._upload_path(r, name, single)
+        lim = fs_info(dest)
         try:
             free = shutil.disk_usage(dest).free
         except OSError:
             free = None
+        extra = {"fs": lim["fs"], "max_file": lim["max_file"]}
         if os.path.isfile(path) and os.path.getsize(path) == total:
-            return {"have": total, "done": True, "free": free, "saved_as": os.path.relpath(path, self.ports_dir)}
+            return dict(extra, have=total, done=True, free=free, saved_as=os.path.relpath(path, self.ports_dir))
         part = path + ".part"
         have = os.path.getsize(part) if os.path.isfile(part) else 0
         if have > total:
             os.unlink(part)
             have = 0
-        return {"have": have, "done": False, "free": free, "saved_as": os.path.relpath(path, self.ports_dir)}
+        return dict(extra, have=have, done=False, free=free, saved_as=os.path.relpath(path, self.ports_dir))
 
     def upload_chunk(self, repo_id, name, offset, total, read, length, single=False):
         """Appends length bytes (read(n) gives them) at offset to the file's .part; the last one completes it."""
         r = self.get_repo(repo_id)
         dest, path = self._upload_path(r, name, single)
+        check_fits(dest, total, os.path.basename(path))
         part = path + ".part"
         if not os.path.isdir(os.path.dirname(part)):
             os.makedirs(os.path.dirname(part))
@@ -1730,6 +1790,8 @@ class Core(object):
             "art": self._art(info),
             "cover": self.cover(r, info), "cover_url": r.get("cover_url", ""),
             "skipped": r.get("skipped", []),
+            "upload_fs": fs_info(os.path.join(info["_dir"], r.get("originals_dir") or ".")) if info else None,
+            "backup_fs": fs_info(self.backup_dir),
             "backups": self.backups(r, info["_dir"]) if info else [],
             "originals_pattern": r.get("originals_pattern", ""), "aliases": r.get("aliases", []),
             "hint": r.get("hint", ""), "buy": r.get("buy", []),
@@ -1773,6 +1835,7 @@ class Core(object):
                 "changed": self.changed,
                 "gog_account": self.gog.status(),
                 "battery": dict(zip(("percent", "charging"), battery())),
+                "disk": self._disk(),
                 "low_battery": LOW_BATTERY,
                 "catalogue": self.catalogue(),
             }

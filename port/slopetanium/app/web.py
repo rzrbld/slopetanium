@@ -79,7 +79,7 @@ def make_handler(core, web_dir):
             if self.headers.get("X-Pin") == pin:
                 return True
             # a download link (the browser can't add a header to it): the PIN in the address
-            if self.command == "GET" and "/backup" in self.path:
+            if self.command == "GET" and ("/backup" in self.path or "/cover" in self.path):
                 qs = parse_qs(urlparse(self.path).query)
                 if (qs.get("pin") or [""])[0] == pin:
                     return True
@@ -95,6 +95,24 @@ def make_handler(core, web_dir):
                     return self._send(200, fh.read(), "text/html; charset=utf-8")
             if method == "GET" and path == "/favicon.ico":
                 return self._send(204, b"", "image/x-icon")
+            # the page's fonts and pictures (assets/: nothing private)
+            if method == "GET" and path.startswith("/static/"):
+                rel = path[len("/static/"):]
+                base = os.path.realpath(os.path.join(web_dir, "..", "assets"))
+                full = os.path.realpath(os.path.join(base, rel))
+                if not full.startswith(base + "/") or not os.path.isfile(full):
+                    raise ApiError(404, "Not found")
+                ctype = {".ttf": "font/ttf", ".png": "image/png", ".jpg": "image/jpeg", ".txt": "text/plain"}.get(
+                    os.path.splitext(full)[1].lower(), "application/octet-stream")
+                with open(full, "rb") as fh:
+                    data = fh.read()
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if not path.startswith("/api/"):
                 raise ApiError(404, "Not found")
             if path == "/api/ping":
@@ -107,6 +125,23 @@ def make_handler(core, web_dir):
             # game files from the browser: raw chunks, not JSON
             #   GET  /api/repos/<id>/upload?name=&total=[&single=1]  -> {have, done, free, saved_as}
             #   PUT  /api/repos/<id>/upload?name=&total=&offset=     body: the bytes from offset (at most 64 MB)
+            # a port's box art (or its own screenshot) for the page's cards
+            if len(parts) == 3 and parts[0] == "repos" and parts[2] == "cover" and method == "GET":
+                r = core.get_repo(parts[1])
+                installed = core.installed_ports()
+                info = core._installed_info(r, installed)
+                pic = core.cover(r, info) or core._art(info)
+                if not pic or not os.path.isfile(pic):
+                    raise ApiError(404, "No picture")
+                with open(pic, "rb") as fh:
+                    data = fh.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png" if pic.lower().endswith(".png") else "image/jpeg")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "max-age=300")
+                self.end_headers()
+                self.wfile.write(data)
+                return
             # backups as files: a stored one, or one made while it downloads (saves, or the whole game)
             if len(parts) >= 3 and parts[0] == "repos" and parts[2] in ("backup-file", "backup-download") and method == "GET":
                 rid = parts[1]
