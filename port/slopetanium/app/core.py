@@ -28,9 +28,28 @@ except Exception:  # pragma: no cover - fallback for bare systems
 import urllib.request
 import urllib.error
 
+import gog as gog_mod
+
 USER_AGENT = "slopetanium/0.1"
 API = "https://api.github.com"
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+# The ports Slopetanium knows from the start (rzrbld's recompiled ports, and itself). Added to the watch list once
+# (settings["catalogue_offered"] remembers which were offered, so a removed one stays removed).
+#   originals_dir / originals_pattern: where the user's own game files go ("." = the port folder itself)
+#   aliases: other names the port's port.json may carry (a zip installed by hand)
+#   gog: the game on GOG.com: its product id, where its installer goes, and the installer's file names
+CATALOGUE = [
+    {"repo": "rzrbld/ReNFS5", "title": "ReNFS5 (Need for Speed: Porsche Unleashed)", "originals_dir": "source"},
+    {"repo": "rzrbld/The-ReThing", "title": "The ReThing (The Thing)", "originals_dir": "source"},
+    {"repo": "rzrbld/ReConflict", "title": "ReConflict (Conflict: Desert Storm)", "originals_dir": ".", "originals_pattern": "setup_*.exe,setup_*.bin",
+     "gog": {"id": 1207658998, "title": "Conflict: Desert Storm", "dest": ".", "files": "setup_conflict*"}},
+    {"repo": "rzrbld/vurus", "title": "Vurus (Vyruz)", "originals_dir": ".", "originals_pattern": "*.iso,*.cue,*.bin", "aliases": ["vurus.zip"]},
+    {"repo": "rzrbld/TheFamilia", "title": "The Familia (Mafia)", "originals_dir": "source"},
+    {"repo": "rzrbld/ReRED_Faction_Duo", "title": "ReRed Faction II", "originals_dir": "source",
+     "gog": {"id": 1207660613, "title": "Red Faction 2", "dest": "source", "files": "setup_red_faction2_*"}},
+    {"repo": "rzrbld/slopetanium", "title": "Slopetanium", "originals_dir": ""},
+]
+
 # Files in a port's originals folder that are part of the port, not the user's.
 KEEP_ORIGINALS = ("put_your_*", "readme*", ".keep", ".gitkeep")
 
@@ -248,7 +267,7 @@ class Job(object):
 
 
 class Core(object):
-    def __init__(self, root, controlfolder, ports_dir=None, python=None, harbourmaster=None):
+    def __init__(self, root, controlfolder, ports_dir=None, python=None, harbourmaster=None, catalogue=True):
         self.root = os.path.abspath(root)
         self.controlfolder = controlfolder
         self.ports_dir = os.path.abspath(ports_dir or os.path.dirname(self.root))
@@ -272,9 +291,13 @@ class Core(object):
         self.state = self._load()
         self.save()  # persists a new PIN at once
         self.http = Http(lambda: self.state["settings"].get("github_token", ""))
+        self.gog = gog_mod.Gog(self.state["settings"].setdefault("gog", {}), self.save, self.log)
+        if catalogue:
+            self._seed_catalogue()
         self._stop = threading.Event()
         threading.Thread(target=self._worker, name="jobs", daemon=True).start()
         threading.Thread(target=self._auto_checker, name="autocheck", daemon=True).start()
+        threading.Thread(target=self._gog_refresher, name="gog", daemon=True).start()
 
     # ---------------------------------------------------------------- state
     def _load(self):
@@ -297,6 +320,8 @@ class Core(object):
         s.setdefault("keep_versions", 2)
         s.setdefault("web_port", 8686)
         s.setdefault("pin", "%04d" % random.randint(0, 9999))
+        s.setdefault("gog_auto", True)  # fetch a port's game files from GOG after installing it
+        s.setdefault("catalogue_offered", [])
         for r in state["repos"]:
             self._repo_defaults(r)
         return state
@@ -316,6 +341,9 @@ class Core(object):
         r.setdefault("originals_dir", "source")
         r.setdefault("keep_on_uninstall", ["conf"])
         r.setdefault("seen_tag", None)  # newest tag the user has seen (for "new" badge)
+        r.setdefault("originals_pattern", "")
+        r.setdefault("aliases", [])
+        r.setdefault("gog", None)  # {"id", "title", "dest", "files"}
 
     def save(self):
         with self.lock:
@@ -345,6 +373,8 @@ class Core(object):
                 s["auto_check_minutes"] = max(0, int(data["auto_check_minutes"]))
             if "keep_versions" in data:
                 s["keep_versions"] = max(1, min(20, int(data["keep_versions"])))
+            if "gog_auto" in data:
+                s["gog_auto"] = bool(data["gog_auto"])
             if data.get("new_pin"):
                 s["pin"] = "%04d" % random.randint(0, 9999)
             self.save()
@@ -389,6 +419,72 @@ class Core(object):
             r["keep_on_uninstall"] = [k.strip("/") for k in keep if k and ".." not in k]
         if "port_name" in data and data["port_name"]:
             r["port_name"] = name_cleaner(str(data["port_name"]))
+        if "title" in data:
+            r["title"] = str(data.get("title") or "").strip()
+        if "originals_pattern" in data:
+            r["originals_pattern"] = (data.get("originals_pattern") or "").strip()
+        if "aliases" in data:
+            al = data["aliases"]
+            if isinstance(al, str):
+                al = al.split(",")
+            r["aliases"] = [name_cleaner(a) for a in al if a and a.strip()]
+        if "gog" in data:
+            g = data["gog"]
+            if not g or not str((g or {}).get("id") or "").strip():
+                r["gog"] = None
+            else:
+                dest = (str(g.get("dest") or "source")).strip().strip("/") or "."
+                if ".." in dest.split("/") or dest.startswith("/"):
+                    raise ValueError("The GOG files' folder must be inside the port folder")
+                r["gog"] = {"id": int(g["id"]), "title": str(g.get("title") or "").strip(), "dest": dest,
+                            "files": str(g.get("files") or "").strip()}
+
+    def _seed_catalogue(self):
+        """The catalogue's ports on the watch list, each offered once."""
+        added = []
+        with self.lock:
+            offered = self.state["settings"].setdefault("catalogue_offered", [])
+            watched = set(r["repo"].lower() for r in self.state["repos"])
+            for c in CATALOGUE:
+                key = c["repo"].lower()
+                if key in offered:
+                    continue
+                offered.append(key)
+                if key in watched:
+                    # already watched: give it what the catalogue knows (where its files go, GOG)
+                    for r in self.state["repos"]:
+                        if r["repo"].lower() == key:
+                            for k in ("title", "originals_pattern", "aliases", "gog"):
+                                if c.get(k) and not r.get(k):
+                                    r[k] = c[k]
+                            if "originals_dir" in c and r.get("originals_dir") in (None, "", "source"):
+                                r["originals_dir"] = c["originals_dir"]
+                    continue
+                r = {"id": "%x%03x" % (now(), random.randint(0, 0xFFF)), "repo": c["repo"], "added": now()}
+                self._repo_defaults(r)
+                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog"):
+                    if k in c:
+                        r[k] = c[k]
+                self.state["repos"].append(r)
+                added.append(c["repo"])
+            self.save()
+        for a in added:
+            self.log("watching %s (catalogue)" % a)
+
+    def catalogue(self):
+        watched = set(r["repo"].lower() for r in self.state["repos"])
+        return [{"repo": c["repo"], "watched": c["repo"].lower() in watched, "gog": bool(c.get("gog"))}
+                for c in CATALOGUE]
+
+    def add_from_catalogue(self, repo):
+        for c in CATALOGUE:
+            if c["repo"].lower() == repo.lower():
+                data = {"repo": c["repo"]}
+                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog"):
+                    if k in c:
+                        data[k] = c[k]
+                return self.add_repo(data)
+        raise ValueError("%s is not in the catalogue" % repo)
 
     def update_repo(self, repo_id, data):
         with self.lock:
@@ -532,13 +628,18 @@ class Core(object):
     def _installed_info(self, r, installed):
         """The entry's installed port: by the name PortMaster recorded, else a folder named like the release zip
         (a port copied in by hand has no port.json; its version is unknown until it is installed once)."""
-        name = r.get("port_name") or ""
-        info = installed.get(name)
-        if info is not None or not name.endswith(".zip"):
-            return info
-        d = os.path.join(self.ports_dir, name[:-4])
-        if os.path.isdir(d) and not os.path.isfile(os.path.join(d, "port.json")) and is_inside(d, self.ports_dir):
-            return {"name": name, "_dir": d, "_dirname": os.path.basename(d), "attr": {}, "status": {}, "_bare": True}
+        names = [n for n in [r.get("port_name") or ""] + list(r.get("aliases") or []) if n]
+        for name in names:
+            info = installed.get(name)
+            if info is not None:
+                return info
+        for name in names:
+            if not name.endswith(".zip"):
+                continue
+            d = os.path.join(self.ports_dir, name[:-4])
+            if os.path.isdir(d) and not os.path.isfile(os.path.join(d, "port.json")) and is_inside(d, self.ports_dir):
+                return {"name": name, "_dir": d, "_dirname": os.path.basename(d), "attr": {}, "status": {},
+                        "_bare": True}
         return None
 
     def _sync_installed(self, r, installed=None):
@@ -766,7 +867,11 @@ class Core(object):
                 raise
         job.progress = None
         self._check_zip(zip_path)
-        self._refuse_if_running(r)
+        pdir = self.port_dir(r)
+        if pdir and os.path.realpath(pdir) == os.path.realpath(self.root):
+            self._make_room_for_self_update()
+        else:
+            self._refuse_if_running(r)
         job.message = "Installing with PortMaster"
         self.changed += 1
         self.log("%s: installing %s" % (r["repo"], tag))
@@ -786,7 +891,26 @@ class Core(object):
             self._prune_cache(r)
             self.save()
         job.message = ("Installed %s" % tag) + ((" (was %s)" % prev) if prev and prev != tag else "")
+        if pdir and os.path.realpath(pdir) == os.path.realpath(self.root):
+            job.message += ": restart Slopetanium to use it"
         self.log("%s: %s" % (r["repo"], job.message))
+        if self.gog_wanted(r):
+            self.log("%s: fetching its game files from GOG" % r["repo"])
+            self.queue_gog(repo_id)
+
+    def _make_room_for_self_update(self):
+        """Slopetanium updating itself: its running menu binary can't be written over ("Text file busy"), but it can
+        be renamed; the new one takes its name and the old one goes at the next start."""
+        for f in os.listdir(self.root):
+            p = os.path.join(self.root, f)
+            if f.startswith("slopetanium-ui.") and not f.endswith(".old") and os.path.isfile(p):
+                old = p + ".old"
+                try:
+                    if os.path.exists(old):
+                        os.unlink(old)
+                    os.rename(p, old)
+                except OSError as e:
+                    self.log("self-update: could not move %s aside: %s" % (f, e))
 
     def _check_zip(self, path):
         import zipfile
@@ -908,11 +1032,16 @@ class Core(object):
         pdir = self.port_dir(r, installed)
         if not pdir or not r.get("originals_dir"):
             return {"dir": None, "files": [], "total": 0}
-        odir = os.path.join(pdir, r["originals_dir"])
+        odir = os.path.normpath(os.path.join(pdir, r["originals_dir"]))
+        pats = [p.strip().lower() for p in (r.get("originals_pattern") or "").split(",") if p.strip()]
+        if odir == os.path.normpath(pdir) and not pats:
+            return {"dir": None, "files": [], "total": 0}  # the whole port folder is never "originals"
         files = []
         if os.path.isdir(odir) and is_inside(odir, pdir):
             for name in sorted(os.listdir(odir)):
                 if any(fnmatch.fnmatch(name.lower(), k) for k in KEEP_ORIGINALS):
+                    continue
+                if pats and not any(fnmatch.fnmatch(name.lower(), p) for p in pats):
                     continue
                 p = os.path.join(odir, name)
                 if os.path.islink(p):
@@ -980,6 +1109,104 @@ class Core(object):
         self.changed += 1
         return freed
 
+    # ---------------------------------------------------------------- GOG
+    def _gog_files_present(self, r, pdir=None):
+        g = r.get("gog") or {}
+        pdir = pdir or self.port_dir(r)
+        if not g or not pdir:
+            return False
+        dest = os.path.join(pdir, g.get("dest") or "source")
+        pats = [p.strip().lower() for p in (g.get("files") or "*.exe").split(",") if p.strip()]
+        try:
+            names = os.listdir(dest)
+        except OSError:
+            return False
+        return any(any(fnmatch.fnmatch(n.lower(), p) for p in pats) and not n.endswith(".part") for n in names)
+
+    def gog_owned(self, r):
+        """True / False when the library is known, None while it isn't (the snapshot never waits for GOG)."""
+        g = r.get("gog")
+        if not g or not self.gog.linked() or self.gog._owned is None:
+            return None
+        return int(g["id"]) in self.gog._owned
+
+    def gog_wanted(self, r):
+        """After an install: fetch the game files when the user wants that, owns the game, and the port has neither
+        its installer nor imported data yet."""
+        if not r.get("gog") or not self.settings().get("gog_auto", True) or not self.gog.linked():
+            return False
+        pdir = self.port_dir(r)
+        if not pdir or self._imported_hint(pdir) or self._gog_files_present(r, pdir):
+            return False
+        try:
+            return int(r["gog"]["id"]) in self.gog.owned()
+        except Exception as e:
+            self.log("GOG: %s" % e)
+            return False
+
+    def queue_gog(self, repo_id):
+        r = self.get_repo(repo_id)
+        if not r.get("gog"):
+            raise ValueError("%s has no GOG game set" % r["repo"])
+        return self._queue("gog", repo_id, "GOG %s" % (r["gog"].get("title") or r["repo"]),
+                           lambda job: self._gog_download(job, repo_id))
+
+    def _gog_download(self, job, repo_id):
+        r = self.get_repo(repo_id)
+        g = r["gog"]
+        pdir = self.port_dir(r)
+        if not pdir:
+            raise RuntimeError("Install the port first: its game files go into its folder")
+        if not self.gog.linked():
+            raise RuntimeError("Sign in to GOG first (web interface: Settings)")
+        job.message = "Checking your GOG library"
+        if int(g["id"]) not in self.gog.owned(max_age=0):
+            raise RuntimeError("%s is not in your GOG library" % (g.get("title") or "This game"))
+        parts = self.gog.installers(g["id"])
+        if not parts:
+            raise RuntimeError("GOG lists no Windows installer for %s" % (g.get("title") or g["id"]))
+        dest = os.path.join(pdir, g.get("dest") or "source")
+        if not is_inside(dest, pdir):
+            raise RuntimeError("Bad destination folder")
+        got = []
+        for i, part in enumerate(parts):
+            label = "%s (%d/%d)" % (g.get("title") or "game", i + 1, len(parts)) if len(parts) > 1 else (g.get("title") or "game")
+
+            def prog(done, total, note=None, label=label):
+                job.progress = (float(done) / total) if total else None
+                job.message = note or ("GOG: %s %s / %s" % (label, human_size(done), human_size(total)))
+                self.changed += 1
+            path = self.gog.download(part["url"], dest, prog)
+            got.append(os.path.basename(path))
+            self.log("%s: GOG file %s" % (r["repo"], os.path.basename(path)))
+        job.progress = None
+        job.message = "Game files ready in %s: start the port to import them" % os.path.relpath(dest, self.ports_dir)
+        self.changed += 1
+
+    def _gog_refresher(self):
+        """The library, now and then, so the menus know what the account owns without waiting for GOG."""
+        while not self._stop.is_set():
+            if self.gog.linked() and any(r.get("gog") for r in self.state["repos"]):
+                try:
+                    self.gog.owned(max_age=900)
+                    self.changed += 1
+                except Exception as e:
+                    self.log("GOG library: %s" % e)
+            self._stop.wait(60)
+
+    def gog_link(self, pasted):
+        st = self.gog.link(pasted)
+        try:
+            self.gog.owned(max_age=0)
+        except Exception:
+            pass
+        self.changed += 1
+        return st
+
+    def gog_unlink(self):
+        self.gog.unlink()
+        self.changed += 1
+
     # ---------------------------------------------------------------- views
     def repo_view(self, r, installed=None):
         installed = self.installed_ports() if installed is None else installed
@@ -1014,7 +1241,8 @@ class Core(object):
             "id": r["id"], "repo": r["repo"], "asset_pattern": r["asset_pattern"],
             "prereleases": r["prereleases"], "port_name": r["port_name"],
             "originals_dir": r["originals_dir"], "keep_on_uninstall": r["keep_on_uninstall"],
-            "title": ((info or {}).get("attr") or {}).get("title") or r["repo"].split("/")[1],
+            "title": ((info or {}).get("attr") or {}).get("title") or r.get("title") or r["repo"].split("/")[1],
+            "is_self": bool(info and os.path.realpath(info["_dir"]) == os.path.realpath(self.root)),
             "installed": info is not None, "installed_tag": r.get("installed_tag"),
             "installed_at": r.get("installed_at"),
             "port_dir": info["_dirname"] if info else None,
@@ -1024,6 +1252,10 @@ class Core(object):
             "status": status, "error": r.get("error"), "last_checked": r.get("last_checked"),
             "previous_tag": prev, "releases": rels,
             "art": self._art(info),
+            "originals_pattern": r.get("originals_pattern", ""), "aliases": r.get("aliases", []),
+            "gog": (dict(r["gog"], owned=self.gog_owned(r),
+                         present=self._gog_files_present(r, info["_dir"] if info else None))
+                    if r.get("gog") else None),
             "size": (latest.get("asset") or {}).get("size") if latest else None,
             "job": job.to_dict() if job else None,
         }
@@ -1045,6 +1277,7 @@ class Core(object):
             s = dict(self.state["settings"])
             s["github_token"] = "set" if s.get("github_token") else ""
             s.pop("pin", None)
+            s.pop("gog", None)  # its token never leaves the core
             return {
                 "repos": repos,
                 "other_ports": others,
@@ -1056,6 +1289,8 @@ class Core(object):
                 "ports_dir": self.ports_dir,
                 "controlfolder": self.controlfolder,
                 "changed": self.changed,
+                "gog_account": self.gog.status(),
+                "catalogue": self.catalogue(),
             }
 
 

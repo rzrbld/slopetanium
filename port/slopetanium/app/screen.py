@@ -1167,6 +1167,14 @@ class Screen(object):
             items.append(("Other versions…", lambda: self.versions_menu(r), None))
         if latest and not self.dual:
             items.append(("Release notes", lambda: self.show_notes(latest), None))
+        g = r.get("gog")
+        if g and r["installed"] and not g.get("present") and not busy:
+            if not self.core.gog.linked():
+                items.append(("Game files: sign in to GOG on the web page", None, P["line"]))
+            elif g.get("owned") is False:
+                items.append(("Not in your GOG library", None, P["line"]))
+            else:
+                items.append(("Get game files from GOG", lambda: self._safe_gog(rid), None))
         o = r.get("originals") or {}
         if o.get("files"):
             items.append(("Original files (%s)…" % human_size(o["total"]), lambda: self.originals_menu(r), None))
@@ -1174,6 +1182,13 @@ class Screen(object):
         if r["installed"] and not busy:
             items.append(("Uninstall…", lambda: self.uninstall_menu(r), P["red"]))
         self.open_menu(r["title"], items, [(r["repo"], P["muted"])], notes=latest if self.dual else None)
+
+    def _safe_gog(self, rid):
+        try:
+            self.core.queue_gog(rid)
+            self.flash("Downloading from GOG…")
+        except Exception as e:
+            self.flash(str(e))
 
     def show_notes(self, tag):
         self.notes_tag = tag

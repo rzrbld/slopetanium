@@ -190,6 +190,9 @@ struct Port
 	std::string origDir, imported;
 	std::string jobState, jobMsg;
 	double jobProg = -1;
+	bool gog = false, gogPresent = false;
+	int gogOwned = -1;	// 1 owned, 0 not, -1 not known yet
+	std::string gogTitle;
 	std::vector<Rel> rels;
 };
 struct State
@@ -199,6 +202,7 @@ struct State
 	std::vector<std::string> urls;
 	std::string pin;
 	int updates = 0;
+	bool gogLinked = false;
 };
 
 static State parseState(const std::string& text)
@@ -214,6 +218,7 @@ static State parseState(const std::string& text)
 		s.pin = w->str("pin");
 		if (const JVal* u = w->get("urls")) for (auto& e : u->arr) s.urls.push_back(e->s);
 	}
+	if (const JVal* g = root->get("gog_account")) s.gogLinked = g->flag("linked");
 	if (const JVal* rs = root->get("repos"))
 		for (auto& e : rs->arr)
 		{
@@ -247,6 +252,14 @@ static State parseState(const std::string& text)
 					x.asset = a && a->isObj();
 					p.rels.push_back(x);
 				}
+			if (const JVal* g = r.get("gog"); g && g->isObj())
+			{
+				p.gog = true;
+				p.gogTitle = plainText(g->str("title"));
+				p.gogPresent = g->flag("present");
+				const JVal* o = g->get("owned");
+				p.gogOwned = o && o->kind == JVal::BOOL ? (o->b ? 1 : 0) : -1;
+			}
 			if (p.status == "update" || p.status == "unknown_version") s.updates++;
 			s.ports.push_back(p);
 		}
@@ -454,6 +467,16 @@ struct Host
 			m.items.push_back({ "Other versions…", [this, p] { versions(p); } });
 		if (!dual && !p.latest.empty())
 			m.items.push_back({ "Release notes", [this, p] { notesTag = p.latest; mode = NOTES; overlayAt = nowMs(); } });
+		if (p.gog && p.installed && !p.gogPresent && !busy)
+		{
+			if (!st.gogLinked)
+				m.items.push_back({ "Game files: sign in to GOG on the web page", nullptr, theme::line });
+			else if (p.gogOwned == 0)
+				m.items.push_back({ (p.gogTitle.empty() ? std::string("The game") : p.gogTitle) + " is not in your GOG library", nullptr, theme::line });
+			else
+				m.items.push_back({ "Get game files from GOG", [this, p] { menus.clear(); mode = SHELF;
+					link->post(path(p, "gog-download")); flash("Downloading " + (p.gogTitle.empty() ? p.title : p.gogTitle) + " from GOG"); } });
+		}
 		if (!p.orig.empty())
 			m.items.push_back({ "Original files (" + humanSize(p.origTotal) + ")…", [this, p] { originals(p); } });
 		m.items.push_back({ "Check for updates", [this, p] { menus.clear(); mode = SHELF; link->post(path(p, "check")); flash("Checking " + p.title); } });

@@ -110,6 +110,17 @@ def make_handler(core, web_dir):
             if parts == ["seen"] and method == "POST":
                 core.mark_seen(body.get("id"))
                 return self._send(200, {"ok": True})
+            if parts == ["catalogue", "add"] and method == "POST":
+                r = core.add_from_catalogue(body.get("repo") or "")
+                return self._send(201, {"id": r["id"]})
+            if parts == ["gog", "link"] and method == "POST":
+                try:
+                    return self._send(200, core.gog_link(body.get("code") or ""))
+                except Exception as e:
+                    raise ApiError(400, str(e))
+            if parts == ["gog", "unlink"] and method == "POST":
+                core.gog_unlink()
+                return self._send(200, {"ok": True})
             if parts == ["repos"]:
                 if method == "GET":
                     return self._send(200, core.snapshot()["repos"])
@@ -145,6 +156,9 @@ def make_handler(core, web_dir):
                         if body.get("confirm") != "uninstall":
                             raise ApiError(400, "Confirmation missing")
                         job = core.queue_uninstall(rid, backup=body.get("backup", True))
+                        return self._send(202, {"job": job.id})
+                    if action == "gog-download":
+                        job = core.queue_gog(rid)
                         return self._send(202, {"job": job.id})
                     if action == "originals-delete":
                         if core.busy():

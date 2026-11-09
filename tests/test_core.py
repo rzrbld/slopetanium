@@ -64,6 +64,107 @@ def wait(c):
     raise AssertionError("jobs did not finish")
 
 
+class FakeGog(object):
+    """GOG's side: a library with one game, its installer served from memory (a cut on the first try)."""
+
+    def __init__(self, owned):
+        self.owned_ids = set(owned)
+        self.store = {}
+        self.cuts = 1
+
+    def linked(self):
+        return bool(self.store.get("refresh_token"))
+
+    def status(self):
+        return {"linked": self.linked(), "user": self.store.get("user", ""), "login_url": "x"}
+
+    def link(self, pasted):
+        import gog
+        code = gog.code_from(pasted)
+        self.store.update(refresh_token="r-" + code, user="tester")
+        return self.status()
+
+    def unlink(self):
+        self.store.clear()
+
+    _owned = None
+
+    def owned(self, max_age=600):
+        self._owned = set(self.owned_ids)
+        return self._owned
+
+    def installers(self, game_id, language="English", system="windows"):
+        return [{"url": "/downloads/demo/en1installer0", "name": "Demo", "size": "1 KB"}]
+
+    def download(self, url, dest, progress=None):
+        os.makedirs(dest, exist_ok=True)
+        path = os.path.join(dest, "setup_demo_1.0.exe")
+        open(path, "wb").write(b"x" * 1024)
+        if progress:
+            progress(1024, 1024)
+        return path
+
+
+def gog_tests(c, ports, tmp):
+    import gog
+    # the code from the landing page's address, or the bare code
+    assert gog.code_from("https://embed.gog.com/on_login_success?origin=client&code=AbC123_-xyzABCDEFGHIJKLMNOP") \
+        == "AbC123_-xyzABCDEFGHIJKLMNOP"
+    try:
+        gog.code_from("https://www.gog.com/")
+        raise AssertionError("no code accepted")
+    except gog.GogError:
+        pass
+    c.gog = FakeGog(owned=[42])
+    r = c.state["repos"][0]
+    c.update_repo(r["id"], {"gog": {"id": 42, "title": "Demo", "dest": "source", "files": "setup_demo_*"}})
+    wait(c)
+    c.queue_install(r["id"], "v2"); wait(c)       # installed again (uninstalled above)
+    pdir = os.path.join(ports, "demo")
+    assert not os.path.exists(os.path.join(pdir, "source", "setup_demo_1.0.exe")), "fetched while signed out"
+    c.gog_link("https://embed.gog.com/on_login_success?origin=client&code=CODEcodeCODEcodeCODE12")
+    v = c.repo_view(r)
+    assert v["gog"]["owned"] is True and v["gog"]["present"] is False, v["gog"]
+    # signed in: an install fetches the game files by itself
+    c.queue_install(r["id"], "v1"); wait(c)
+    assert os.path.isfile(os.path.join(pdir, "source", "setup_demo_1.0.exe")), [j.message for j in c.jobs[-3:]]
+    assert c.repo_view(r)["gog"]["present"] is True
+    # the token never leaves the core
+    snap = json.dumps(c.snapshot())
+    assert "r-CODE" not in snap and snap.count("refresh_token") == 0
+    # a game the account doesn't own: a clear failure
+    c.gog.owned_ids = set()
+    c.queue_gog(r["id"]); wait(c)
+    assert c.jobs[-1].state == "failed" and "not in your GOG library" in c.jobs[-1].message, c.jobs[-1].message
+
+
+def catalogue_tests(tmp):
+    ports = os.path.join(tmp, "ports2")
+    root = os.path.join(ports, "slopetanium")
+    os.makedirs(root)
+    c = core.Core(root, "", harbourmaster="/bin/false")
+    c.http = FakeHttp({})
+    c.stop()
+    repos = [r["repo"] for r in c.state["repos"]]
+    assert "rzrbld/ReRED_Faction_Duo" in repos and "rzrbld/slopetanium" in repos, repos
+    rf2 = [r for r in c.state["repos"] if r["repo"] == "rzrbld/ReRED_Faction_Duo"][0]
+    assert rf2["gog"]["id"] == 1207660613 and rf2["originals_dir"] == "source"
+    # removed stays removed: a new start offers nothing again
+    c.delete_repo(rf2["id"])
+    c2 = core.Core(root, "", harbourmaster="/bin/false")
+    c2.stop()
+    assert "rzrbld/ReRED_Faction_Duo" not in [r["repo"] for r in c2.state["repos"]]
+    # a hand-copied port (no port.json) under its alias folder counts as installed
+    os.makedirs(os.path.join(ports, "vurus"))
+    v = [r for r in c2.state["repos"] if r["repo"] == "rzrbld/vurus"][0]
+    v["port_name"] = "vurus-portmaster.zip"
+    assert c2.port_dir(v) == os.path.join(ports, "vurus")
+    # originals by pattern in the port folder itself: only the matching files
+    open(os.path.join(ports, "vurus", "game.iso"), "w").write("i")
+    open(os.path.join(ports, "vurus", "vurus.aarch64"), "w").write("b")
+    assert [f["name"] for f in c2.originals(v)["files"]] == ["game.iso"]
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="slop-test-")
     try:
@@ -75,7 +176,7 @@ def main():
         for tag in ("v1", "v2", "v3"):
             zips[tag] = os.path.join(tmp, "%s.zip" % tag)
             make_zip(zips[tag], tag)
-        c = core.Core(root, "", harbourmaster=os.path.join(HERE, "fake_harbourmaster.py"))
+        c = core.Core(root, "", harbourmaster=os.path.join(HERE, "fake_harbourmaster.py"), catalogue=False)
         c.http = FakeHttp(zips)
 
         r = c.add_repo({"repo": "https://github.com/someone/demo-port", "prereleases": False})
@@ -146,6 +247,8 @@ def main():
         except ValueError:
             pass
         assert core.parse_repo("https://github.com/a/b.git") == "a/b"
+        gog_tests(c, ports, tmp)
+        catalogue_tests(tmp)
         c.stop()
         print("OK")
     finally:

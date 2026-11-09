@@ -25,6 +25,11 @@ a console-style home menu on the device and a web interface for your PC, phone o
   whether the port seems to have imported them yet.
 - **Uninstall** through PortMaster. Optionally, the save and config folders (`conf/` by
   default) are copied to Slopetanium's backups first.
+- **Your GOG library.** Sign in to GOG.com once from the web interface. After you install a port
+  of a game GOG sells, Slopetanium downloads that game's installer from your library into the
+  port's folder, so its first start can import it.
+- **A catalogue of ports.** rzrbld's ports are watched from the first start: ReNFS5, The ReThing,
+  ReConflict, Vurus, The Familia, ReRed Faction II, and Slopetanium itself.
 
 ## Using it
 
@@ -58,6 +63,27 @@ a console-style home menu on the device and a web interface for your PC, phone o
 
 Slopetanium will not exit while an install is still running.
 
+### GOG.com
+
+1. In the web interface, open **Settings → GOG.com account → Sign in on GOG.com**. This is
+   GOG's own sign-in page, in a new tab.
+2. After you sign in you land on an almost empty GOG page. Copy its address (it contains
+   `?code=…`), paste it into Slopetanium and press **Link**.
+
+From then on, installing a port whose game is on GOG also fetches the game's Windows installer
+from your library. ReRed Faction II's goes into `rered_faction2/source/`, and ReConflict's next
+to its binary. This only happens when you own the game and the port has neither the installer
+nor imported data yet; turn it off with the checkbox under the account. You can also get the
+files any time: use **Get game files from GOG** on the port's card, or in its menu on the
+handheld.
+
+- **Only a refresh token is kept,** in `slopetanium/conf/state.json`. Slopetanium never sees
+  your password and never shows the token in the web interface.
+- **Sign out** removes the token.
+- **Downloads resume** if the connection drops.
+- **For other ports,** set a GOG game id in a port's **Edit** dialog: the number from the
+  game's gog.com product data. Set the folder its files go to, and the installer's file names.
+
 ### Per-repo options (web interface)
 
 - **Asset name pattern:** a glob such as `*_aarch64.zip`, for releases with several zips.
@@ -68,6 +94,8 @@ Slopetanium will not exit while an install is still running.
   Files named `PUT_YOUR_*` and `README*` are never offered for deletion.
 - **Back up before uninstall:** folders inside the port to copy away before PortMaster
   removes the port. The default is `conf`.
+- **Original files pattern:** for ports that take the game files in their own folder (`.`),
+  such as Vurus (`*.iso,*.cue,*.bin`). Only matching files are offered for deletion.
 
 ### Settings
 

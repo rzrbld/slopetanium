@@ -74,6 +74,9 @@ dialog::backdrop{background:#0008}
   </section>
 
   <section id="tab-add" hidden>
+    <div class="card"><div class="title">Catalogue</div>
+      <p class="mut">Ports Slopetanium knows. They are watched from the first start; one you removed can come back here.</p>
+      <div id="catalogue"></div></div>
     <form class="card" onsubmit="addRepo(event)">
       <div class="title">Watch a GitHub repo</div>
       <p class="mut">Any repo whose releases have a PortMaster port .zip (with port.json) attached.</p>
@@ -99,6 +102,7 @@ dialog::backdrop{background:#0008}
       <p class="row"><button class="pri">Save</button><button type="button" onclick="clearToken()">Remove token</button><button type="button" onclick="newPin()">New PIN</button></p>
       <p class="mut" id="paths"></p>
     </form>
+    <div class="card" id="gogcard"></div>
   </section>
 
   <section id="tab-log" hidden>
@@ -131,7 +135,7 @@ async function api(method, path, body){
 function showLogin(){ $('#login').hidden = false; document.querySelectorAll('main>section:not(#login)').forEach(s=>s.hidden=true); }
 async function login(e){ e.preventDefault(); PIN = $('#pin').value.trim(); try{ localStorage.setItem('slop_pin', PIN);}catch(_){}; $('#login').hidden = true; setTab(tab); poll(); }
 
-function setTab(t){ tab=t; document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
+function setTab(t){ tab=t; try { history.replaceState(null,'',location.pathname+(t==='ports'?'':'#'+t)); } catch(_){} document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
   ['ports','add','settings','log'].forEach(x=>$('#tab-'+x).hidden = x!==t); if (S) render(); }
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
 
@@ -145,6 +149,11 @@ function repoCard(r){
   const rb = r.installed && r.previous_tag ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(r.previous_tag)}',true)">Roll back to ${esc(r.previous_tag)}</button>` : '';
   const o = r.originals || {files:[]};
   const orig = o.files.length ? `<button onclick="originals('${r.id}')">Original files · ${size(o.total)}</button>` : '';
+  const g = r.gog, acct = S.gog_account || {};
+  let gogBtn = '';
+  if (g && r.installed && !g.present && acct.linked && g.owned !== false)
+    gogBtn = `<button ${running?'disabled':''} onclick="gogGet('${r.id}')">Get game files from GOG</button>`;
+  const gogChip = !g ? '' : `<span class="chip" title="${esc(g.title||'')} on GOG.com">GOG · ${!acct.linked ? 'sign in to fetch the game' : g.owned===true ? (g.present ? 'game files here' : 'in your library') : g.owned===false ? 'not in your library' : 'checking…'}</span>`;
   const rels = r.releases.map(x=>`<tr><td><b>${esc(x.tag)}</b> ${x.prerelease?'<span class="chip">pre</span>':''}${x.installed?'<span class="chip s-current">installed</span>':''}${x.cached?'<span class="chip" title="Kept on the device, installs offline">cached</span>':''}<div class="mut">${day(x.published)} · ${x.asset?esc(x.asset.name)+' · '+size(x.asset.size):'no matching zip'}</div></td>
      <td style="text-align:right">${x.asset && !x.installed ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(x.tag)}',true)">Install</button>` : ''} ${x.body?`<button onclick="notes('${r.id}','${esc(x.tag)}')">Notes</button>`:''}</td></tr>`).join('');
   return `<div class="card" id="c-${r.id}">
@@ -154,10 +163,11 @@ function repoCard(r){
       <div class="mut">${[r.installed?'installed '+esc(r.installed_tag||'?'):'', r.latest_tag?'latest '+esc(r.latest_tag):''].filter(Boolean).join(' · ')}</div></div></div>
     ${r.error?`<div class="mut s-error">${esc(r.error)}</div>`:''}
     ${j && j.state!=='done' ? `<div class="mut ${j.state==='failed'?'s-error':''}" style="margin-top:6px">${esc(j.label)}: ${esc(j.message||j.state)}</div>${running?`<div class="bar"><i style="width:${j.progress!=null?Math.round(j.progress*100):(j.state==='running'?100:0)}%;${j.progress==null&&j.state==='running'?'opacity:.35':''}"></i></div>`:''}` : ''}
-    <div class="row" style="margin-top:10px">${main}${rb}${orig}<span class="grow"></span>
+    ${gogChip?`<div style="margin-top:6px">${gogChip}</div>`:''}
+    <div class="row" style="margin-top:10px">${main}${rb}${gogBtn}${orig}<span class="grow"></span>
       <button onclick="api('POST','/api/repos/${r.id}/check')">Check</button>
       <button onclick="edit('${r.id}')">Edit</button>
-      ${r.installed?`<button class="bad" onclick="uninstall('${r.id}')">Uninstall</button>`:''}
+      ${r.installed && !r.is_self?`<button class="bad" onclick="uninstall('${r.id}')">Uninstall</button>`:''}
       <button class="bad" onclick="unwatch('${r.id}')">Remove</button></div>
     <details ${open[r.id]?'open':''} ontoggle="open['${r.id}']=this.open"><summary>Versions (${r.releases.length}) · checked ${ago(r.last_checked)}</summary><table>${rels||'<tr><td class="mut">No releases yet</td></tr>'}</table></details>
   </div>`;
@@ -179,7 +189,18 @@ function render(){
     const l=$('#log'); const atEnd = l.scrollTop + l.clientHeight >= l.scrollHeight - 20;
     l.textContent = S.log.join('\n'); if (atEnd) l.scrollTop = l.scrollHeight;
   }
+  if (tab==='add') {
+    $('#catalogue').innerHTML = (S.catalogue||[]).map(c=>`<div class="row" style="padding:5px 0"><span class="grow"><a href="https://github.com/${esc(c.repo)}" target="_blank" rel="noopener" style="color:inherit">${esc(c.repo)}</a>${c.gog?' <span class="chip">GOG</span>':''}</span>${c.watched?'<span class="mut">watched</span>':`<button onclick="catAdd('${esc(c.repo)}')">Add</button>`}</div>`).join('');
+  }
   if (tab==='settings') {
+    const a = S.gog_account || {}, gc = $('#gogcard');
+    if (!gc.contains(document.activeElement)) gc.innerHTML = `<div class="title">GOG.com account</div>
+      <p class="mut">For ports of games sold on GOG: after installing one, Slopetanium downloads the game's installer from your GOG library into the port's folder. Only a sign-in token is kept on the handheld, never your password.</p>
+      ${a.linked ? `<p>Signed in as <b>${esc(a.user||'?')}</b></p><p class="row"><button type="button" onclick="gogUnlink()">Sign out</button></p>`
+      : `<p><b>1.</b> <a href="${esc(a.login_url)}" target="_blank" rel="noopener">Sign in on GOG.com</a> (a new tab). You end up on an empty GOG page.</p>
+         <p><b>2.</b> Copy that page's address from the address bar and paste it here:</p>
+         <div class="row"><input id="gogcode" class="grow" placeholder="https://embed.gog.com/on_login_success?origin=client&code=…" autocomplete="off"><button class="pri" type="button" onclick="gogLink()">Link</button></div>`}
+      <p><label class="row" style="color:inherit"><input type="checkbox" id="gogauto" ${S.settings.gog_auto!==false?'checked':''} onchange="api('PUT','/api/settings',{gog_auto:this.checked})"> Fetch a port's game files after installing it</label></p>`;
     const f = document.querySelector('#tab-settings form');
     if (document.activeElement.form !== f) { f.auto_check_minutes.value = S.settings.auto_check_minutes; f.keep_versions.value = S.settings.keep_versions;
       f.github_token.placeholder = S.settings.github_token ? 'set (unchanged)' : 'not set'; }
@@ -234,10 +255,15 @@ function edit(id){
    <label style="margin-top:8px">Asset name pattern</label><input id="e_pat" value="${esc(r.asset_pattern)}" placeholder="first .zip">
    <label style="margin-top:8px">Port name (zip name PortMaster records)</label><input id="e_pn" value="${esc(r.port_name)}">
    <label style="margin-top:8px">Originals folder</label><input id="e_od" value="${esc(r.originals_dir)}">
+   <label style="margin-top:8px">Original files pattern (optional, e.g. *.iso,*.cue)</label><input id="e_opat" value="${esc(r.originals_pattern||'')}">
    <label style="margin-top:8px">Back up before uninstall</label><input id="e_keep" value="${esc((r.keep_on_uninstall||[]).join(', '))}">
+   <label style="margin-top:8px">GOG game id (gog.com product id; empty: none)</label><input id="e_gid" value="${esc(r.gog?r.gog.id:'')}" inputmode="numeric">
+   <div class="grid"><div><label>GOG files go to</label><input id="e_gdest" value="${esc(r.gog?r.gog.dest:'source')}"></div>
+   <div><label>GOG installer names</label><input id="e_gfiles" value="${esc(r.gog?r.gog.files:'')}" placeholder="setup_*.exe"></div></div>
    <p><label class="row" style="color:inherit"><input type="checkbox" id="e_pre" ${r.prereleases?'checked':''}> Include pre-releases</label></p>
    <p class="row"><button value="cancel">Cancel</button><button class="pri" value="ok">Save</button></p>`,
-   async v=>{ if (v!=='ok') return; await api('PATCH',`/api/repos/${id}`,{repo:$('#e_repo').value, asset_pattern:$('#e_pat').value, port_name:$('#e_pn').value, originals_dir:$('#e_od').value, keep_on_uninstall:$('#e_keep').value, prereleases:$('#e_pre').checked}); poll(); });
+   async v=>{ if (v!=='ok') return; await api('PATCH',`/api/repos/${id}`,{repo:$('#e_repo').value, asset_pattern:$('#e_pat').value, port_name:$('#e_pn').value, originals_dir:$('#e_od').value, originals_pattern:$('#e_opat').value, keep_on_uninstall:$('#e_keep').value, prereleases:$('#e_pre').checked,
+     gog: $('#e_gid').value.trim() ? {id:+$('#e_gid').value, title:(r.gog&&r.gog.title)||'', dest:$('#e_gdest').value, files:$('#e_gfiles').value} : null}); poll(); });
 }
 function dialog(html, cb){ const d=$('#dlg'); $('#dlgform').innerHTML=html; d.onclose=()=>{ cb && cb(d.returnValue); render(); }; d.returnValue=''; d.showModal(); }
 async function addRepo(e){ e.preventDefault(); const f=e.target;
@@ -245,11 +271,16 @@ async function addRepo(e){ e.preventDefault(); const f=e.target;
   f.repo.value=''; toast('Added, checking releases…'); setTab('ports'); poll(); }
 async function saveSettings(e){ e.preventDefault(); const f=e.target; const b={auto_check_minutes:+f.auto_check_minutes.value, keep_versions:+f.keep_versions.value};
   if (f.github_token.value) b.github_token=f.github_token.value; await api('PUT','/api/settings',b); f.github_token.value=''; toast('Saved'); poll(); }
+async function gogGet(id){ await api('POST',`/api/repos/${id}/gog-download`); toast('Downloading from GOG…'); poll(); }
+async function gogLink(){ const v=$('#gogcode').value.trim(); if(!v) return; try { const j = await api('POST','/api/gog/link',{code:v}); toast('Signed in to GOG as '+(j.user||'?')); } catch(e) {} poll(); }
+async function gogUnlink(){ if(!confirm('Sign out of GOG on this handheld?')) return; await api('POST','/api/gog/unlink'); poll(); }
+async function catAdd(repo){ await api('POST','/api/catalogue/add',{repo}); toast('Added '+repo); poll(); }
 async function clearToken(){ await api('PUT','/api/settings',{github_token:''}); toast('Token removed'); poll(); }
 async function newPin(){ if(!confirm('Make a new PIN? Other browsers will have to enter it again.')) return; await api('PUT','/api/settings',{new_pin:true}); toast('New PIN is on the handheld screen'); showLogin(); }
 
-if (new URLSearchParams(location.search).get('pin')) { try{ localStorage.setItem('slop_pin', PIN);}catch(_){}; history.replaceState(null,'',location.pathname); }
-if (!PIN) showLogin(); else poll();
+if (new URLSearchParams(location.search).get('pin')) { try{ localStorage.setItem('slop_pin', PIN);}catch(_){}; history.replaceState(null,'',location.pathname+location.hash); }
+{ const h = location.hash.slice(1); if (['ports','add','settings','log'].includes(h)) tab = h; }
+if (!PIN) showLogin(); else { setTab(tab); poll(); }
 document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) poll(); });
 </script>
 </body>
