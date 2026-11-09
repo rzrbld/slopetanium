@@ -20,6 +20,19 @@ a console-style home menu on the device and a web interface for your PC, phone o
   such as `source/` on their first run. Afterwards those installers or CD images take a
   lot of space. Slopetanium lists them and deletes the ones you pick, and it tells you
   whether the port seems to have imported them yet.
+- **Backups, and moving a game to another handheld.**
+  - Each port's saves and settings (`conf/`) are backed up before every update and rollback;
+    the last five automatic ones are kept, and you can back up by hand too.
+  - Any backup downloads from the web page, and so does the **whole game**: the port with its
+    imported game data, but without the original files, streamed straight to your browser.
+  - To move a game: install the port on the other handheld, then upload the zip on that
+    port's page and restore it. Restoring checks that the backup is of that port, and backs
+    up the current saves first.
+- **Reinstall** the version you have, from the zip kept on the handheld when there is one.
+- **Safe installs.** Before downloading and before unpacking, Slopetanium checks the free
+  space. Below 20% battery without the charger, it asks before installing.
+- **Skip an unstable release.** Mark it as skipped, roll back with **Other versions**, and that
+  release is no longer offered as the update. A newer release is offered as usual.
 - **Uninstall** through PortMaster. Optionally, the save and config folders (`conf/` by
   default) are copied to Slopetanium's backups first.
 - **Upload your own game files from the browser.** On each port's card, pick files or a whole

@@ -81,6 +81,13 @@ namespace slop
 		cv.notify_all();
 	}
 
+	void CoreLink::call(const std::string& method, const std::string& path, const std::string& body,
+		std::function<void(int, const std::string&)> done)
+	{
+		{ std::lock_guard<std::mutex> l(m); queue.push_back(Req{ method, path, body, done }); }
+		cv.notify_all();
+	}
+
 	void CoreLink::refresh()
 	{
 		{ std::lock_guard<std::mutex> l(m); kick = true; }

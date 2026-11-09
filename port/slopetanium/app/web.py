@@ -12,6 +12,28 @@ from socketserver import ThreadingMixIn
 from urllib.parse import urlparse, parse_qs
 
 
+class _Unseekable(object):
+    """The response stream for zipfile: written only forward (zipfile then writes data descriptors), position kept."""
+
+    def __init__(self, f):
+        self.f = f
+        self.pos = 0
+
+    def write(self, b):
+        self.f.write(b)
+        self.pos += len(b)
+        return len(b)
+
+    def tell(self):
+        return self.pos
+
+    def flush(self):
+        self.f.flush()
+
+    def seekable(self):
+        return False
+
+
 class _Server(ThreadingMixIn, HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -56,6 +78,11 @@ def make_handler(core, web_dir):
             pin = core.settings().get("pin")
             if self.headers.get("X-Pin") == pin:
                 return True
+            # a download link (the browser can't add a header to it): the PIN in the address
+            if self.command == "GET" and "/backup" in self.path:
+                qs = parse_qs(urlparse(self.path).query)
+                if (qs.get("pin") or [""])[0] == pin:
+                    return True
             # the handheld's own UI (slopetanium-ui): localhost, with the launcher's token
             tok = os.environ.get("SLOP_LOCAL_TOKEN")
             return bool(tok) and self.client_address[0] == "127.0.0.1" and self.headers.get("X-Local-Token") == tok
@@ -80,6 +107,54 @@ def make_handler(core, web_dir):
             # game files from the browser: raw chunks, not JSON
             #   GET  /api/repos/<id>/upload?name=&total=[&single=1]  -> {have, done, free, saved_as}
             #   PUT  /api/repos/<id>/upload?name=&total=&offset=     body: the bytes from offset (at most 64 MB)
+            # backups as files: a stored one, or one made while it downloads (saves, or the whole game)
+            if len(parts) >= 3 and parts[0] == "repos" and parts[2] in ("backup-file", "backup-download") and method == "GET":
+                rid = parts[1]
+                if parts[2] == "backup-file":
+                    path = core.backup_file(rid, (q.get("name") or [""])[0])
+                    size = os.path.getsize(path)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/zip")
+                    self.send_header("Content-Length", str(size))
+                    self.send_header("Content-Disposition", 'attachment; filename="%s"' % os.path.basename(path))
+                    self.end_headers()
+                    with open(path, "rb") as fh:
+                        while True:
+                            b = fh.read(1 << 20)
+                            if not b:
+                                break
+                            self.wfile.write(b)
+                    return
+                kind = (q.get("kind") or ["saves"])[0]
+                if kind not in ("saves", "full"):
+                    raise ApiError(400, "kind: saves or full")
+                r = core.get_repo(rid)
+                pdir = core.port_dir(r)
+                if not pdir:
+                    raise ApiError(400, "Not installed")
+                import time as _t
+                fname = "%s-%s-%s.zip" % (os.path.basename(pdir), _t.strftime("%Y%m%d-%H%M%S"), kind)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", 'attachment; filename="%s"' % fname)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                core.stream_backup(rid, kind, _Unseekable(self.wfile))
+                return
+            if len(parts) == 3 and parts[0] == "repos" and parts[2] == "backup-upload" and method in ("GET", "PUT"):
+                name = (q.get("name") or [""])[0]
+                total = int((q.get("total") or ["0"])[0])
+                if method == "GET":
+                    return self._send(200, core.import_status(parts[1], name, total))
+                length = int(self.headers.get("Content-Length") or 0)
+                if length > 64 << 20:
+                    raise ApiError(413, "Chunk too large")
+                try:
+                    res = core.import_chunk(parts[1], name, int((q.get("offset") or ["0"])[0]), total, self.rfile.read, length)
+                except core_mod.UploadOffset as e:
+                    self.rfile.read(length)
+                    return self._send(409, {"error": "resume", "have": e.have})
+                return self._send(200, res)
             if len(parts) == 3 and parts[0] == "repos" and parts[2] == "upload" and method in ("GET", "PUT"):
                 name = (q.get("name") or [""])[0]
                 total = int((q.get("total") or ["0"])[0])
@@ -130,7 +205,10 @@ def make_handler(core, web_dir):
                 core.queue_check()
                 return self._send(202, {"ok": True})
             if parts == ["update-all"] and method == "POST":
-                jobs = core.queue_update_all()
+                try:
+                    jobs = core.queue_update_all(force=bool(body.get("force")))
+                except core_mod.InstallBlocked as e:
+                    return self._send(409, {"error": str(e), "problems": e.problems, "blocked": True})
                 return self._send(202, {"queued": len(jobs)})
             if parts == ["seen"] and method == "POST":
                 core.mark_seen(body.get("id"))
@@ -175,13 +253,30 @@ def make_handler(core, web_dir):
                         core.queue_check(rid)
                         return self._send(202, {"ok": True})
                     if action == "install":
-                        job = core.queue_install(rid, body.get("tag"))
+                        try:
+                            job = core.queue_install(rid, body.get("tag"), force=bool(body.get("force")))
+                        except core_mod.InstallBlocked as e:
+                            return self._send(409, {"error": str(e), "problems": e.problems, "blocked": True})
                         return self._send(202, {"job": job.id})
                     if action == "uninstall":
                         if body.get("confirm") != "uninstall":
                             raise ApiError(400, "Confirmation missing")
                         job = core.queue_uninstall(rid, backup=body.get("backup", True))
                         return self._send(202, {"job": job.id})
+                    if action == "skip":
+                        core.skip_release(rid, body.get("tag") or "", body.get("skip", True))
+                        return self._send(200, {"ok": True})
+                    if action == "backup":
+                        p = core.backup_saves(core.get_repo(rid), reason="by hand")
+                        if not p:
+                            raise ApiError(400, "This port has no saves to back up")
+                        return self._send(200, {"name": os.path.basename(p)})
+                    if action == "restore":
+                        job = core.queue_restore(rid, core.backup_file(rid, body.get("name") or ""))
+                        return self._send(202, {"job": job.id})
+                    if action == "backup-delete":
+                        core.delete_backup(rid, body.get("name") or "")
+                        return self._send(200, {"ok": True})
                     if action == "gog-download":
                         job = core.queue_gog(rid)
                         return self._send(202, {"job": job.id})

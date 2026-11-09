@@ -26,6 +26,9 @@ namespace slop
 		void post(const std::string& path, const std::string& body = "{}");	// fire and forget, then a fresh state
 		// a GET answered on the link's thread; done(status, body) runs there too (keep it short, wake the main loop)
 		void get(const std::string& path, std::function<void(int, const std::string&)> done);
+		// any request with its answer (done runs on the link's thread)
+		void call(const std::string& method, const std::string& path, const std::string& body,
+			std::function<void(int, const std::string&)> done);
 		void refresh();			// fetch the state now
 		bool connected() const { return port > 0 && lastOk; }
 		std::string lastError;

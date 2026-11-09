@@ -110,6 +110,44 @@ def dir_size(path):
     return total
 
 
+def battery():
+    """(percent or None, charging)"""
+    base = "/sys/class/power_supply"
+    try:
+        names = sorted(os.listdir(base))
+    except OSError:
+        return None, False
+    for n in names:
+        p = os.path.join(base, n)
+        try:
+            with open(os.path.join(p, "type")) as fh:
+                if fh.read().strip() != "Battery":
+                    continue
+            with open(os.path.join(p, "capacity")) as fh:
+                cap = int(fh.read().strip())
+            st = ""
+            try:
+                with open(os.path.join(p, "status")) as fh:
+                    st = fh.read().strip()
+            except (IOError, OSError):
+                pass
+            return cap, st in ("Charging", "Full")
+        except (IOError, OSError, ValueError):
+            continue
+    return None, False
+
+
+def free_space(path):
+    try:
+        return shutil.disk_usage(path).free
+    except OSError:
+        return None
+
+
+BACKUP_MANIFEST = "slopetanium-backup.json"
+LOW_BATTERY = 20
+
+
 def local_ips():
     ips = []
     try:
@@ -247,6 +285,14 @@ class Http(object):
         return done
 
 
+class InstallBlocked(ValueError):
+    """Battery or space says not now; the user may insist (force)."""
+
+    def __init__(self, problems):
+        ValueError.__init__(self, "; ".join(problems))
+        self.problems = problems
+
+
 class UploadOffset(Exception):
     """The upload's chunk doesn't continue the file (the browser resends from have)."""
 
@@ -359,6 +405,7 @@ class Core(object):
         r.setdefault("buy", [])     # [{"store", "url"}]: where the game is sold, in the version the port supports
         r.setdefault("rename", {})  # {glob: name}: an upload's name the port needs (one file)
         r.setdefault("cover_url", "")
+        r.setdefault("skipped", [])  # releases the user marked unstable: never offered as the update
 
     def save(self):
         with self.lock:
@@ -582,10 +629,28 @@ class Core(object):
         return out
 
     def latest_release(self, r):
+        skipped = set(r.get("skipped") or [])
         for rel in self.releases(r):
-            if rel.get("asset"):
+            if rel.get("asset") and rel["tag"] not in skipped:
                 return rel
         return None
+
+    def _newer_or_same(self, r, a, b):
+        """Whether release a was published no earlier than b (the list is newest first)."""
+        tags = [x["tag"] for x in r.get("releases", [])]
+        if a not in tags or b not in tags:
+            return False
+        return tags.index(a) <= tags.index(b)
+
+    def skip_release(self, repo_id, tag, skip=True):
+        with self.lock:
+            r = self.get_repo(repo_id)
+            sk = [t for t in r.get("skipped", []) if t != tag]
+            if skip:
+                sk.append(tag)
+            r["skipped"] = sk
+            self.save()
+        self.log("%s: %s %s" % (r["repo"], "skipping" if skip else "no longer skipping", tag))
 
     def check_repo(self, repo_id):
         r = self.get_repo(repo_id)
@@ -828,22 +893,42 @@ class Core(object):
         self._stop.set()
 
     # ---------------------------------------------------------------- install
-    def queue_install(self, repo_id, tag=None):
+    def install_checks(self, r, tag):
+        """What stands against installing now: low battery, too little space. [] when nothing does."""
+        problems = []
+        cap, charging = battery()
+        if cap is not None and cap < LOW_BATTERY and not charging:
+            problems.append("Battery at %d%%: plug in the charger, or install anyway" % cap)
+        rel = self._find_release(r, tag)
+        size = ((rel or {}).get("asset") or {}).get("size") or 0
+        cached = os.path.isdir(os.path.join(self._cache_dir(r), tag_safe(tag)))
+        free = free_space(self.ports_dir)
+        # the zip (unless it is on the device already) and room to unpack it (zips of ports shrink to ~1/2)
+        need = (0 if cached else size) + size * 2
+        if free is not None and size and free < need:
+            problems.append("Not enough space: %s free, about %s needed" % (human_size(free), human_size(need)))
+        return problems
+
+    def queue_install(self, repo_id, tag=None, force=False):
         r = self.get_repo(repo_id)
         if tag is None:
             latest = self.latest_release(r)
             if not latest:
                 raise ValueError("No installable release for %s" % r["repo"])
             tag = latest["tag"]
+        if not force:
+            problems = self.install_checks(r, tag)
+            if problems:
+                raise InstallBlocked(problems)
         return self._queue("install", repo_id, "Install %s %s" % (r["repo"], tag),
                            lambda job: self._install(job, repo_id, tag))
 
-    def queue_update_all(self):
+    def queue_update_all(self, force=False):
         jobs = []
         for r in self.state["repos"]:
             latest = self.latest_release(r)
             if latest and self.has_update(r):
-                jobs.append(self.queue_install(r["id"], latest["tag"]))
+                jobs.append(self.queue_install(r["id"], latest["tag"], force=force))
         return jobs
 
     def has_update(self, r):
@@ -854,7 +939,7 @@ class Core(object):
             return False  # not installed: an install, not an update
         if r.get("installed_tag") is None:
             return True  # installed version unknown
-        if r["installed_tag"] == latest["tag"]:
+        if r["installed_tag"] == latest["tag"] or self._newer_or_same(r, r["installed_tag"], latest["tag"]):
             return False
         # Only newer releases count (a rollback leaves an "update" to the latest).
         return True
@@ -906,6 +991,19 @@ class Core(object):
         job.progress = None
         self._check_zip(zip_path)
         pdir = self.port_dir(r)
+        import zipfile
+        with zipfile.ZipFile(zip_path) as zf:
+            unpacked = sum(i.file_size for i in zf.infolist())
+        free = free_space(self.ports_dir)
+        if free is not None and free < unpacked:
+            raise RuntimeError("Not enough space to unpack: %s free, %s needed" % (human_size(free), human_size(unpacked)))
+        if pdir and os.path.realpath(pdir) != os.path.realpath(self.root):
+            try:
+                b = self.backup_saves(r, reason="before %s" % tag, auto=True)
+                if b:
+                    job.message = "Saves backed up"
+            except Exception as e:
+                self.log("%s: saves not backed up before installing (%s)" % (r["repo"], e))
         if pdir and os.path.realpath(pdir) == os.path.realpath(self.root):
             self._make_room_for_self_update()
         else:
@@ -1147,6 +1245,224 @@ class Core(object):
         self.changed += 1
         return freed
 
+    # ---------------------------------------------------------------- backups: saves, and whole games to move
+    def _backup_dir(self, r, pdir):
+        d = os.path.join(self.backup_dir, os.path.basename(pdir))
+        if not os.path.isdir(d):
+            os.makedirs(d)
+        return d
+
+    def _save_paths(self, r, pdir):
+        """The port's save and settings folders (keep_on_uninstall, conf by default) that exist."""
+        out = []
+        for k in r.get("keep_on_uninstall") or ["conf"]:
+            p = os.path.normpath(os.path.join(pdir, k))
+            if os.path.exists(p) and is_inside(p, pdir) and p != os.path.normpath(pdir):
+                out.append(p)
+        return out
+
+    def _manifest(self, r, pdir, kind, reason=""):
+        import platform
+        return {"slopetanium_backup": 1, "repo": r["repo"], "port_name": r.get("port_name"),
+                "port_dir": os.path.basename(pdir), "kind": kind, "reason": reason,
+                "installed_tag": r.get("installed_tag"), "created": now(),
+                "device": platform.node() or ""}
+
+    def _write_backup(self, zf, r, pdir, kind, reason, cancel=None, progress=None):
+        """Into an open ZipFile: the manifest, then the saves (kind "saves") or the whole port folder but its
+        original files and leftovers (kind "full")."""
+        import zipfile
+        zf.writestr(BACKUP_MANIFEST, json.dumps(self._manifest(r, pdir, kind, reason), indent=1))
+        if kind == "saves":
+            roots = self._save_paths(r, pdir)
+        else:
+            roots = [pdir]
+        skip_dirs = set()
+        od = r.get("originals_dir") or ""
+        if od and od != ".":
+            skip_dirs.add(os.path.normpath(os.path.join(pdir, od)))
+        pats = [p.strip().lower() for p in (r.get("originals_pattern") or "").split(",") if p.strip()]
+        done = 0
+        for root in roots:
+            if os.path.isfile(root):
+                zf.write(root, os.path.relpath(root, pdir))
+                continue
+            for dp, dns, fns in os.walk(root):
+                dns[:] = [d for d in dns if os.path.normpath(os.path.join(dp, d)) not in skip_dirs]
+                for fn in fns:
+                    full = os.path.join(dp, fn)
+                    rel = os.path.relpath(full, pdir)
+                    low = fn.lower()
+                    if os.path.islink(full) or low.endswith(".part") or (kind == "full" and (
+                            low == "log.txt" or (dp == pdir and any(fnmatch.fnmatch(low, p) for p in pats)))):
+                        continue
+                    if cancel and cancel():
+                        raise RuntimeError("cancelled")
+                    zf.write(full, rel, compress_type=zipfile.ZIP_STORED if kind == "full" else zipfile.ZIP_DEFLATED)
+                    done += os.path.getsize(full)
+                    if progress:
+                        progress(done)
+        return done
+
+    def backup_saves(self, r, reason="", auto=False):
+        """A zip of the port's saves on the handheld (conf/backups/<port>/); the last 5 automatic ones are kept."""
+        import zipfile
+        pdir = self.port_dir(r)
+        if not pdir:
+            raise ValueError("%s is not installed" % r["repo"])
+        if not self._save_paths(r, pdir):
+            return None
+        d = self._backup_dir(r, pdir)
+        name = "%s-%s%s.zip" % (time.strftime("%Y%m%d-%H%M%S"), "auto" if auto else "saves", "")
+        path = os.path.join(d, name)
+        with zipfile.ZipFile(path + ".part", "w", zipfile.ZIP_DEFLATED) as zf:
+            self._write_backup(zf, r, pdir, "saves", reason)
+        os.replace(path + ".part", path)
+        if auto:
+            autos = sorted(f for f in os.listdir(d) if f.endswith("-auto.zip"))
+            for old in autos[:-5]:
+                os.unlink(os.path.join(d, old))
+        self.log("%s: saves backed up (%s)" % (r["repo"], name))
+        self.changed += 1
+        return path
+
+    def backups(self, r, pdir=None):
+        pdir = pdir or self.port_dir(r)
+        if not pdir:
+            return []
+        d = os.path.join(self.backup_dir, os.path.basename(pdir))
+        out = []
+        if os.path.isdir(d):
+            for f in sorted(os.listdir(d), reverse=True):
+                if f.endswith(".zip"):
+                    p = os.path.join(d, f)
+                    out.append({"name": f, "size": os.path.getsize(p), "at": int(os.path.getmtime(p)),
+                                "auto": f.endswith("-auto.zip"), "kind": "full" if f.endswith("-full.zip") else "saves"})
+        return out
+
+    def backup_file(self, repo_id, name):
+        r = self.get_repo(repo_id)
+        pdir = self.port_dir(r)
+        if not pdir or "/" in name or not name.endswith(".zip"):
+            raise ValueError("No such backup")
+        p = os.path.join(self.backup_dir, os.path.basename(pdir), name)
+        if not os.path.isfile(p):
+            raise ValueError("No such backup")
+        return p
+
+    def delete_backup(self, repo_id, name):
+        os.unlink(self.backup_file(repo_id, name))
+        self.changed += 1
+
+    def stream_backup(self, repo_id, kind, out):
+        """A backup written straight to out (the browser's download): nothing stored on the handheld."""
+        import zipfile
+        r = self.get_repo(repo_id)
+        pdir = self.port_dir(r)
+        if not pdir:
+            raise ValueError("%s is not installed" % r["repo"])
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+            n = self._write_backup(zf, r, pdir, kind, "download")
+        self.log("%s: %s backup downloaded (%s)" % (r["repo"], kind, human_size(n)))
+
+    def backup_estimate(self, r, pdir):
+        """Bytes a whole-game backup holds (no original files)."""
+        total = dir_size(pdir)
+        o = self.originals(r)
+        return max(0, total - (o.get("total") or 0))
+
+    def restore_backup(self, repo_id, path):
+        """A backup zip unpacked into the port's folder: checked first (a Slopetanium backup of this port, no path
+        outside the folder); the current saves are backed up before."""
+        import zipfile
+        r = self.get_repo(repo_id)
+        pdir = self.port_dir(r)
+        if not pdir:
+            raise ValueError("Install %s first, then restore into it" % r["repo"])
+        self._refuse_if_running(r)
+        with zipfile.ZipFile(path) as zf:
+            try:
+                man = json.loads(zf.read(BACKUP_MANIFEST).decode("utf-8"))
+            except KeyError:
+                raise ValueError("This zip is not a Slopetanium backup")
+            if man.get("repo", "").lower() != r["repo"].lower():
+                raise ValueError("This backup is of %s, not %s" % (man.get("repo"), r["repo"]))
+            names = [n for n in zf.namelist() if n != BACKUP_MANIFEST]
+            for n in names:
+                t = os.path.normpath(os.path.join(pdir, n))
+                if n.startswith("/") or not is_inside(t, pdir):
+                    raise ValueError("Unsafe path in the backup: %s" % n)
+            try:
+                self.backup_saves(r, reason="before restoring %s" % os.path.basename(path), auto=True)
+            except Exception as e:
+                self.log("%s: saves not backed up before restoring (%s)" % (r["repo"], e))
+            for info in zf.infolist():
+                if info.filename == BACKUP_MANIFEST:
+                    continue
+                zf.extract(info, pdir)
+        self.log("%s: restored %s (%s from %s)" % (r["repo"], os.path.basename(path), man.get("kind"),
+                                                    man.get("device") or "?"))
+        self.changed += 1
+        return man
+
+    def queue_restore(self, repo_id, path):
+        r = self.get_repo(repo_id)
+        return self._queue("restore", repo_id, "Restore %s" % r["repo"],
+                           lambda job: self._restore_job(job, repo_id, path))
+
+    def _restore_job(self, job, repo_id, path):
+        job.message = "Restoring %s" % os.path.basename(path)
+        man = self.restore_backup(repo_id, path)
+        job.message = "Restored %s backup%s" % (man.get("kind"), (" from " + man["device"]) if man.get("device") else "")
+
+    def import_status(self, repo_id, name, total):
+        path = self.import_path(repo_id, name)
+        part = path + ".part"
+        have = os.path.getsize(part) if os.path.isfile(part) else 0
+        if have > total:
+            os.unlink(part)
+            have = 0
+        return {"have": have, "done": False, "free": free_space(os.path.dirname(path)),
+                "saved_as": os.path.basename(path)}
+
+    def import_chunk(self, repo_id, name, offset, total, read, length):
+        path = self.import_path(repo_id, name)
+        part = path + ".part"
+        have = os.path.getsize(part) if os.path.isfile(part) else 0
+        if offset != have:
+            raise UploadOffset(have)
+        if have + length > total:
+            raise ValueError("More data than the file's size")
+        with open(part, "ab") as fh:
+            left = length
+            while left > 0:
+                buf = read(min(left, 1 << 20))
+                if not buf:
+                    raise IOError("upload cut off")
+                fh.write(buf)
+                left -= len(buf)
+        have += length
+        done = have == total
+        if done:
+            os.replace(part, path)
+            self.changed += 1
+        return {"have": have, "done": done, "saved_as": os.path.basename(path)}
+
+    def import_path(self, repo_id, name):
+        """Where an uploaded backup zip lands (then restored from there)."""
+        r = self.get_repo(repo_id)
+        pdir = self.port_dir(r)
+        if not pdir:
+            raise ValueError("Install %s first, then restore into it" % r["repo"])
+        base = os.path.basename((name or "").replace("\\", "/"))
+        if not base.lower().endswith(".zip") or base.startswith("."):
+            raise ValueError("A backup is a .zip")
+        d = self._backup_dir(r, pdir)
+        stem = base[:-4]
+        if not stem.endswith(("-full", "-saves", "-auto")):
+            stem += "-imported"
+        return os.path.join(d, stem + ".zip")
+
     # ---------------------------------------------------------------- box art
     def _cover_path(self, r):
         u = r.get("cover_url") or ""
@@ -1377,7 +1693,7 @@ class Core(object):
             status = "not_installed"
         elif r.get("installed_tag") is None:
             status = "unknown_version"
-        elif latest and r["installed_tag"] != latest["tag"]:
+        elif latest and r["installed_tag"] != latest["tag"] and not self._newer_or_same(r, r["installed_tag"], latest["tag"]):
             status = "update"
         else:
             status = "current"
@@ -1390,6 +1706,7 @@ class Core(object):
                 "published": rel["published"], "url": rel.get("url"), "body": rel.get("body", ""),
                 "asset": rel.get("asset"), "cached": rel["tag"] in cached,
                 "installed": rel["tag"] == r.get("installed_tag") and info is not None,
+                "skipped": rel["tag"] in (r.get("skipped") or []),
             })
         prev = None
         for h in r.get("history", []):
@@ -1412,6 +1729,8 @@ class Core(object):
             "previous_tag": prev, "releases": rels,
             "art": self._art(info),
             "cover": self.cover(r, info), "cover_url": r.get("cover_url", ""),
+            "skipped": r.get("skipped", []),
+            "backups": self.backups(r, info["_dir"]) if info else [],
             "originals_pattern": r.get("originals_pattern", ""), "aliases": r.get("aliases", []),
             "hint": r.get("hint", ""), "buy": r.get("buy", []),
             "upload_dir": (os.path.relpath(os.path.normpath(os.path.join(info["_dir"], r["originals_dir"])), self.ports_dir)
@@ -1453,6 +1772,8 @@ class Core(object):
                 "controlfolder": self.controlfolder,
                 "changed": self.changed,
                 "gog_account": self.gog.status(),
+                "battery": dict(zip(("percent", "charging"), battery())),
+                "low_battery": LOW_BATTERY,
                 "catalogue": self.catalogue(),
             }
 

@@ -154,11 +154,14 @@ function repoCard(r){
   let gogBtn = '';
   if (g && r.installed && !g.present && acct.linked && g.owned !== false)
     gogBtn = `<button ${running?'disabled':''} onclick="gogGet('${r.id}')">Get game files from GOG</button>`;
+  const reBtn = r.installed && !r.is_self && (r.installed_tag || r.latest_tag) ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(r.installed_tag||r.latest_tag)}',true,'Reinstall')">Reinstall</button>` : '';
+  const bkBtn = r.installed && !r.is_self ? `<button onclick="backupsDlg('${r.id}')">Backups${(r.backups||[]).length?' · '+r.backups.length:''}</button>` : '';
   const upBtn = r.installed && r.upload_dir ? `<button ${running?'disabled':''} onclick="upload('${r.id}')">Upload game files</button>` : '';
   const buy = (r.buy||[]).map(b=>`<a class="chip" href="${esc(b.url)}" target="_blank" rel="noopener" title="The version this port is made for">Buy on ${esc(b.store)}</a>`).join('');
   const gogChip = !g ? '' : `<span class="chip" title="${esc(g.title||'')} on GOG.com">GOG · ${!acct.linked ? 'sign in to fetch the game' : g.owned===true ? (g.present ? 'game files here' : 'in your library') : g.owned===false ? 'not in your library' : 'checking…'}</span>`;
-  const rels = r.releases.map(x=>`<tr><td><b>${esc(x.tag)}</b> ${x.prerelease?'<span class="chip">pre</span>':''}${x.installed?'<span class="chip s-current">installed</span>':''}${x.cached?'<span class="chip" title="Kept on the device, installs offline">cached</span>':''}<div class="mut">${day(x.published)} · ${x.asset?esc(x.asset.name)+' · '+size(x.asset.size):'no matching zip'}</div></td>
-     <td style="text-align:right">${x.asset && !x.installed ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(x.tag)}',true)">Install</button>` : ''} ${x.body?`<button onclick="notes('${r.id}','${esc(x.tag)}')">Notes</button>`:''}</td></tr>`).join('');
+  const rels = r.releases.map(x=>`<tr><td><b>${esc(x.tag)}</b> ${x.prerelease?'<span class="chip">pre</span>':''}${x.installed?'<span class="chip s-current">installed</span>':''}${x.cached?'<span class="chip" title="Kept on the device, installs offline">cached</span>':''}${x.skipped?'<span class="chip s-error" title="Marked unstable: never offered as the update">skipped</span>':''}<div class="mut">${day(x.published)} · ${x.asset?esc(x.asset.name)+' · '+size(x.asset.size):'no matching zip'}</div></td>
+     <td style="text-align:right">${x.asset && !x.installed ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(x.tag)}',true)">Install</button>` : ''} ${x.body?`<button onclick="notes('${r.id}','${esc(x.tag)}')">Notes</button>`:''}
+       <button title="${x.skipped?'Offer it as an update again':'Unstable: stay on an earlier version until a newer release'}" onclick="skip('${r.id}','${esc(x.tag)}',${!x.skipped})">${x.skipped?'Unskip':'Skip'}</button></td></tr>`).join('');
   return `<div class="card" id="c-${r.id}">
     <div class="row"><div class="grow"><div class="title">${esc(r.title)}${r.is_new?'<span class="badge">NEW</span>':''}</div>
       <div class="mut"><a href="https://github.com/${esc(r.repo)}/releases" target="_blank" rel="noopener" style="color:inherit">${esc(r.repo)}</a>${r.port_dir?' · ports/'+esc(r.port_dir):''}</div></div>
@@ -167,7 +170,7 @@ function repoCard(r){
     ${r.error?`<div class="mut s-error">${esc(r.error)}</div>`:''}
     ${j && j.state!=='done' ? `<div class="mut ${j.state==='failed'?'s-error':''}" style="margin-top:6px">${esc(j.label)}: ${esc(j.message||j.state)}</div>${running?`<div class="bar"><i style="width:${j.progress!=null?Math.round(j.progress*100):(j.state==='running'?100:0)}%;${j.progress==null&&j.state==='running'?'opacity:.35':''}"></i></div>`:''}` : ''}
     ${gogChip||buy?`<div style="margin-top:6px">${gogChip}${buy}</div>`:''}
-    <div class="row" style="margin-top:10px">${main}${rb}${gogBtn}${upBtn}${orig}<span class="grow"></span>
+    <div class="row" style="margin-top:10px">${main}${rb}${gogBtn}${upBtn}${orig}${bkBtn}${reBtn}<span class="grow"></span>
       <button onclick="api('POST','/api/repos/${r.id}/check')">Check</button>
       <button onclick="edit('${r.id}')">Edit</button>
       ${r.installed && !r.is_self?`<button class="bad" onclick="uninstall('${r.id}')">Uninstall</button>`:''}
@@ -220,12 +223,86 @@ async function poll(){
 }
 
 function repo(id){ return S.repos.find(r=>r.id===id); }
-async function install(id, tag, confirmIt){
-  const r = repo(id);
-  if (confirmIt && !confirm(`Install ${r.title} ${tag}? Your imported game files, settings and saves stay.`)) return;
-  await api('POST',`/api/repos/${id}/install`,{tag}); toast(`Queued ${r.title} ${tag}`); poll();
+async function post(path, body){
+  const r = await fetch(path, {method:'POST', headers:{'X-Pin':PIN,'Content-Type':'application/json'}, body: JSON.stringify(body||{})});
+  const j = await r.json().catch(()=>({}));
+  if (r.status === 401) { showLogin(); throw new Error(j.error); }
+  return {status: r.status, ok: r.ok, j};
 }
-async function updateAll(){ const j = await api('POST','/api/update-all'); toast(`${j.queued} update(s) queued`); poll(); }
+// battery or space say "not now": ask before insisting
+async function guarded(path, body, what){
+  let res = await post(path, body);
+  if (res.status === 409 && res.j.blocked) {
+    if (!confirm(`${res.j.problems.join('\n')}\n\n${what} anyway?`)) return null;
+    res = await post(path, Object.assign({}, body, {force:true}));
+  }
+  if (!res.ok) { toast(res.j.error || ('Error ' + res.status)); return null; }
+  return res.j;
+}
+async function install(id, tag, confirmIt, verb){
+  const r = repo(id); verb = verb || 'Install';
+  if (confirmIt && !confirm(`${verb} ${r.title} ${tag}? Your saves are backed up first; imported game files and settings stay.`)) return;
+  if (await guarded(`/api/repos/${id}/install`, {tag}, verb)) toast(`Queued ${r.title} ${tag}`);
+  poll();
+}
+async function updateAll(){ const j = await guarded('/api/update-all', {}, 'Update'); if (j) toast(`${j.queued} update(s) queued`); poll(); }
+async function skip(id, tag, on){
+  await api('POST',`/api/repos/${id}/skip`,{tag, skip:on});
+  toast(on ? `${tag} skipped: not offered as an update` : `${tag} offered again`); poll();
+}
+function backupsDlg(id){
+  const r = repo(id), bs = r.backups || [];
+  const dl = (q) => `/api/repos/${id}/${q}${q.includes('?')?'&':'?'}pin=${encodeURIComponent(PIN)}`;
+  const rows = bs.map(b=>`<tr><td>${esc(b.name.replace('.zip',''))}${b.auto?' <span class="chip">auto</span>':''}<div class="mut">${size(b.size)} · ${ago(b.at)}</div></td>
+     <td style="text-align:right"><a class="chip" href="${dl('backup-file?name='+encodeURIComponent(b.name))}">Download</a>
+     <button type="button" onclick="restoreB('${id}','${esc(b.name)}')">Restore</button>
+     <button type="button" class="bad" onclick="delB('${id}','${esc(b.name)}')">Delete</button></td></tr>`).join('');
+  dialog(`<div class="title">Backups · ${esc(r.title)}</div>
+   <p class="mut">Saves and settings (${esc((r.keep_on_uninstall||['conf']).join(', '))}) are backed up by themselves before every update. To move the game to another handheld: download the whole game here, install the port there, and restore the zip on its page.</p>
+   <p class="row"><button type="button" onclick="backupNow('${id}')">Back up saves now</button>
+     <a class="chip" href="${dl('backup-download?kind=saves')}">Download saves (.zip)</a>
+     <a class="chip" href="${dl('backup-download?kind=full')}" title="The port with its imported game data, without the original files">Download whole game (.zip)</a></p>
+   <table>${rows || '<tr><td class="mut">No backups on the handheld yet.</td></tr>'}</table>
+   <label style="margin-top:10px">Restore a backup from this computer (from this or another handheld)</label>
+   <div class="row"><input type="file" id="bkf" accept=".zip"><button type="button" class="pri" onclick="importB('${id}')">Upload and restore</button></div>
+   <div id="bkst" class="mut"></div><div class="bar" id="bkbar" hidden><i style="width:0%"></i></div>
+   <p class="row"><span class="grow"></span><button value="cancel">Close</button></p>`, () => { UP.stop = true; });
+}
+async function backupNow(id){ const j = await api('POST',`/api/repos/${id}/backup`); toast('Saves backed up: '+j.name); await poll(); backupsDlg(id); }
+async function restoreB(id, name){
+  if (!confirm(`Restore ${name}? Its files replace the port's own (your current saves are backed up first).`)) return;
+  await api('POST',`/api/repos/${id}/restore`,{name}); toast('Restoring…'); $('#dlg').close(); poll();
+}
+async function delB(id, name){ if (!confirm(`Delete ${name}?`)) return; await api('POST',`/api/repos/${id}/backup-delete`,{name}); await poll(); backupsDlg(id); }
+async function importB(id){
+  const f = $('#bkf').files[0]; if (!f) return;
+  UP = { stop: false }; const mine = UP;
+  $('#bkbar').hidden = false;
+  const qs = `name=${encodeURIComponent(f.name)}&total=${f.size}`;
+  try {
+    const st = await api('GET', `/api/repos/${id}/backup-upload?${qs}`);
+    if (st.free != null && st.free < f.size - st.have) throw new Error(`Not enough space on the handheld: ${size(st.free)} free`);
+    let off = st.have, done = false, saved = st.saved_as;
+    while (!done) {
+      if (mine.stop) throw new Error('Stopped');
+      const end = Math.min(f.size, off + 8 * 1024 * 1024);
+      let tries = 0;
+      for (;;) {
+        let res = null;
+        try { res = await fetch(`/api/repos/${id}/backup-upload?${qs}&offset=${off}`, { method: 'PUT', headers: { 'X-Pin': PIN }, body: f.slice(off, end) }); } catch (e) {}
+        if (res && res.status === 409) { off = (await res.json()).have; break; }
+        if (res && res.ok) { const j = await res.json(); off = j.have; done = j.done; saved = j.saved_as || saved; break; }
+        if (res && res.status < 500) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `HTTP ${res.status}`); }
+        if (++tries >= 6) throw new Error('The connection keeps dropping. Upload again: it continues where it stopped.');
+        await new Promise(r => setTimeout(r, 1500 * tries));
+      }
+      $('#bkst').textContent = `${size(off)} of ${size(f.size)}`;
+      $('#bkbar i').style.width = Math.round(off * 100 / Math.max(1, f.size)) + '%';
+    }
+    await api('POST',`/api/repos/${id}/restore`,{name: saved});
+    toast('Uploaded, restoring…'); $('#dlg').close(); poll();
+  } catch (e) { $('#bkst').textContent = e.message; }
+}
 async function uninstall(id){
   const r = repo(id);
   dialog(`<div class="title">Uninstall ${esc(r.title)}?</div>

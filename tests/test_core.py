@@ -201,6 +201,105 @@ def upload_tests(c, ports):
     assert "the_thing.iso" in names and "NFS" in names, names
 
 
+def backup_tests(c, ports, tmp):
+    import zipfile
+    r = c.state["repos"][0]
+    pdir = os.path.join(ports, "demo")
+    os.makedirs(os.path.join(pdir, "conf"), exist_ok=True)
+    open(os.path.join(pdir, "conf", "save1.dat"), "w").write("level 7")
+    os.makedirs(os.path.join(pdir, "data"), exist_ok=True)
+    open(os.path.join(pdir, "data", "big.bin"), "wb").write(b"G" * 5000)
+    # saves, by hand and automatic (the last 5 kept)
+    p = c.backup_saves(r, reason="test")
+    assert p and zipfile.ZipFile(p).namelist() == ["slopetanium-backup.json", "conf/save1.dat"], zipfile.ZipFile(p).namelist()
+    for i in range(7):
+        c.backup_saves(r, auto=True)
+        time.sleep(1.05) if i == 0 else None
+    autos = [b for b in c.backups(r) if b["auto"]]
+    assert 1 <= len(autos) <= 5, autos
+    # the whole game streamed (as the browser downloads it): no originals, no leftovers
+    open(os.path.join(pdir, "log.txt"), "w").write("log")
+    open(os.path.join(pdir, "source", "half.iso.part"), "w").write("x")
+
+    class Pipe(io.RawIOBase):     # forward only, like the HTTP response
+        def __init__(self):
+            self.buf = io.BytesIO()
+        def write(self, b):
+            return self.buf.write(b)
+        def writable(self):
+            return True
+    import web
+    pipe = Pipe()
+    c.stream_backup(r["id"], "full", web._Unseekable(pipe))
+    full = os.path.join(tmp, "game-full.zip")
+    open(full, "wb").write(pipe.buf.getvalue())
+    names = zipfile.ZipFile(full).namelist()
+    assert "data/big.bin" in names and "conf/save1.dat" in names and "bin" in names, names
+    assert not any(n.startswith("source/") for n in names) and "log.txt" not in names, names
+    # restored over a changed port (as on another handheld): everything back, the newer saves backed up first
+    open(os.path.join(pdir, "conf", "save1.dat"), "w").write("level 1")
+    os.unlink(os.path.join(pdir, "data", "big.bin"))
+    imp = c.import_path(r["id"], "game-full.zip")
+    shutil.copy(full, imp)
+    c.queue_restore(r["id"], imp); wait(c)
+    assert c.jobs[-1].state == "done", c.jobs[-1].message
+    assert open(os.path.join(pdir, "conf", "save1.dat")).read() == "level 7"
+    assert os.path.getsize(os.path.join(pdir, "data", "big.bin")) == 5000
+    # another port's backup, and a backup with a path out of the folder, are refused
+    other = os.path.join(tmp, "other.zip")
+    with zipfile.ZipFile(other, "w") as zf:
+        zf.writestr("slopetanium-backup.json", json.dumps({"slopetanium_backup": 1, "repo": "x/y"}))
+    try:
+        c.restore_backup(r["id"], other)
+        raise AssertionError("another port's backup restored")
+    except ValueError:
+        pass
+    evil = os.path.join(tmp, "evil.zip")
+    with zipfile.ZipFile(evil, "w") as zf:
+        zf.writestr("slopetanium-backup.json", json.dumps({"slopetanium_backup": 1, "repo": r["repo"]}))
+        zf.writestr("../../escape.txt", "x")
+    try:
+        c.restore_backup(r["id"], evil)
+        raise AssertionError("unsafe backup restored")
+    except ValueError:
+        pass
+    assert not os.path.exists(os.path.join(ports, "..", "escape.txt"))
+    # skip: the skipped release is not the update; an older one is never an "update"
+    c.state["repos"][0]["prereleases"] = True
+    c.check_repo(r["id"])
+    c.queue_install(r["id"], "v3", force=True); wait(c)
+    v = c.repo_view(r)
+    assert v["installed_tag"] == "v3" and v["status"] == "current", v["status"]
+    c.skip_release(r["id"], "v3")
+    v = c.repo_view(r)
+    assert v["latest_tag"] == "v2" and v["status"] == "current", (v["latest_tag"], v["status"])   # not "update" to v2
+    c.queue_install(r["id"], "v2"); wait(c)
+    assert c.repo_view(r)["status"] == "current" and not c.queue_update_all()
+    c.skip_release(r["id"], "v3", False)
+    assert c.repo_view(r)["status"] == "update"
+    # safe install: low battery and no space stop it unless forced
+    real_batt, real_free = core.battery, core.free_space
+    try:
+        core.battery = lambda: (12, False)
+        try:
+            c.queue_install(r["id"], "v3")
+            raise AssertionError("installed on a low battery")
+        except core.InstallBlocked as e:
+            assert "Battery at 12%" in str(e)
+        core.battery = lambda: (12, True)        # on the charger: fine
+        core.free_space = lambda p: 10
+        try:
+            c.queue_install(r["id"], "v3")
+            raise AssertionError("installed with no space")
+        except core.InstallBlocked as e:
+            assert "Not enough space" in str(e)
+        core.free_space = real_free
+        c.queue_install(r["id"], "v3"); wait(c)
+        assert c.repo_view(r)["installed_tag"] == "v3"
+    finally:
+        core.battery, core.free_space = real_batt, real_free
+
+
 def catalogue_tests(tmp):
     ports = os.path.join(tmp, "ports2")
     root = os.path.join(ports, "slopetanium")
@@ -300,6 +399,7 @@ def main():
         c.queue_uninstall(r["id"]); wait(c)
         assert not os.path.exists(pdir) and not os.path.exists(os.path.join(ports, "Demo.sh"))
         backups = os.listdir(c.backup_dir)
+        backups = [b for b in backups if b.startswith("demo-")]   # (demo/: the automatic saves before updates)
         assert len(backups) == 1 and os.path.isfile(os.path.join(c.backup_dir, backups[0], "conf", "save"))
         assert c.repo_view(r)["status"] == "not_installed"
 
@@ -315,6 +415,7 @@ def main():
         assert core.parse_repo("https://github.com/a/b.git") == "a/b"
         gog_tests(c, ports, tmp)
         upload_tests(c, ports)
+        backup_tests(c, ports, tmp)
         catalogue_tests(tmp)
         c.stop()
         print("OK")

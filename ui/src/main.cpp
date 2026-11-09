@@ -193,7 +193,8 @@ static std::string humanSize(double n)
 }
 
 // ---- the core's state ---------------------------------------------------------------------------------------------
-struct Rel { std::string tag, body; bool pre = false, installed = false, cached = false, asset = false; };
+struct Rel { std::string tag, body; bool pre = false, installed = false, cached = false, asset = false, skipped = false; };
+struct Backup { std::string name; double size = 0; bool autoMade = false; };
 struct Port
 {
 	std::string id, title, repo, status, inst, latest, art, cover, error, prev, portDir, keep;
@@ -207,6 +208,8 @@ struct Port
 	int gogOwned = -1;	// 1 owned, 0 not, -1 not known yet
 	std::string gogTitle;
 	std::string uploadDir, buyStore, buyUrl;
+	std::vector<Backup> backups;
+	bool isSelf = false;
 	std::vector<Rel> rels;
 };
 struct State
@@ -262,12 +265,15 @@ static State parseState(const std::string& text)
 				{
 					Rel x;
 					x.tag = v->str("tag"); x.body = plainText(v->str("body")); x.pre = v->flag("prerelease");
-					x.installed = v->flag("installed"); x.cached = v->flag("cached");
+					x.installed = v->flag("installed"); x.cached = v->flag("cached"); x.skipped = v->flag("skipped");
 					const JVal* a = v->get("asset");
 					x.asset = a && a->isObj();
 					p.rels.push_back(x);
 				}
 			p.uploadDir = r.str("upload_dir");
+			p.isSelf = r.flag("is_self");
+			if (const JVal* b = r.get("backups"); b && b->isArr())
+				for (auto& e : b->arr) p.backups.push_back(Backup{ e->str("name"), e->num("size"), e->flag("auto") });
 			if (const JVal* b = r.get("buy"); b && b->isArr() && !b->arr.empty())
 			{
 				p.buyStore = b->arr[0]->str("store");
@@ -432,10 +438,36 @@ struct Host
 
 	// ---- actions ----
 	std::string path(const Port& p, const std::string& what) { return "/api/repos/" + p.id + "/" + what; }
-	void install(const Port& p, const std::string& tag)
+	// a blocked install (battery, space) comes back here from the link's thread, for the main loop to ask about
+	std::mutex blockedLock;
+	struct Blocked { bool set = false; Port p; std::string tag, why; } blocked;
+	void install(const Port& p, const std::string& tag, bool force = false)
 	{
-		link->post(path(p, "install"), "{\"tag\":\"" + tag + "\"}");
-		flash("Queued " + p.title + " " + tag);
+		std::string body = "{\"tag\":\"" + tag + "\"" + (force ? ",\"force\":true" : "") + "}";
+		link->call("POST", path(p, "install"), body, [this, p, tag](int code, const std::string& out) {
+			if (code == 409)
+			{
+				JPtr j = banana::parseJson(out);
+				std::lock_guard<std::mutex> l(blockedLock);
+				blocked.set = true; blocked.p = p; blocked.tag = tag; blocked.why = j ? plainText(j->str("error")) : "";
+				wake();
+			}
+		});
+		link->refresh();
+		flash("Queued " + p.title + " " + shortTag(tag));
+	}
+	void askBlocked()
+	{
+		Blocked b;
+		{
+			std::lock_guard<std::mutex> l(blockedLock);
+			if (!blocked.set) return;
+			b = blocked;
+			blocked.set = false;
+		}
+		toast.clear();
+		confirm("Install " + shortTag(b.tag) + " anyway?", { { b.p.title, theme::muted }, { b.why, theme::warn } },
+			"Install anyway", [this, b] { install(b.p, b.tag, true); }, theme::ink);
 	}
 	void openConnect()
 	{
@@ -498,6 +530,28 @@ struct Host
 			} });
 		if (p.rels.size() > 1 && !busy)
 			m.items.push_back({ "Other versions…", [this, p] { versions(p); } });
+		if (p.installed && !p.isSelf && !busy && !(p.inst.empty() && p.latest.empty()))
+		{
+			std::string t = p.inst.empty() ? p.latest : p.inst;
+			m.items.push_back({ "Reinstall " + shortTag(t), [this, p, t] {
+				confirm("Reinstall " + shortTag(t) + "?", { { "Your saves are backed up first.", theme::muted } }, "Reinstall",
+					[this, p, t] { install(p, t); });
+			} });
+		}
+		if (!busy && !p.latest.empty() && (p.status == "update" || p.inst == p.latest))
+			m.items.push_back({ "Skip " + shortTag(p.latest) + " (unstable)", [this, p] {
+				confirm("Skip " + shortTag(p.latest) + "?", { { "It won't be offered as an update; a newer release will.", theme::muted },
+					{ p.inst == p.latest ? "Then pick an earlier version to go back to." : "", theme::muted } }, "Skip it",
+					[this, p] { link->post(path(p, "skip"), "{\"tag\":\"" + p.latest + "\",\"skip\":true}"); flash("Skipped " + shortTag(p.latest));
+						if (p.inst == p.latest) versionsLater = p.id; });
+			} });
+		if (p.installed && !p.isSelf && !busy)
+		{
+			m.items.push_back({ "Back up saves now", [this, p] { menus.clear(); mode = SHELF;
+				link->post(path(p, "backup")); flash("Saves backed up: download them on the web page"); } });
+			if (!p.backups.empty())
+				m.items.push_back({ "Restore saves…", [this, p] { restoreMenu(p); } });
+		}
 		if (!dual && !p.latest.empty())
 			m.items.push_back({ "Release notes", [this, p] { notesTag = p.latest; mode = NOTES; overlayAt = nowMs(); } });
 		if (p.gog && p.installed && !p.gogPresent && !busy)
@@ -517,6 +571,24 @@ struct Host
 			m.items.push_back({ "Uninstall…", [this, p] { uninstall(p); }, theme::red });
 		pushMenu(m);
 	}
+	std::string versionsLater;	// after skipping the installed release: its versions, to pick one to go back to
+	void restoreMenu(const Port& p)
+	{
+		Menu m;
+		m.title = "Restore";
+		m.lines = { { p.title, theme::muted }, { "The current saves are backed up first.", theme::muted } };
+		for (auto& b : p.backups)
+		{
+			std::string n = b.name;
+			std::string label = n.substr(0, n.size() > 4 ? n.size() - 4 : n.size());
+			m.items.push_back({ label + "  " + humanSize(b.size), [this, p, n] {
+				confirm("Restore " + n + "?", { { "Its files replace the port's own.", theme::warn } }, "Restore", [this, p, n] {
+					link->post(path(p, "restore"), "{\"name\":\"" + n + "\"}"); flash("Restoring " + p.title);
+				}, theme::ink);
+			} });
+		}
+		pushMenu(m);
+	}
 	void versions(const Port& p)
 	{
 		Menu m;
@@ -526,7 +598,7 @@ struct Host
 		for (auto& r : p.rels)
 		{
 			if (!r.asset) continue;
-			std::string label = r.tag + (r.pre ? "  pre" : "") + (r.installed ? "  · installed" : "") + (r.cached ? "  · on device" : "");
+			std::string label = r.tag + (r.pre ? "  pre" : "") + (r.skipped ? "  · skipped" : "") + (r.installed ? "  · installed" : "") + (r.cached ? "  · on device" : "");
 			if (r.installed) m.items.push_back({ label, nullptr, theme::ok });
 			else
 			{
@@ -1505,7 +1577,16 @@ int main(int argc, char** argv)
 			got = SDL_PollEvent(&ev);
 		}
 		if (!held.empty() && nowMs() >= repeatAt) { host.button(held); repeatAt = nowMs() + 110; }
-		if (host.link->state(json, serial) && !json.empty()) { host.apply(json); json.clear(); }
+		if (host.link->state(json, serial) && !json.empty())
+		{
+			host.apply(json); json.clear();
+			if (!host.versionsLater.empty() && host.mode == Host::SHELF)
+			{
+				for (auto& p : host.st.ports) if (p.id == host.versionsLater) host.versions(p);
+				host.versionsLater.clear();
+			}
+		}
+		host.askBlocked();
 
 		double now = nowMs();
 		host.ui->update(now);
