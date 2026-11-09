@@ -585,6 +585,7 @@ class Core(object):
             self.save()
         self.changed += 1
         if on:
+            getattr(self, "_art_tried", {}).pop(self._cover_path(r), None)  # its cover may be there now
             if r.get("installed_tag") and self.port_dir(r):
                 self.community.count_shared(r["repo"], r["installed_tag"])
             self.sync_installs()
@@ -1650,13 +1651,22 @@ class Core(object):
 
     # ---------------------------------------------------------------- box art
     def _cover_path(self, r):
+        """Where a port's box art is kept: from its own cover_url, or else from the community server (which has the
+        game's cover from IGDB for ports shared there)."""
         u = r.get("cover_url") or ""
+        base = os.path.join(self.conf_dir, "art", r["repo"].replace("/", "__"))
         if not u:
-            return None
+            return base + ".community.jpg"
         ext = os.path.splitext(u.split("?")[0])[1].lower()
         if ext not in (".jpg", ".jpeg", ".png"):
             ext = ".jpg"
-        return os.path.join(self.conf_dir, "art", r["repo"].replace("/", "__") + ext)
+        return base + ext
+
+    def _cover_source(self, r):
+        """(url, retry seconds) of a port's box art."""
+        if r.get("cover_url"):
+            return r["cover_url"], 3600
+        return "%s/cover/%s" % (self.community.url, r["repo"]), 6 * 3600  # (only shared ports have one there)
 
     def cover(self, r, info=None):
         """The box art on the device: the fetched one; Slopetanium's own; else nothing (the port's screenshot then)."""
@@ -1671,24 +1681,28 @@ class Core(object):
 
     def _art_fetcher(self):
         """Box art for the watched ports, once each (a failure is tried again in an hour)."""
-        tried = {}
+        tried = self._art_tried = {}
         while not self._stop.is_set():
             for r in list(self.state["repos"]):
                 p = self._cover_path(r)
-                if not p or os.path.isfile(p) or now() - tried.get(p, 0) < 3600:
+                if not p or os.path.isfile(p):
+                    continue
+                url, again = self._cover_source(r)
+                if now() - tried.get(p, 0) < again:
                     continue
                 tried[p] = now()
                 try:
                     if not os.path.isdir(os.path.dirname(p)):
                         os.makedirs(os.path.dirname(p))
-                    self.http.download(r["cover_url"], p, attempts=2)
+                    self.http.download(url, p, attempts=2)
                     if os.path.getsize(p) < 512:
                         os.unlink(p)
                         raise RuntimeError("not a picture")
                     self.log("%s: box art fetched" % r["repo"])
                     self.changed += 1
                 except Exception as e:
-                    self.log("%s: box art not fetched (%s)" % (r["repo"], e))
+                    if r.get("cover_url") or not (isinstance(e, HttpError) and e.status == 404):
+                        self.log("%s: box art not fetched (%s)" % (r["repo"], e))
             self._stop.wait(20)
 
     # ---------------------------------------------------------------- uploads (game files from the browser)

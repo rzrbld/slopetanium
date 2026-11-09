@@ -82,6 +82,8 @@ a console-style home menu on the device and a web interface for your PC, phone o
     installed before. Sharing a port also counts your own install of it, without model or
     firmware unless you said yes. No location is sent. This can be changed in **Settings →
     Community**.
+  - **Box art from the community.** A watched port without box art of its own gets its cover
+    from slopetanium.pw, which has the game's cover from IGDB when the port is shared there.
   - **No account.** Slopetanium makes a random id on the handheld and keeps it there. The
     server stores only a keyed hash of it, plus the name you choose for your reviews
     (otherwise a made-up one, such as “Mint Otter 3f2a”). See [server/](server/) for how the

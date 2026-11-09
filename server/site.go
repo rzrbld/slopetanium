@@ -281,9 +281,19 @@ func (st *Site) handleAbout(w http.ResponseWriter, r *http.Request) {
 func (st *Site) handleCover(w http.ResponseWriter, r *http.Request) {
 	repo := r.PathValue("owner") + "/" + r.PathValue("name")
 	var id int64
-	var url string
-	if err := st.s.db.QueryRow(`SELECT p.id, p.cover_url FROM ports p WHERE p.repo = ? AND `+visible, repo).Scan(&id, &url); err != nil || url == "" {
+	var url, game string
+	if err := st.s.db.QueryRow(`SELECT p.id, p.cover_url, COALESCE(json_extract(CASE WHEN p.igdb = '' THEN '{}' ELSE p.igdb END, '$.cover'), '')
+		FROM ports p WHERE p.repo = ? AND `+visible, repo).Scan(&id, &url, &game); err != nil {
 		http.NotFound(w, r)
+		return
+	}
+	if url == "" {
+		// no box art of its own: the game's cover from IGDB (handhelds fetch their art here too)
+		if game == "" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "/igdb/t_cover_big/"+game+".jpg", http.StatusFound)
 		return
 	}
 	var ctype, have string

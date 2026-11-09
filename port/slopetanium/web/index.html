@@ -1199,12 +1199,25 @@ const CL = { q: '', sort: 'popular', data: null, err: '', at: 0, key: '' };
 const starsHtml = v => `<span class="stars" title="${(+v).toFixed(1)} of 5"><i style="width:${Math.round(v / 5 * 100)}%"></i></span>`;
 const avatar = n => { const [c1, c2] = tint(n); return `<span class="avatar" style="background:linear-gradient(150deg,${c1},${c2})">${esc(initials(n))}</span>`; };
 const cname = repo => repo.split('/')[1];
+const CPwait = {};      // repo (lower case) -> the fetch under way: whoever asks meanwhile gets its answer
+const CPgen = {};       // bumped when what we know is out of date: an older fetch's answer is then dropped
+function cportForget(repo) { const k = repo.toLowerCase(); delete CP[k]; delete CPwait[k]; CPgen[k] = (CPgen[k] || 0) + 1; }
 async function cport(repo, fresh) {
   const k = repo.toLowerCase(), c = CP[k];
+  if (CPwait[k]) return CPwait[k];
   if (c && !fresh && Date.now() - c.t < 60000) return c;
-  try { CP[k] = { t: Date.now(), d: await api('GET', `/api/community/port?repo=${encodeURIComponent(repo)}`) }; }
-  catch (e) { CP[k] = { t: Date.now(), err: e.message, status: e.status }; }
-  return CP[k];
+  const gen = CPgen[k] || 0;
+  const p = (async () => {
+    let v;
+    try { v = { t: Date.now(), d: await api('GET', `/api/community/port?repo=${encodeURIComponent(repo)}`) }; }
+    catch (e) { v = { t: Date.now(), err: e.message, status: e.status }; }
+    if ((CPgen[k] || 0) !== gen) return cport(repo, true);   // the switch moved on meanwhile: ask again
+    CP[k] = v;
+    if (CPwait[k] === p) delete CPwait[k];
+    return v;
+  })();
+  CPwait[k] = p;
+  return p;
 }
 function askCountInstalls() {
   if (!S || S.settings.count_installs !== null && S.settings.count_installs !== undefined) return;
@@ -1264,6 +1277,7 @@ async function communityPanel(r, fresh) {
     const res = await act(() => api('POST', `/api/repos/${r.id}/share`, { share: on }), on ? 'Shared with the community' : 'No longer shared');
     const cur = repo(r.id);
     if (res && cur) cur.shared = on;   // until the next state says so too
+    cportForget(r.repo);   // what the community said before the switch is old now
     communityPanel(cur || r, true);
   };
   bindReview(box2, () => communityPanel(r, true));
@@ -1329,7 +1343,7 @@ async function drawCommunityPort(repoName, fresh) {
           <span class="faint tiny">${ago(v.updated)}${v.version ? ' · ' + esc(shortTag(v.version)) : ''}${v.device ? ' · ' + esc(v.device) : ''}</span></div>${v.text ? `<p>${esc(v.text)}</p>` : ''}</div>`).join('')
         : '<p class="muted small" style="margin:0">No reviews yet.</p>'}</div></div>`;
   const add = $('#cadd', box);
-  if (add) add.onclick = async () => { const j = await act(() => api('POST', '/api/community/add', { repo: d.repo }), `Watching ${d.title}: checking its releases…`); if (j) { delete CP[d.repo.toLowerCase()]; await poll(); go(`port=${j.id}`); } };
+  if (add) add.onclick = async () => { const j = await act(() => api('POST', '/api/community/add', { repo: d.repo }), `Watching ${d.title}: checking its releases…`); if (j) { cportForget(d.repo); await poll(); go(`port=${j.id}`); } };
   bindReview(box, () => drawCommunityPort(repoName, true));
 }
 

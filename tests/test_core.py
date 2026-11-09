@@ -393,6 +393,15 @@ def community_tests(c):
     settle(n0, 1)
     p = pulls()[-1][3]
     assert p["tag"] == "v10" and p["device"] == "" and p["cfw"] == "", p
+    # box art: the port's own cover_url, else the community server's cover (IGDB's, for shared ports)
+    own = r.get("cover_url")
+    r["cover_url"] = ""
+    url, again = c._cover_source(r)
+    assert url == c.community.url + "/cover/" + r["repo"] and again > 3600
+    assert c._cover_path(r).endswith(".community.jpg")
+    r["cover_url"] = "https://example.com/box.png"
+    assert c._cover_source(r)[0] == "https://example.com/box.png" and c._cover_path(r).endswith(".png")
+    r["cover_url"] = own
     c.share_repo(r["id"], False)
     assert seen[-1][0] == "DELETE" and not r["shared"]
     c.delete_repo(nr["id"])

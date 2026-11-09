@@ -351,6 +351,12 @@ func TestIGDB(t *testing.T) {
 	if st, _ := anon.do("GET", "/igdb/t_original/co9bt7.jpg", nil); st != 404 {
 		t.Fatal("unknown size served")
 	}
+	// no box art of its own: /cover points at the game's IGDB cover (handhelds fetch it there)
+	nr := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := nr.Get(srv.URL + "/cover/rzrbld/ReNFS5")
+	if err != nil || resp.StatusCode != 302 || resp.Header.Get("Location") != "/igdb/t_cover_big/co9bt7.jpg" {
+		t.Fatalf("cover fallback: %v %v", resp.StatusCode, resp.Header.Get("Location"))
+	}
 	// pinned by hand: none
 	admin(db, []string{"igdb", "rzrbld/ReNFS5", "none"})
 	srvr.igdb.refreshDue(db)
