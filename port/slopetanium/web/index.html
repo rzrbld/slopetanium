@@ -259,12 +259,13 @@ function edit(id){
    <label style="margin-top:8px">Originals folder</label><input id="e_od" value="${esc(r.originals_dir)}">
    <label style="margin-top:8px">Original files pattern (optional, e.g. *.iso,*.cue)</label><input id="e_opat" value="${esc(r.originals_pattern||'')}">
    <label style="margin-top:8px">Back up before uninstall</label><input id="e_keep" value="${esc((r.keep_on_uninstall||[]).join(', '))}">
+   <label style="margin-top:8px">Cover image (https:// address of the game's box art; empty: the port's screenshot)</label><input id="e_cover" value="${esc(r.cover_url||'')}">
    <label style="margin-top:8px">GOG game id (gog.com product id; empty: none)</label><input id="e_gid" value="${esc(r.gog?r.gog.id:'')}" inputmode="numeric">
    <div class="grid"><div><label>GOG files go to</label><input id="e_gdest" value="${esc(r.gog?r.gog.dest:'source')}"></div>
    <div><label>GOG installer names</label><input id="e_gfiles" value="${esc(r.gog?r.gog.files:'')}" placeholder="setup_*.exe"></div></div>
    <p><label class="row" style="color:inherit"><input type="checkbox" id="e_pre" ${r.prereleases?'checked':''}> Include pre-releases</label></p>
    <p class="row"><button value="cancel">Cancel</button><button class="pri" value="ok">Save</button></p>`,
-   async v=>{ if (v!=='ok') return; await api('PATCH',`/api/repos/${id}`,{repo:$('#e_repo').value, asset_pattern:$('#e_pat').value, port_name:$('#e_pn').value, originals_dir:$('#e_od').value, originals_pattern:$('#e_opat').value, keep_on_uninstall:$('#e_keep').value, prereleases:$('#e_pre').checked,
+   async v=>{ if (v!=='ok') return; await api('PATCH',`/api/repos/${id}`,{repo:$('#e_repo').value, asset_pattern:$('#e_pat').value, port_name:$('#e_pn').value, originals_dir:$('#e_od').value, originals_pattern:$('#e_opat').value, cover_url:$('#e_cover').value, keep_on_uninstall:$('#e_keep').value, prereleases:$('#e_pre').checked,
      gog: $('#e_gid').value.trim() ? {id:+$('#e_gid').value, title:(r.gog&&r.gog.title)||'', dest:$('#e_gdest').value, files:$('#e_gfiles').value} : null}); poll(); });
 }
 function dialog(html, cb){ const d=$('#dlg'); $('#dlgform').innerHTML=html; d.onclose=()=>{ cb && cb(d.returnValue); render(); }; d.returnValue=''; d.showModal(); }

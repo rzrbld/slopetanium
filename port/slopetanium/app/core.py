@@ -38,14 +38,16 @@ REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 #   originals_dir / originals_pattern: where the user's own game files go ("." = the port folder itself)
 #   aliases: other names the port's port.json may carry (a zip installed by hand)
 #   gog: the game on GOG.com: its product id, where its installer goes, and the installer's file names
+#   cover_url: the game's box art (GOG's and Steam's store art, TheGamesDB's scans): fetched once into conf/art,
+#              never shipped
 CATALOGUE = [
-    {"repo": "rzrbld/ReNFS5", "hint": "Your installed game folder (Porsche.exe, Drivers/dx7z.dll, FEData/, GameData/), or a ZIP of it.", "title": "ReNFS5 (Need for Speed: Porsche Unleashed)", "originals_dir": "source"},
-    {"repo": "rzrbld/The-ReThing", "hint": "Your game ISO (it is saved as the_thing.iso).", "rename": {"*.iso": "the_thing.iso"}, "title": "The ReThing (The Thing)", "originals_dir": "source"},
-    {"repo": "rzrbld/ReConflict", "hint": "The GOG installer, setup_conflict_-_desert_storm_1.0_(21657).exe, with its .bin parts if it has any.", "buy": [{"store": "GOG.com", "url": "https://www.gog.com/en/game/conflict_desert_storm"}], "title": "ReConflict (Conflict: Desert Storm)", "originals_dir": ".", "originals_pattern": "setup_*.exe,setup_*.bin",
+    {"repo": "rzrbld/ReNFS5", "cover_url": "https://cdn.thegamesdb.net/images/original/boxart/front/10855-1.jpg", "hint": "Your installed game folder (Porsche.exe, Drivers/dx7z.dll, FEData/, GameData/), or a ZIP of it.", "title": "ReNFS5 (Need for Speed: Porsche Unleashed)", "originals_dir": "source"},
+    {"repo": "rzrbld/The-ReThing", "cover_url": "https://cdn.thegamesdb.net/images/original/boxart/front/10842-1.jpg", "hint": "Your game ISO (it is saved as the_thing.iso).", "rename": {"*.iso": "the_thing.iso"}, "title": "The ReThing (The Thing)", "originals_dir": "source"},
+    {"repo": "rzrbld/ReConflict", "cover_url": "https://images.gog-statics.com/8fbb8a146ec9f9400cf5bf5f21e0880b7523b86d99d79d8c0016a6df43c3553f_glx_vertical_cover.jpg", "hint": "The GOG installer, setup_conflict_-_desert_storm_1.0_(21657).exe, with its .bin parts if it has any.", "buy": [{"store": "GOG.com", "url": "https://www.gog.com/en/game/conflict_desert_storm"}], "title": "ReConflict (Conflict: Desert Storm)", "originals_dir": ".", "originals_pattern": "setup_*.exe,setup_*.bin",
      "gog": {"id": 1207658998, "title": "Conflict: Desert Storm", "dest": ".", "files": "setup_conflict*"}},
-    {"repo": "rzrbld/vurus", "hint": "Your original disc image: an ISO, or a single-BIN CUE/BIN.", "title": "Vurus (Vyruz)", "originals_dir": ".", "originals_pattern": "*.iso,*.cue,*.bin", "aliases": ["vurus.zip"]},
-    {"repo": "rzrbld/TheFamilia", "hint": "The three Mafia CD images (.bin+.cue or .iso), mafia_patch_1.2_eng.exe and an unprotected 1.2 Game.exe (loose or in a .zip/.rar/.7z).", "title": "The Familia (Mafia)", "originals_dir": "source"},
-    {"repo": "rzrbld/ReRED_Faction_Duo", "hint": "The GOG installer, setup_red_faction2_2.0.0.6.exe.", "buy": [{"store": "GOG.com", "url": "https://www.gog.com/en/game/red_faction_2"}], "title": "ReRed Faction II", "originals_dir": "source",
+    {"repo": "rzrbld/vurus", "cover_url": "https://raw.githubusercontent.com/rzrbld/vurus/main/docs/images/port-logo.png", "hint": "Your original disc image: an ISO, or a single-BIN CUE/BIN.", "title": "Vurus (Vyruz)", "originals_dir": ".", "originals_pattern": "*.iso,*.cue,*.bin", "aliases": ["vurus.zip"]},
+    {"repo": "rzrbld/TheFamilia", "cover_url": "https://cdn.cloudflare.steamstatic.com/steam/apps/40990/library_600x900.jpg", "hint": "The three Mafia CD images (.bin+.cue or .iso), mafia_patch_1.2_eng.exe and an unprotected 1.2 Game.exe (loose or in a .zip/.rar/.7z).", "title": "The Familia (Mafia)", "originals_dir": "source"},
+    {"repo": "rzrbld/ReRED_Faction_Duo", "cover_url": "https://images.gog-statics.com/5cca51d2be9cdb56229c5a1bcd6b400cfeba6486351dc1227a61869149af03e5.jpg", "hint": "The GOG installer, setup_red_faction2_2.0.0.6.exe.", "buy": [{"store": "GOG.com", "url": "https://www.gog.com/en/game/red_faction_2"}], "title": "ReRed Faction II", "originals_dir": "source",
      "gog": {"id": 1207660613, "title": "Red Faction 2", "dest": "source", "files": "setup_red_faction2_*"}},
     {"repo": "rzrbld/slopetanium", "title": "Slopetanium", "originals_dir": ""},
 ]
@@ -306,6 +308,7 @@ class Core(object):
         threading.Thread(target=self._worker, name="jobs", daemon=True).start()
         threading.Thread(target=self._auto_checker, name="autocheck", daemon=True).start()
         threading.Thread(target=self._gog_refresher, name="gog", daemon=True).start()
+        threading.Thread(target=self._art_fetcher, name="art", daemon=True).start()
 
     # ---------------------------------------------------------------- state
     def _load(self):
@@ -355,6 +358,7 @@ class Core(object):
         r.setdefault("hint", "")    # what the port wants as game files (shown with the upload)
         r.setdefault("buy", [])     # [{"store", "url"}]: where the game is sold, in the version the port supports
         r.setdefault("rename", {})  # {glob: name}: an upload's name the port needs (one file)
+        r.setdefault("cover_url", "")
 
     def save(self):
         with self.lock:
@@ -432,6 +436,15 @@ class Core(object):
             r["port_name"] = name_cleaner(str(data["port_name"]))
         if "title" in data:
             r["title"] = str(data.get("title") or "").strip()
+        if "cover_url" in data:
+            u = str(data.get("cover_url") or "").strip()
+            if u and not u.startswith("https://"):
+                raise ValueError("The cover must be an https:// address")
+            if u != r.get("cover_url"):
+                r["cover_url"] = u
+                p = self._cover_path(r)
+                if p and os.path.isfile(p):
+                    os.unlink(p)  # fetched again
         if "hint" in data:
             r["hint"] = str(data.get("hint") or "").strip()
         if "buy" in data and isinstance(data["buy"], list):
@@ -465,7 +478,7 @@ class Core(object):
             for c in CATALOGUE:
                 for r in self.state["repos"]:
                     if r["repo"].lower() == c["repo"].lower():
-                        for k in ("title", "hint", "buy", "rename", "aliases", "gog", "originals_pattern"):
+                        for k in ("title", "hint", "buy", "rename", "aliases", "gog", "originals_pattern", "cover_url"):
                             if c.get(k) and not r.get(k):
                                 r[k] = c[k]
             offered = self.state["settings"].setdefault("catalogue_offered", [])
@@ -487,7 +500,7 @@ class Core(object):
                     continue
                 r = {"id": "%x%03x" % (now(), random.randint(0, 0xFFF)), "repo": c["repo"], "added": now()}
                 self._repo_defaults(r)
-                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog", "hint", "buy", "rename"):
+                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog", "hint", "buy", "rename", "cover_url"):
                     if k in c:
                         r[k] = c[k]
                 self.state["repos"].append(r)
@@ -505,7 +518,7 @@ class Core(object):
         for c in CATALOGUE:
             if c["repo"].lower() == repo.lower():
                 data = {"repo": c["repo"]}
-                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog", "hint", "buy", "rename"):
+                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog", "hint", "buy", "rename", "cover_url"):
                     if k in c:
                         data[k] = c[k]
                 return self.add_repo(data)
@@ -1134,6 +1147,49 @@ class Core(object):
         self.changed += 1
         return freed
 
+    # ---------------------------------------------------------------- box art
+    def _cover_path(self, r):
+        u = r.get("cover_url") or ""
+        if not u:
+            return None
+        ext = os.path.splitext(u.split("?")[0])[1].lower()
+        if ext not in (".jpg", ".jpeg", ".png"):
+            ext = ".jpg"
+        return os.path.join(self.conf_dir, "art", r["repo"].replace("/", "__") + ext)
+
+    def cover(self, r, info=None):
+        """The box art on the device: the fetched one; Slopetanium's own; else nothing (the port's screenshot then)."""
+        p = self._cover_path(r)
+        if p and os.path.isfile(p):
+            return p
+        if info and os.path.realpath(info["_dir"]) == os.path.realpath(self.root):
+            own = os.path.join(self.root, "assets", "icons", "slopetanium-cover.png")
+            if os.path.isfile(own):
+                return own
+        return None
+
+    def _art_fetcher(self):
+        """Box art for the watched ports, once each (a failure is tried again in an hour)."""
+        tried = {}
+        while not self._stop.is_set():
+            for r in list(self.state["repos"]):
+                p = self._cover_path(r)
+                if not p or os.path.isfile(p) or now() - tried.get(p, 0) < 3600:
+                    continue
+                tried[p] = now()
+                try:
+                    if not os.path.isdir(os.path.dirname(p)):
+                        os.makedirs(os.path.dirname(p))
+                    self.http.download(r["cover_url"], p, attempts=2)
+                    if os.path.getsize(p) < 512:
+                        os.unlink(p)
+                        raise RuntimeError("not a picture")
+                    self.log("%s: box art fetched" % r["repo"])
+                    self.changed += 1
+                except Exception as e:
+                    self.log("%s: box art not fetched (%s)" % (r["repo"], e))
+            self._stop.wait(20)
+
     # ---------------------------------------------------------------- uploads (game files from the browser)
     def upload_dest(self, r):
         pdir = self.port_dir(r)
@@ -1355,6 +1411,7 @@ class Core(object):
             "status": status, "error": r.get("error"), "last_checked": r.get("last_checked"),
             "previous_tag": prev, "releases": rels,
             "art": self._art(info),
+            "cover": self.cover(r, info), "cover_url": r.get("cover_url", ""),
             "originals_pattern": r.get("originals_pattern", ""), "aliases": r.get("aliases", []),
             "hint": r.get("hint", ""), "buy": r.get("buy", []),
             "upload_dir": (os.path.relpath(os.path.normpath(os.path.join(info["_dir"], r["originals_dir"])), self.ports_dir)

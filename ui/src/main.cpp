@@ -168,6 +168,19 @@ static std::string plainText(const std::string& in)
 	return s;
 }
 
+// a release tag short enough for a stat column: "portmaster-v20261107-lan-multiplayer-alpha" -> "2026.11.07",
+// "v20261107-195926" -> "2026.11.07"; version numbers ("v0.2.4-beta") as they are
+static std::string shortTag(const std::string& tag)
+{
+	std::string t = tag;
+	if (t.rfind("portmaster-", 0) == 0) t = t.substr(11);
+	size_t i = (t[0] == 'v' || t[0] == 'V') ? 1 : 0, n = 0;
+	while (i + n < t.size() && isdigit((unsigned char)t[i + n])) n++;
+	if (n >= 8 && (i + n == t.size() || t[i + n] == '-' || t[i + n] == '_' || n == 12 || n == 14))
+		return t.substr(i, 4) + "." + t.substr(i + 4, 2) + "." + t.substr(i + 6, 2);
+	return t.size() > 14 ? t.substr(0, 13) + "\u2026" : t;
+}
+
 static std::string humanSize(double n)
 {
 	const char* u[] = { "B", "KB", "MB", "GB" };
@@ -183,7 +196,7 @@ static std::string humanSize(double n)
 struct Rel { std::string tag, body; bool pre = false, installed = false, cached = false, asset = false; };
 struct Port
 {
-	std::string id, title, repo, status, inst, latest, art, error, prev, portDir, keep;
+	std::string id, title, repo, status, inst, latest, art, cover, error, prev, portDir, keep;
 	bool installed = false;
 	double size = 0, origTotal = 0;
 	std::vector<std::pair<std::string, double>> orig;
@@ -228,6 +241,7 @@ static State parseState(const std::string& text)
 			p.id = r.str("id"); p.title = plainText(r.str("title")); p.repo = r.str("repo"); p.status = r.str("status");
 			p.inst = r.str("installed_tag"); p.latest = r.str("latest_tag"); p.art = r.str("art"); p.error = r.str("error");
 			p.prev = r.str("previous_tag"); p.portDir = r.str("port_dir");
+			p.cover = r.str("cover");
 			p.error = plainText(p.error);
 			p.installed = r.flag("installed");
 			p.size = r.num("size");
@@ -341,6 +355,7 @@ public:
 	bool hostFaces(int game, std::string& lk, std::string& ll, std::string& rk, std::string& rl, int& rkind) override;
 	bool hostFace(const std::string& key) override;
 	std::string plateLabel(int game) override;
+	bool caseStyle() override { return true; }
 };
 
 struct MenuItem { std::string label; std::function<void()> fn; uint32_t color = theme::ink; };
@@ -473,11 +488,11 @@ struct Host
 		bool busy = p.jobState == "running" || p.jobState == "queued";
 		if (busy) m.items.push_back({ "Working: " + (p.jobMsg.empty() ? p.jobState : p.jobMsg), nullptr, theme::line });
 		else if (!p.latest.empty() && (p.status == "update" || p.status == "unknown_version"))
-			m.items.push_back({ "Update to " + p.latest, [this, p] { menus.clear(); mode = SHELF; install(p, p.latest); } });
+			m.items.push_back({ "Update to " + shortTag(p.latest), [this, p] { menus.clear(); mode = SHELF; install(p, p.latest); } });
 		else if (!p.latest.empty() && !p.installed)
-			m.items.push_back({ "Install " + p.latest, [this, p] { menus.clear(); mode = SHELF; install(p, p.latest); } });
+			m.items.push_back({ "Install " + shortTag(p.latest), [this, p] { menus.clear(); mode = SHELF; install(p, p.latest); } });
 		if (p.installed && !p.prev.empty() && !busy)
-			m.items.push_back({ "Roll back to " + p.prev, [this, p] {
+			m.items.push_back({ "Roll back to " + shortTag(p.prev), [this, p] {
 				confirm("Roll back to " + p.prev + "?", { { (p.inst.empty() ? "?" : p.inst) + " -> " + p.prev, theme::accentBase },
 					{ "Imported game files and saves are kept.", theme::muted } }, "Roll back", [this, p] { install(p, p.prev); }, theme::ink, p.prev);
 			} });
@@ -1012,16 +1027,16 @@ GameInfo Src::game(int i)
 	}
 	const Port& p = h->st.ports[i];
 	g.title = p.title;
-	g.box = p.art;
+	g.box = p.cover.empty() ? p.art : p.cover;	// box art when fetched, else the port's own screenshot
 	bool busy = p.jobState == "running" || p.jobState == "queued";
 	if (busy || p.jobState == "failed") g.sub = p.jobMsg.empty() ? p.jobState : p.jobMsg;
-	else if (p.status == "update") g.sub = "Update " + p.inst + " -> " + p.latest;
-	else if (p.status == "unknown_version") g.sub = "Installed · latest " + p.latest;
-	else if (p.status == "not_installed") g.sub = "Not installed · " + (p.latest.empty() ? std::string("no release") : p.latest);
+	else if (p.status == "update") g.sub = "Update " + shortTag(p.inst) + " -> " + shortTag(p.latest);
+	else if (p.status == "unknown_version") g.sub = "Installed · latest " + shortTag(p.latest);
+	else if (p.status == "not_installed") g.sub = "Not installed · " + (p.latest.empty() ? std::string("no release") : shortTag(p.latest));
 	else if (p.status == "error") g.sub = p.error.empty() ? "Error" : p.error;
-	else g.sub = "Up to date · " + p.inst;
-	g.plays = p.installed ? (p.inst.empty() ? "?" : p.inst) : "-";
-	g.last = p.latest.empty() ? "-" : p.latest;
+	else g.sub = "Up to date · " + shortTag(p.inst);
+	g.plays = p.installed ? (p.inst.empty() ? "?" : shortTag(p.inst)) : "-";
+	g.last = p.latest.empty() ? "-" : shortTag(p.latest);
 	g.time = p.size > 0 ? humanSize(p.size) : "-";
 	uint32_t tint = theme::portTints[std::hash<std::string>()(p.repo) % (sizeof theme::portTints / sizeof theme::portTints[0])];
 	g.hasAccent = true; g.accent = Color::hex(tint);
@@ -1032,9 +1047,7 @@ GameInfo Src::game(int i)
 		g.achB = 100;
 		g.achA = p.jobState == "failed" ? 100 : (p.jobProg >= 0 ? (int)std::lround(p.jobProg * 100) : 0);
 	}
-	else if (p.status == "update" || p.status == "unknown_version") { g.achLabel = "Update available"; g.achA = 100; g.achB = 100; }
-	else if (p.origTotal > 0) { g.achLabel = "Original files: " + humanSize(p.origTotal) + " to free"; g.achA = 0; g.achB = 100; }
-	else if (p.status == "current") { g.achLabel = "Up to date"; g.achA = 100; g.achB = 100; }
+	// (otherwise no meter: the line under the title says how it stands)
 	return g;
 }
 float Src::battery()

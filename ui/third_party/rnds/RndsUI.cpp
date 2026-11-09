@@ -742,6 +742,11 @@ namespace rnds
 			std::shared_ptr<const Bitmap> shellRef = shell;
 			float sc = s;
 			uint32_t plain = P.cartLabel.rgba8();
+			if (src->caseStyle())	// Slopetanium
+			{
+				request(key, G_CART, true, [art0, sc, dw, dh](float&, float&) -> Bitmap { return gameCase(art0, sc, dw, dh); });
+				return Sprite();
+			}
 			request(key, G_CART, true, [art0, shellRef, sc, dw, dh, plain](float&, float&) -> Bitmap
 			{
 				const Bitmap& shellCopy = *shellRef;
@@ -784,6 +789,85 @@ namespace rnds
 				return resize(master, dw, dh);
 			});
 			return Sprite();
+		}
+
+		// Slopetanium: a PC game's DVD keep case on the cartridge's 100x104 CSS canvas: dark plastic with a ridged spine on
+		// the left, the cover in the clear sleeve (a portrait cover filling it, a landscape picture such as a logo
+		// centred on black), a thin highlight along the sleeve's edges and a soft sheen across it
+		static Bitmap gameCase(const CartArt& a, float sc, int dw, int dh)
+		{
+			int mw = (int)std::lround(100 * sc), mh = (int)std::lround(104 * sc);
+			Bitmap m;
+			m.w = mw; m.h = mh;
+			m.px.assign((size_t)mw * mh * 4, 0);
+			auto X = [sc](float v) { return (int)std::lround(v * sc); };
+			auto fill = [&m, mw, mh](int x0, int y0, int x1, int y1, uint32_t rgb, float alpha)
+			{
+				for (int y = std::max(0, y0); y < std::min(mh, y1); y++)
+					for (int x = std::max(0, x0); x < std::min(mw, x1); x++)
+					{
+						uint8_t* p = &m.px[((size_t)y * mw + x) * 4];
+						float da = p[3] / 255.0f, oa = alpha + da * (1 - alpha);
+						for (int c = 0; c < 3; c++)
+						{
+							float sv = ((rgb >> (16 - 8 * c)) & 255);
+							p[c] = (uint8_t)std::lround(oa > 0 ? (sv * alpha + p[c] * da * (1 - alpha)) / oa : 0);
+						}
+						p[3] = (uint8_t)std::lround(oa * 255);
+					}
+			};
+			int cx0 = X(13), cx1 = X(87), cy0 = X(2), cy1 = X(102), r = std::max(1, X(3));
+			// the case: an outline, then the plastic, corners rounded by leaving them out
+			fill(cx0, cy0, cx1, cy1, 0x05070a, 1);
+			fill(cx0 + 1, cy0 + 1, cx1 - 1, cy1 - 1, 0x14181f, 1);
+			for (int i = 0; i < r; i++)
+				for (int j = 0; j < r - i; j++)
+				{
+					int pts[4][2] = { { cx0 + j, cy0 + i }, { cx1 - 1 - j, cy0 + i }, { cx0 + j, cy1 - 1 - i }, { cx1 - 1 - j, cy1 - 1 - i } };
+					if (i + j < r - 1 || (i == 0 && j == 0))
+						for (auto& pt : pts) memset(&m.px[((size_t)pt[1] * mw + pt[0]) * 4], 0, 4);
+				}
+			// the spine: lighter plastic with two ridges
+			int sx1 = X(21);
+			fill(cx0 + 1, cy0 + 1, sx1, cy1 - 1, 0x1e232c, 1);
+			fill(X(15.5f), cy0 + X(3), X(15.5f) + std::max(1, X(1)), cy1 - X(3), 0x343b48, 1);
+			fill(X(18), cy0 + X(3), X(18) + std::max(1, X(1)), cy1 - X(3), 0x343b48, 1);
+			// the cover
+			int ax0 = sx1, ay0 = cy0 + X(2), ax1 = cx1 - X(2), ay1 = cy1 - X(2);
+			int aw = ax1 - ax0, ah = ay1 - ay0;
+			Bitmap art = a.box.empty() ? Bitmap() : decodeFile(a.box);
+			fill(ax0, ay0, ax1, ay1, 0x000000, 1);
+			if (!art.empty())
+			{
+				if (art.w * 10 <= art.h * 9)	// portrait: fills the sleeve
+					blit(m, cover(art, aw, ah), ax0, ay0);
+				else
+				{
+					float fw, fh;
+					containSize(art.w, art.h, aw - X(6), ah, fw, fh);
+					int w = std::max(1, (int)std::lround(fw)), h = std::max(1, (int)std::lround(fh));
+					blit(m, resize(art, w, h), ax0 + (aw - w) / 2, ay0 + (ah - h) / 2);
+				}
+			}
+			else if (!a.icon.empty())
+			{
+				Bitmap ic = decodeFile(a.icon);
+				if (!ic.empty())
+				{
+					int k = std::max(1, std::min(aw, ah) * 2 / 3 / std::max(1, std::max(ic.w, ic.h)));
+					blit(m, resizeNearest(ic, ic.w * k, ic.h * k), ax0 + (aw - ic.w * k) / 2, ay0 + (ah - ic.h * k) / 2);
+				}
+			}
+			// the sleeve: a highlight on its top and right edges, a sheen across its upper half
+			fill(ax0, ay0, ax1, ay0 + std::max(1, X(0.6f)), 0xffffff, 0.35f);
+			fill(ax1 - std::max(1, X(0.6f)), ay0, ax1, ay1, 0xffffff, 0.18f);
+			for (int y = ay0; y < ay0 + ah * 2 / 5; y++)
+			{
+				int x0 = ax0 + (y - ay0) * aw / std::max(1, ah) / 2;
+				fill(x0, y, std::min(ax1, x0 + aw / 3), y + 1, 0xffffff, 0.07f);
+			}
+			if (dw == mw && dh == mh) return m;
+			return resize(m, dw, dh);
 		}
 
 		// a cartridge with a pixel icon instead of label art, dw x dh device px: the label plain in the palette's colour,
@@ -1606,7 +1690,7 @@ namespace rnds
 			float b = bob();
 			float x = std::round(cx - FW / 2), y = std::round(cy - FH / 2) + ry;
 			// the shadow: narrower while the cover is up
-			float fw = std::round(FW * 0.78f) + (b < 0 ? -10 : 0), fy = std::round(cy + FH / 2 + 18) + ry;
+			float fw = std::round(FW * 0.78f) + (b < 0 ? -10 : 0), fy = std::round(cy + FH / 2 + 7) + ry;	// (Slopetanium: 7, was 18)
 			Color fl = P.floor;
 			for (int r = 0; r < 3; r++)
 			{
@@ -1684,7 +1768,20 @@ namespace rnds
 				if (total + 2 * 16 <= W || pass == 1) break;
 				tv = ts(true, vsize = 20);
 			}
-			float gap = std::min(28.0f, (W - total) / 2);
+			// Slopetanium: values still too wide (a long version name) share the row: no column wider than its share,
+			// the value cut with "..." there
+			if (total + 2 * 16 > W)
+			{
+				float share = (W - 2 * 16) / 3.0f;
+				total = 0;
+				for (int i = 0; i < 3; i++)
+				{
+					colW[i] = std::min(colW[i], std::max(share, ll[i].width));
+					if (lv[i].width > colW[i]) lv[i] = layoutEllipsis(utf8to32(vals[i]), tstyle(tv), (int)colW[i]);
+					total += colW[i];
+				}
+			}
+			float gap = std::min(28.0f, std::max(8.0f, (W - total) / 2));
 
 			// the line under the title, the stats and the achievements stay put whatever the title's length (centring the
 			// whole block made them jump from game to game while browsing): the title sits on top of them, growing upwards
