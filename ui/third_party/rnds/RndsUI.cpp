@@ -793,7 +793,7 @@ namespace rnds
 
 		// Slopetanium: a PC game's CD jewel case on the cartridge's 100x104 CSS canvas, as the early-2000s PC games came:
 		// a little wider than tall (142 x 125 mm), the clear hinge on the left with its knuckles, the front insert
-		// (the box art cut to its near-square shape, or a landscape picture such as a logo centred on black) under the
+		// (the box art zoomed to fill it, the overflow cut evenly) under the
 		// clear lid, which catches a highlight on its edges and a soft sheen
 		static Bitmap gameCase(const CartArt& a, float sc, int dw, int dh)
 		{
@@ -835,25 +835,8 @@ namespace rnds
 			fill(ax0, ay0, ax1, ay1, 0x000000, 1);
 			if (!art.empty())
 			{
-				if (art.w * 10 <= art.h * 13)
-				{
-					// a box cover (portrait or square) whole, its height filling the insert, on a soft, darkened copy of
-					// itself that fills the rest
-					Bitmap bg = resize(cover(art, std::max(1, aw / 8), std::max(1, ah / 8)), aw, ah);
-					for (size_t i = 0; i < bg.px.size(); i += 4) { bg.px[i] = bg.px[i] * 2 / 5; bg.px[i + 1] = bg.px[i + 1] * 2 / 5; bg.px[i + 2] = bg.px[i + 2] * 2 / 5; }
-					blit(m, bg, ax0, ay0);
-					float fw, fh;
-					containSize(art.w, art.h, aw, ah, fw, fh);
-					int w = std::max(1, (int)std::lround(fw)), h = std::max(1, (int)std::lround(fh));
-					blit(m, resize(art, w, h), ax0 + (aw - w) / 2, ay0 + (ah - h) / 2);
-				}
-				else
-				{
-					float fw, fh;
-					containSize(art.w, art.h, aw - X(4), ah, fw, fh);
-					int w = std::max(1, (int)std::lround(fw)), h = std::max(1, (int)std::lround(fh));
-					blit(m, resize(art, w, h), ax0 + (aw - w) / 2, ay0 + (ah - h) / 2);
-				}
+				// whatever its shape, the picture fills the insert (zoomed, the overflow cut evenly): no bars
+				blit(m, cover(art, aw, ah), ax0, ay0);
 			}
 			else if (!a.icon.empty())
 			{
