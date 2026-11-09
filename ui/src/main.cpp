@@ -193,6 +193,7 @@ struct Port
 	bool gog = false, gogPresent = false;
 	int gogOwned = -1;	// 1 owned, 0 not, -1 not known yet
 	std::string gogTitle;
+	std::string uploadDir, buyStore, buyUrl;
 	std::vector<Rel> rels;
 };
 struct State
@@ -252,6 +253,12 @@ static State parseState(const std::string& text)
 					x.asset = a && a->isObj();
 					p.rels.push_back(x);
 				}
+			p.uploadDir = r.str("upload_dir");
+			if (const JVal* b = r.get("buy"); b && b->isArr() && !b->arr.empty())
+			{
+				p.buyStore = b->arr[0]->str("store");
+				p.buyUrl = b->arr[0]->str("url");
+			}
 			if (const JVal* g = r.get("gog"); g && g->isObj())
 			{
 				p.gog = true;
@@ -451,6 +458,17 @@ struct Host
 		Menu m;
 		m.title = p.title;
 		m.lines = { { p.repo, theme::muted } };
+		// no game files yet: where they come from
+		bool noFiles = p.origTotal <= 0 && p.imported.empty() && !p.gogPresent;
+		if (noFiles && p.installed && !p.uploadDir.empty())
+			m.lines.push_back({ "Game files: upload them from the web page (Connect)", theme::warn });
+		if (noFiles && !p.buyUrl.empty())
+		{
+			std::string u = p.buyUrl;
+			if (u.rfind("https://", 0) == 0) u = u.substr(8);
+			if (u.rfind("www.", 0) == 0) u = u.substr(4);
+			m.lines.push_back({ "Sold on " + p.buyStore + ": " + u, theme::muted });
+		}
 		m.notes = p.latest;
 		bool busy = p.jobState == "running" || p.jobState == "queued";
 		if (busy) m.items.push_back({ "Working: " + (p.jobMsg.empty() ? p.jobState : p.jobMsg), nullptr, theme::line });

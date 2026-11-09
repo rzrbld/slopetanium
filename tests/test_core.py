@@ -138,6 +138,69 @@ def gog_tests(c, ports, tmp):
     assert c.jobs[-1].state == "failed" and "not in your GOG library" in c.jobs[-1].message, c.jobs[-1].message
 
 
+def upload_tests(c, ports):
+    r = c.state["repos"][0]
+    src = os.path.join(ports, "demo", "source")
+    data = os.urandom(300000)
+    feed = io.BytesIO(data)
+    st = c.upload_status(r["id"], "game.iso", len(data))
+    assert st["have"] == 0 and not st["done"] and st["free"] > 0
+    c.upload_chunk(r["id"], "game.iso", 0, len(data), feed.read, 100000)
+    # a chunk that doesn't continue the file: told where to resume
+    try:
+        c.upload_chunk(r["id"], "game.iso", 0, len(data), io.BytesIO(data).read, 100000)
+        raise AssertionError("wrong offset accepted")
+    except core.UploadOffset as e:
+        assert e.have == 100000
+    assert c.upload_status(r["id"], "game.iso", len(data))["have"] == 100000   # a new page resumes from here
+    res = c.upload_chunk(r["id"], "game.iso", 100000, len(data), feed.read, 200000)
+    assert res["done"] and open(os.path.join(src, "game.iso"), "rb").read() == data
+    assert not os.path.exists(os.path.join(src, "game.iso.part"))
+    assert c.upload_status(r["id"], "game.iso", len(data))["done"]
+    # a folder upload keeps its paths; an empty file works
+    c.upload_chunk(r["id"], "NFS/Drivers/dx7z.dll", 0, 3, io.BytesIO(b"abc").read, 3)
+    c.upload_chunk(r["id"], "NFS/empty.txt", 0, 0, io.BytesIO(b"").read, 0)
+    assert open(os.path.join(src, "NFS", "Drivers", "dx7z.dll"), "rb").read() == b"abc"
+    assert os.path.isfile(os.path.join(src, "NFS", "empty.txt"))
+    # nothing outside the game files folder
+    for bad in ("../escape.bin", "/etc/passwd", "a/../../x", "..", ""):
+        try:
+            c.upload_status(r["id"], bad, 1)
+            raise AssertionError("accepted %r" % bad)
+        except ValueError:
+            pass
+    # the port's own name for a single upload (The ReThing: the_thing.iso)
+    c.update_repo(r["id"], {"rename": {"*.iso": "the_thing.iso"}})
+    c.upload_chunk(r["id"], "My Copy.ISO", 0, 2, io.BytesIO(b"hi").read, 2, single=True)
+    assert open(os.path.join(src, "the_thing.iso"), "rb").read() == b"hi"
+    # through the web interface: chunks over HTTP, the token's way in
+    import web, urllib.request
+    os.environ["SLOP_LOCAL_TOKEN"] = "tt"
+    srv = web.start(c, os.path.join(HERE, "..", "port", "slopetanium", "web"), 0, host="127.0.0.1")
+    port = srv.server_address[1]
+    blob = os.urandom(5000)
+
+    def req(method, q, body=None):
+        rq = urllib.request.Request("http://127.0.0.1:%d/api/repos/%s/upload?%s" % (port, r["id"], q), data=body,
+                                    method=method, headers={"X-Local-Token": "tt"})
+        try:
+            with urllib.request.urlopen(rq) as resp:
+                return resp.status, json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode())
+    import urllib.error
+    assert req("PUT", "name=web.bin&total=5000&offset=0", blob[:3000]) == (200, {"have": 3000, "done": False})
+    code, j = req("PUT", "name=web.bin&total=5000&offset=0", blob[:3000])
+    assert code == 409 and j["have"] == 3000
+    assert req("PUT", "name=web.bin&total=5000&offset=3000", blob[3000:])[1]["done"]
+    assert open(os.path.join(src, "web.bin"), "rb").read() == blob
+    assert req("GET", "name=../../x&total=1")[0] == 400
+    srv.shutdown()
+    # the originals now list the uploads (and The ReThing's rename)
+    names = [f["name"] for f in c.originals(r)["files"]]
+    assert "the_thing.iso" in names and "NFS" in names, names
+
+
 def catalogue_tests(tmp):
     ports = os.path.join(tmp, "ports2")
     root = os.path.join(ports, "slopetanium")
@@ -149,6 +212,9 @@ def catalogue_tests(tmp):
     assert "rzrbld/ReRED_Faction_Duo" in repos and "rzrbld/slopetanium" in repos, repos
     rf2 = [r for r in c.state["repos"] if r["repo"] == "rzrbld/ReRED_Faction_Duo"][0]
     assert rf2["gog"]["id"] == 1207660613 and rf2["originals_dir"] == "source"
+    assert rf2["buy"][0]["url"].startswith("https://www.gog.com/") and "setup_red_faction2" in rf2["hint"]
+    thing = [r for r in c.state["repos"] if r["repo"] == "rzrbld/The-ReThing"][0]
+    assert thing["rename"] == {"*.iso": "the_thing.iso"}
     # removed stays removed: a new start offers nothing again
     c.delete_repo(rf2["id"])
     c2 = core.Core(root, "", harbourmaster="/bin/false")
@@ -248,6 +314,7 @@ def main():
             pass
         assert core.parse_repo("https://github.com/a/b.git") == "a/b"
         gog_tests(c, ports, tmp)
+        upload_tests(c, ports)
         catalogue_tests(tmp)
         c.stop()
         print("OK")

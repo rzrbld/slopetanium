@@ -22,6 +22,13 @@ a console-style home menu on the device and a web interface for your PC, phone o
   whether the port seems to have imported them yet.
 - **Uninstall** through PortMaster. Optionally, the save and config folders (`conf/` by
   default) are copied to Slopetanium's backups first.
+- **Upload your own game files from the browser.** On each port's card, pick files or a whole
+  folder on your PC or phone. They go straight into the port's game-files folder on the handheld,
+  in chunks that resume if the Wi-Fi drops, after a free-space check. Each catalogue port tells
+  you what it wants; The ReThing's ISO is saved as the `the_thing.iso` it needs.
+- **Where to buy a game.** Ports whose game is still sold, in the version the port is made for,
+  link to the store: ReRed Faction II and ReConflict on GOG.com. The link is on the web card,
+  and in the handheld menu while the port has no game files yet.
 - **Your GOG library.** Sign in to GOG.com once from the web interface. After you install a port
   of a game GOG sells, Slopetanium downloads that game's installer from your library into the
   port's folder, so its first start can import it.

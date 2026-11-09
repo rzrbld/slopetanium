@@ -3,6 +3,8 @@
 
 import json
 import os
+
+import core as core_mod
 import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -74,8 +76,31 @@ def make_handler(core, web_dir):
                 raise ApiError(401, "Enter the PIN shown on the handheld")
 
             parts = path.split("/")[2:]  # after /api/
-            body = self._body() if method in ("POST", "PUT", "PATCH", "DELETE") else {}
             q = parse_qs(url.query)
+            # game files from the browser: raw chunks, not JSON
+            #   GET  /api/repos/<id>/upload?name=&total=[&single=1]  -> {have, done, free, saved_as}
+            #   PUT  /api/repos/<id>/upload?name=&total=&offset=     body: the bytes from offset (at most 64 MB)
+            if len(parts) == 3 and parts[0] == "repos" and parts[2] == "upload" and method in ("GET", "PUT"):
+                name = (q.get("name") or [""])[0]
+                total = int((q.get("total") or ["0"])[0])
+                single = (q.get("single") or ["0"])[0] == "1"
+                try:
+                    core.get_repo(parts[1])
+                except KeyError:
+                    raise ApiError(404, "No such repo")
+                if method == "GET":
+                    return self._send(200, core.upload_status(parts[1], name, total, single))
+                length = int(self.headers.get("Content-Length") or 0)
+                if length > 64 << 20:
+                    raise ApiError(413, "Chunk too large")
+                offset = int((q.get("offset") or ["0"])[0])
+                try:
+                    res = core.upload_chunk(parts[1], name, offset, total, self.rfile.read, length, single)
+                except core_mod.UploadOffset as e:
+                    self.rfile.read(length)  # (drain it: the connection stays usable)
+                    return self._send(409, {"error": "resume", "have": e.have})
+                return self._send(200, res)
+            body = self._body() if method in ("POST", "PUT", "PATCH", "DELETE") else {}
 
             if parts == ["state"] and method == "GET":
                 snap = core.snapshot()

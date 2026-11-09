@@ -39,13 +39,13 @@ REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 #   aliases: other names the port's port.json may carry (a zip installed by hand)
 #   gog: the game on GOG.com: its product id, where its installer goes, and the installer's file names
 CATALOGUE = [
-    {"repo": "rzrbld/ReNFS5", "title": "ReNFS5 (Need for Speed: Porsche Unleashed)", "originals_dir": "source"},
-    {"repo": "rzrbld/The-ReThing", "title": "The ReThing (The Thing)", "originals_dir": "source"},
-    {"repo": "rzrbld/ReConflict", "title": "ReConflict (Conflict: Desert Storm)", "originals_dir": ".", "originals_pattern": "setup_*.exe,setup_*.bin",
+    {"repo": "rzrbld/ReNFS5", "hint": "Your installed game folder (Porsche.exe, Drivers/dx7z.dll, FEData/, GameData/), or a ZIP of it.", "title": "ReNFS5 (Need for Speed: Porsche Unleashed)", "originals_dir": "source"},
+    {"repo": "rzrbld/The-ReThing", "hint": "Your game ISO (it is saved as the_thing.iso).", "rename": {"*.iso": "the_thing.iso"}, "title": "The ReThing (The Thing)", "originals_dir": "source"},
+    {"repo": "rzrbld/ReConflict", "hint": "The GOG installer, setup_conflict_-_desert_storm_1.0_(21657).exe, with its .bin parts if it has any.", "buy": [{"store": "GOG.com", "url": "https://www.gog.com/en/game/conflict_desert_storm"}], "title": "ReConflict (Conflict: Desert Storm)", "originals_dir": ".", "originals_pattern": "setup_*.exe,setup_*.bin",
      "gog": {"id": 1207658998, "title": "Conflict: Desert Storm", "dest": ".", "files": "setup_conflict*"}},
-    {"repo": "rzrbld/vurus", "title": "Vurus (Vyruz)", "originals_dir": ".", "originals_pattern": "*.iso,*.cue,*.bin", "aliases": ["vurus.zip"]},
-    {"repo": "rzrbld/TheFamilia", "title": "The Familia (Mafia)", "originals_dir": "source"},
-    {"repo": "rzrbld/ReRED_Faction_Duo", "title": "ReRed Faction II", "originals_dir": "source",
+    {"repo": "rzrbld/vurus", "hint": "Your original disc image: an ISO, or a single-BIN CUE/BIN.", "title": "Vurus (Vyruz)", "originals_dir": ".", "originals_pattern": "*.iso,*.cue,*.bin", "aliases": ["vurus.zip"]},
+    {"repo": "rzrbld/TheFamilia", "hint": "The three Mafia CD images (.bin+.cue or .iso), mafia_patch_1.2_eng.exe and an unprotected 1.2 Game.exe (loose or in a .zip/.rar/.7z).", "title": "The Familia (Mafia)", "originals_dir": "source"},
+    {"repo": "rzrbld/ReRED_Faction_Duo", "hint": "The GOG installer, setup_red_faction2_2.0.0.6.exe.", "buy": [{"store": "GOG.com", "url": "https://www.gog.com/en/game/red_faction_2"}], "title": "ReRed Faction II", "originals_dir": "source",
      "gog": {"id": 1207660613, "title": "Red Faction 2", "dest": "source", "files": "setup_red_faction2_*"}},
     {"repo": "rzrbld/slopetanium", "title": "Slopetanium", "originals_dir": ""},
 ]
@@ -245,6 +245,14 @@ class Http(object):
         return done
 
 
+class UploadOffset(Exception):
+    """The upload's chunk doesn't continue the file (the browser resends from have)."""
+
+    def __init__(self, have):
+        Exception.__init__(self, "resume at %d" % have)
+        self.have = have
+
+
 class Job(object):
     def __init__(self, kind, repo_id, label, fn):
         self.id = "%x%04x" % (now(), random.randint(0, 0xFFFF))
@@ -344,6 +352,9 @@ class Core(object):
         r.setdefault("originals_pattern", "")
         r.setdefault("aliases", [])
         r.setdefault("gog", None)  # {"id", "title", "dest", "files"}
+        r.setdefault("hint", "")    # what the port wants as game files (shown with the upload)
+        r.setdefault("buy", [])     # [{"store", "url"}]: where the game is sold, in the version the port supports
+        r.setdefault("rename", {})  # {glob: name}: an upload's name the port needs (one file)
 
     def save(self):
         with self.lock:
@@ -421,6 +432,13 @@ class Core(object):
             r["port_name"] = name_cleaner(str(data["port_name"]))
         if "title" in data:
             r["title"] = str(data.get("title") or "").strip()
+        if "hint" in data:
+            r["hint"] = str(data.get("hint") or "").strip()
+        if "buy" in data and isinstance(data["buy"], list):
+            r["buy"] = [{"store": str(b.get("store") or ""), "url": str(b.get("url") or "")} for b in data["buy"]
+                        if isinstance(b, dict) and str(b.get("url") or "").startswith("https://")]
+        if "rename" in data and isinstance(data["rename"], dict):
+            r["rename"] = dict((str(k), os.path.basename(str(v))) for k, v in data["rename"].items() if v)
         if "originals_pattern" in data:
             r["originals_pattern"] = (data.get("originals_pattern") or "").strip()
         if "aliases" in data:
@@ -440,9 +458,16 @@ class Core(object):
                             "files": str(g.get("files") or "").strip()}
 
     def _seed_catalogue(self):
-        """The catalogue's ports on the watch list, each offered once."""
+        """The catalogue's ports on the watch list, each offered once; what the catalogue knows about a watched one
+        (hints, store links, renames...) filled in where the entry has nothing of its own."""
         added = []
         with self.lock:
+            for c in CATALOGUE:
+                for r in self.state["repos"]:
+                    if r["repo"].lower() == c["repo"].lower():
+                        for k in ("title", "hint", "buy", "rename", "aliases", "gog", "originals_pattern"):
+                            if c.get(k) and not r.get(k):
+                                r[k] = c[k]
             offered = self.state["settings"].setdefault("catalogue_offered", [])
             watched = set(r["repo"].lower() for r in self.state["repos"])
             for c in CATALOGUE:
@@ -462,7 +487,7 @@ class Core(object):
                     continue
                 r = {"id": "%x%03x" % (now(), random.randint(0, 0xFFF)), "repo": c["repo"], "added": now()}
                 self._repo_defaults(r)
-                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog"):
+                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog", "hint", "buy", "rename"):
                     if k in c:
                         r[k] = c[k]
                 self.state["repos"].append(r)
@@ -480,7 +505,7 @@ class Core(object):
         for c in CATALOGUE:
             if c["repo"].lower() == repo.lower():
                 data = {"repo": c["repo"]}
-                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog"):
+                for k in ("title", "originals_dir", "originals_pattern", "aliases", "gog", "hint", "buy", "rename"):
                     if k in c:
                         data[k] = c[k]
                 return self.add_repo(data)
@@ -1109,6 +1134,84 @@ class Core(object):
         self.changed += 1
         return freed
 
+    # ---------------------------------------------------------------- uploads (game files from the browser)
+    def upload_dest(self, r):
+        pdir = self.port_dir(r)
+        if not pdir:
+            raise ValueError("Install the port first: its game files go into its folder")
+        od = r.get("originals_dir") or ""
+        if not od:
+            raise ValueError("This port takes no game files")
+        dest = os.path.normpath(os.path.join(pdir, od))
+        if not is_inside(dest, pdir):
+            raise ValueError("Bad game files folder")
+        if not os.path.isdir(dest):
+            os.makedirs(dest)
+        return dest
+
+    def _upload_path(self, r, name, single=False):
+        """Where an uploaded file goes: its name (a folder upload: its relative path) inside the game files folder."""
+        name = (name or "").replace("\\", "/")
+        if name.startswith("/") or re.match(r"^[A-Za-z]:", name):
+            raise ValueError("Bad file name")
+        parts = [p for p in name.split("/") if p not in ("", ".")]
+        if not parts or any(p == ".." or p.startswith("\0") for p in parts) or any("\0" in p for p in parts):
+            raise ValueError("Bad file name")
+        if single and len(parts) == 1:
+            for pat, new in (r.get("rename") or {}).items():
+                if fnmatch.fnmatch(parts[0].lower(), pat.lower()):
+                    parts = [new]
+                    break
+        dest = self.upload_dest(r)
+        path = os.path.normpath(os.path.join(dest, *parts))
+        if not is_inside(path, dest) or path == dest:
+            raise ValueError("Bad file name")
+        return dest, path
+
+    def upload_status(self, repo_id, name, total, single=False):
+        r = self.get_repo(repo_id)
+        dest, path = self._upload_path(r, name, single)
+        try:
+            free = shutil.disk_usage(dest).free
+        except OSError:
+            free = None
+        if os.path.isfile(path) and os.path.getsize(path) == total:
+            return {"have": total, "done": True, "free": free, "saved_as": os.path.relpath(path, self.ports_dir)}
+        part = path + ".part"
+        have = os.path.getsize(part) if os.path.isfile(part) else 0
+        if have > total:
+            os.unlink(part)
+            have = 0
+        return {"have": have, "done": False, "free": free, "saved_as": os.path.relpath(path, self.ports_dir)}
+
+    def upload_chunk(self, repo_id, name, offset, total, read, length, single=False):
+        """Appends length bytes (read(n) gives them) at offset to the file's .part; the last one completes it."""
+        r = self.get_repo(repo_id)
+        dest, path = self._upload_path(r, name, single)
+        part = path + ".part"
+        if not os.path.isdir(os.path.dirname(part)):
+            os.makedirs(os.path.dirname(part))
+        have = os.path.getsize(part) if os.path.isfile(part) else 0
+        if offset != have:
+            raise UploadOffset(have)
+        if have + length > total:
+            raise ValueError("More data than the file's size")
+        with open(part, "ab") as fh:
+            left = length
+            while left > 0:
+                buf = read(min(left, 1 << 20))
+                if not buf:
+                    raise IOError("upload cut off")
+                fh.write(buf)
+                left -= len(buf)
+        have += length
+        done = have == total
+        if done:
+            os.replace(part, path)
+            self.log("%s: game file %s uploaded (%s)" % (r["repo"], os.path.relpath(path, dest), human_size(total)))
+            self.changed += 1
+        return {"have": have, "done": done}
+
     # ---------------------------------------------------------------- GOG
     def _gog_files_present(self, r, pdir=None):
         g = r.get("gog") or {}
@@ -1253,6 +1356,9 @@ class Core(object):
             "previous_tag": prev, "releases": rels,
             "art": self._art(info),
             "originals_pattern": r.get("originals_pattern", ""), "aliases": r.get("aliases", []),
+            "hint": r.get("hint", ""), "buy": r.get("buy", []),
+            "upload_dir": (os.path.relpath(os.path.normpath(os.path.join(info["_dir"], r["originals_dir"])), self.ports_dir)
+                           if info and r.get("originals_dir") else None),
             "gog": (dict(r["gog"], owned=self.gog_owned(r),
                          present=self._gog_files_present(r, info["_dir"] if info else None))
                     if r.get("gog") else None),

@@ -153,6 +153,8 @@ function repoCard(r){
   let gogBtn = '';
   if (g && r.installed && !g.present && acct.linked && g.owned !== false)
     gogBtn = `<button ${running?'disabled':''} onclick="gogGet('${r.id}')">Get game files from GOG</button>`;
+  const upBtn = r.installed && r.upload_dir ? `<button ${running?'disabled':''} onclick="upload('${r.id}')">Upload game files</button>` : '';
+  const buy = (r.buy||[]).map(b=>`<a class="chip" href="${esc(b.url)}" target="_blank" rel="noopener" title="The version this port is made for">Buy on ${esc(b.store)}</a>`).join('');
   const gogChip = !g ? '' : `<span class="chip" title="${esc(g.title||'')} on GOG.com">GOG · ${!acct.linked ? 'sign in to fetch the game' : g.owned===true ? (g.present ? 'game files here' : 'in your library') : g.owned===false ? 'not in your library' : 'checking…'}</span>`;
   const rels = r.releases.map(x=>`<tr><td><b>${esc(x.tag)}</b> ${x.prerelease?'<span class="chip">pre</span>':''}${x.installed?'<span class="chip s-current">installed</span>':''}${x.cached?'<span class="chip" title="Kept on the device, installs offline">cached</span>':''}<div class="mut">${day(x.published)} · ${x.asset?esc(x.asset.name)+' · '+size(x.asset.size):'no matching zip'}</div></td>
      <td style="text-align:right">${x.asset && !x.installed ? `<button ${running?'disabled':''} onclick="install('${r.id}','${esc(x.tag)}',true)">Install</button>` : ''} ${x.body?`<button onclick="notes('${r.id}','${esc(x.tag)}')">Notes</button>`:''}</td></tr>`).join('');
@@ -163,8 +165,8 @@ function repoCard(r){
       <div class="mut">${[r.installed?'installed '+esc(r.installed_tag||'?'):'', r.latest_tag?'latest '+esc(r.latest_tag):''].filter(Boolean).join(' · ')}</div></div></div>
     ${r.error?`<div class="mut s-error">${esc(r.error)}</div>`:''}
     ${j && j.state!=='done' ? `<div class="mut ${j.state==='failed'?'s-error':''}" style="margin-top:6px">${esc(j.label)}: ${esc(j.message||j.state)}</div>${running?`<div class="bar"><i style="width:${j.progress!=null?Math.round(j.progress*100):(j.state==='running'?100:0)}%;${j.progress==null&&j.state==='running'?'opacity:.35':''}"></i></div>`:''}` : ''}
-    ${gogChip?`<div style="margin-top:6px">${gogChip}</div>`:''}
-    <div class="row" style="margin-top:10px">${main}${rb}${gogBtn}${orig}<span class="grow"></span>
+    ${gogChip||buy?`<div style="margin-top:6px">${gogChip}${buy}</div>`:''}
+    <div class="row" style="margin-top:10px">${main}${rb}${gogBtn}${upBtn}${orig}<span class="grow"></span>
       <button onclick="api('POST','/api/repos/${r.id}/check')">Check</button>
       <button onclick="edit('${r.id}')">Edit</button>
       ${r.installed && !r.is_self?`<button class="bad" onclick="uninstall('${r.id}')">Uninstall</button>`:''}
@@ -271,6 +273,67 @@ async function addRepo(e){ e.preventDefault(); const f=e.target;
   f.repo.value=''; toast('Added, checking releases…'); setTab('ports'); poll(); }
 async function saveSettings(e){ e.preventDefault(); const f=e.target; const b={auto_check_minutes:+f.auto_check_minutes.value, keep_versions:+f.keep_versions.value};
   if (f.github_token.value) b.github_token=f.github_token.value; await api('PUT','/api/settings',b); f.github_token.value=''; toast('Saved'); poll(); }
+let UP = { stop: false };
+function upload(id){
+  const r = repo(id);
+  dialog(`<div class="title">Game files · ${esc(r.title)}</div>
+   ${r.hint?`<p>${esc(r.hint)}</p>`:''}
+   <p class="mut">They go to <b>ports/${esc(r.upload_dir)}</b> on the handheld. Start the port afterwards: its first start imports them.</p>
+   <div class="grid"><div><label>Files</label><input type="file" id="upf" multiple></div>
+   <div><label>Or a whole folder</label><input type="file" id="upd" webkitdirectory multiple></div></div>
+   <div id="upst" class="mut" style="margin-top:10px"></div><div class="bar" id="upbar" hidden><i style="width:0%"></i></div>
+   <p class="row"><button value="cancel">Close</button><span class="grow"></span><button type="button" class="pri" id="upgo" onclick="startUpload('${r.id}')">Upload</button></p>`,
+   () => { UP.stop = true; });
+}
+async function startUpload(id){
+  const files = [...$('#upf').files, ...$('#upd').files];
+  if (!files.length) return;
+  UP = { stop: false };
+  const mine = UP;
+  $('#upgo').disabled = true; $('#upbar').hidden = false;
+  const total = files.reduce((a, f) => a + f.size, 0), single = files.length === 1, t0 = Date.now();
+  let before = 0, fresh = 0;
+  const show = (name, at) => {
+    const done = before + at, secs = (Date.now() - t0) / 1000;
+    const rate = secs > 1 ? ` · ${size(fresh / secs)}/s` : '';
+    $('#upst').textContent = `${name} · ${size(done)} of ${size(total)}${rate}`;
+    $('#upbar i').style.width = (total ? Math.round(done * 100 / total) : 100) + '%';
+  };
+  try {
+    for (const f of files) {
+      const name = f.webkitRelativePath || f.name;
+      const qs = `name=${encodeURIComponent(name)}&total=${f.size}${single ? '&single=1' : ''}`;
+      const st = await api('GET', `/api/repos/${id}/upload?${qs}`);
+      if (st.free != null && st.free < f.size - st.have) throw new Error(`Not enough space on the handheld: ${size(st.free)} free`);
+      let off = st.have, done = st.done;
+      show(name, off);
+      while (!done) {
+        if (mine.stop) throw new Error('Stopped');
+        const end = Math.min(f.size, off + 8 * 1024 * 1024);
+        let tries = 0;
+        for (;;) {
+          let res = null;
+          try { res = await fetch(`/api/repos/${id}/upload?${qs}&offset=${off}`, { method: 'PUT', headers: { 'X-Pin': PIN }, body: f.slice(off, end) }); } catch (e) {}
+          if (res && res.status === 409) { off = (await res.json()).have; break; }   // the handheld has more (or less): from there
+          if (res && res.ok) { fresh += end - off; const j = await res.json(); off = j.have; done = j.done; break; }
+          if (res && res.status < 500 && res.status !== 408) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `HTTP ${res.status}`); }
+          if (++tries >= 6) throw new Error('The connection to the handheld keeps dropping. Upload again: it continues where it stopped.');
+          $('#upst').textContent = `${name}: connection lost, trying again…`;
+          await new Promise(r => setTimeout(r, 1500 * tries));
+        }
+        show(name, off);
+      }
+      before += f.size;
+    }
+    $('#upst').textContent = `Done: ${files.length} file${files.length == 1 ? '' : 's'}, ${size(total)}. Start the port to import them.`;
+    toast('Game files uploaded');
+  } catch (e) {
+    $('#upst').textContent = e.message;
+  } finally {
+    const b = $('#upgo'); if (b) b.disabled = false;
+    poll();
+  }
+}
 async function gogGet(id){ await api('POST',`/api/repos/${id}/gog-download`); toast('Downloading from GOG…'); poll(); }
 async function gogLink(){ const v=$('#gogcode').value.trim(); if(!v) return; try { const j = await api('POST','/api/gog/link',{code:v}); toast('Signed in to GOG as '+(j.user||'?')); } catch(e) {} poll(); }
 async function gogUnlink(){ if(!confirm('Sign out of GOG on this handheld?')) return; await api('POST','/api/gog/unlink'); poll(); }
