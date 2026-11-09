@@ -4,7 +4,13 @@ The service behind [slopetanium.pw](https://slopetanium.pw).
 
 - **Slopetanium on handhelds** shares ports here, posts reviews and, when its owner agreed,
   counts installs.
-- **The website** shows the shared ports read-only, rendered on the server.
+- **The website** is rendered on the server and is read-only:
+  - `/`: the landing page, Slopetanium's features. Its download button links to the newest
+    release's zip, checked hourly.
+  - `/ports` and `/p/{owner}/{name}`: the shared ports, with ratings and reviews.
+  - `/about`: what is stored.
+  - `/cover/{owner}/{name}`: a port's box art. It is fetched once from its `cover_url` (public
+    https addresses only, images only, at most 6 MB) and served from here.
 
 It is one static Go binary with an SQLite database. It uses the pure-Go `modernc.org/sqlite`,
 so no C toolchain is needed.

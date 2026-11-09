@@ -33,18 +33,18 @@
   <div class="totals"><div class="total"><b>{{num .Total.Ports}}</b><span>ports</span></div><div class="total"><b>{{num .Total.Pulls}}</b><span>installs</span></div><div class="total"><b>{{num .Total.Reviews}}</b><span>reviews</span></div></div>
 </section>
 <div class="tools">
-  <form action="/" method="get"><input name="q" value="{{.Q}}" placeholder="Search ports" aria-label="Search ports">{{if ne .Sort "popular"}}<input type="hidden" name="sort" value="{{.Sort}}">{{end}}</form>
+  <form action="/ports" method="get"><input name="q" value="{{.Q}}" placeholder="Search ports" aria-label="Search ports">{{if ne .Sort "popular"}}<input type="hidden" name="sort" value="{{.Sort}}">{{end}}</form>
   <div class="seg">{{$s := .Sort}}{{$q := .Q}}
-    <a href="/?sort=popular{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "popular"}}on{{end}}">Popular</a>
-    <a href="/?sort=rating{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "rating"}}on{{end}}">Top rated</a>
-    <a href="/?sort=updated{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "updated"}}on{{end}}">Recently updated</a>
-    <a href="/?sort=new{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "new"}}on{{end}}">Newly shared</a>
+    <a href="/ports?sort=popular{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "popular"}}on{{end}}">Popular</a>
+    <a href="/ports?sort=rating{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "rating"}}on{{end}}">Top rated</a>
+    <a href="/ports?sort=updated{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "updated"}}on{{end}}">Recently updated</a>
+    <a href="/ports?sort=new{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "new"}}on{{end}}">Newly shared</a>
   </div>
 </div>
 {{if .Ports}}
 <div class="grid">{{range .Ports}}
   <a class="card" href="/p/{{.Repo}}">
-    <div class="cover">{{if .CoverURL}}<img src="{{.CoverURL}}" alt="" loading="lazy" referrerpolicy="no-referrer">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}})">{{initials .Title}}</div>{{end}}</div>
+    <div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" loading="lazy" onerror="this.remove()">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}})">{{initials .Title}}</div>{{end}}</div>
     <div style="min-width:0">
       <h3>{{.Title}}</h3><div class="repo">{{.Repo}}</div>
       {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}

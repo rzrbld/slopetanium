@@ -1,0 +1,183 @@
+{{define "desc"}}Slopetanium keeps the PortMaster ports on your handheld up to date from their GitHub releases: update, roll back, back up, upload game files and edit configs from your browser, and find ports others share.{{end}}
+{{define "css"}}
+.hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 28px 0 56px; }
+.eyebrow { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 650; color: var(--accent); background: var(--accent-soft); border-radius: 99px; padding: 5px 12px; margin-bottom: 18px; }
+.hero h1 { font-size: 54px; line-height: 1.04; margin: 0 0 18px; letter-spacing: .01em; }
+.hero h1 b { color: var(--accent); font-weight: normal; }
+.hero p.lead { font-size: 18px; color: var(--muted); margin: 0 0 26px; max-width: 560px; }
+.ctas { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.btn.big { height: 48px; padding: 0 22px; font-size: 15.5px; border-radius: 12px; }
+.ver { font-size: 13px; color: var(--faint); margin-top: 12px; }
+.device { position: relative; justify-self: center; }
+.device .shell { background: linear-gradient(160deg, #2a3142, #171c27); padding: 18px 18px 22px; border-radius: 26px; box-shadow: 0 40px 80px -30px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08); }
+.device img { display: block; width: 300px; height: auto; border-radius: 10px; image-rendering: pixelated; }
+.device .browser { position: absolute; right: -84px; bottom: -34px; width: 290px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: 0 30px 60px -20px rgba(0,0,0,.7); background: var(--surface); }
+.device .browser .dots { height: 22px; display: flex; gap: 6px; align-items: center; padding: 0 10px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.device .browser .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-2); }
+.device .browser img { width: 100%; border-radius: 0; image-rendering: auto; }
+section.block { padding: 50px 0; border-top: 1px solid var(--line); }
+section.block > h2 { font-size: 30px; margin: 0 0 8px; }
+section.block > p.sub { color: var(--muted); margin: 0 0 28px; max-width: 680px; font-size: 16px; }
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.feature { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow); }
+.feature .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); margin-bottom: 12px; }
+.feature .ic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.feature h3 { margin: 0 0 6px; font-size: 16px; }
+.feature p { margin: 0; color: var(--muted); font-size: 14px; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+.split.rev .txt { order: 2; }
+.split h2 { font-size: 30px; margin: 0 0 10px; }
+.split p { color: var(--muted); font-size: 16px; }
+.split ul { padding-left: 0; list-style: none; display: grid; gap: 10px; margin: 18px 0 0; }
+.split li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; color: var(--muted); }
+.split li::before { content: "✓"; color: var(--accent); font-weight: 700; }
+.split li b { color: var(--text); }
+.pics { display: grid; gap: 14px; justify-items: center; }
+.pics.two { grid-template-columns: 1fr 1fr; align-items: start; }
+.pics figure { margin: 0; }
+.pics img { width: 100%; height: auto; display: block; border-radius: 12px; border: 1px solid var(--line-2); box-shadow: 0 24px 50px -24px rgba(0,0,0,.7); }
+.pics img.px { image-rendering: pixelated; }
+.pics figcaption { font-size: 12.5px; color: var(--faint); margin-top: 8px; text-align: center; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: s; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; position: relative; }
+.step::before { counter-increment: s; content: counter(s); position: absolute; top: 16px; right: 18px; font-family: "Pixelify", sans-serif; font-size: 34px; color: var(--accent); opacity: .5; }
+.step h3 { margin: 0 0 6px; font-size: 16px; }
+.step p { margin: 0; color: var(--muted); font-size: 14px; }
+.step code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; font-size: 13px; color: var(--text); }
+.top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.tcard { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; text-decoration: none; align-items: center; }
+.tcard:hover { border-color: var(--line-2); }
+.tcard .cover { width: 64px; }
+.tcard b { display: block; font-size: 14.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcard span { font-size: 12.5px; color: var(--muted); }
+.trust { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.trust div { padding: 4px 0; }
+.trust h3 { margin: 0 0 4px; font-size: 15px; }
+.trust p { margin: 0; color: var(--muted); font-size: 14px; }
+.final { text-align: center; padding: 60px 0 20px; }
+.final img { width: 96px; margin: 0 auto 14px; display: block; }
+.final h2 { font-size: 34px; margin: 0 0 10px; }
+.final p { color: var(--muted); margin: 0 0 22px; }
+@media (max-width: 1000px) { .device .browser { display: none; } .features, .steps, .top, .trust { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 800px) {
+  .hero { grid-template-columns: 1fr; padding-top: 10px; } .hero h1 { font-size: 38px; } .device img { width: 240px; }
+  .split, .split.rev { grid-template-columns: 1fr; } .split.rev .txt { order: 0; }
+  .features, .steps, .top, .trust { grid-template-columns: 1fr; }
+  section.block > h2, .split h2 { font-size: 25px; }
+}
+{{end}}
+{{define "main"}}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="f-gh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></symbol>
+  <symbol id="f-ver" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></symbol>
+  <symbol id="f-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zM18 5v14"/></symbol>
+  <symbol id="f-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="f-up" viewBox="0 0 24 24"><path d="M12 20V8M6 13l6-6 6 6M4 4h16"/></symbol>
+  <symbol id="f-gog" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9.5h3v5H8zM13 9.5h3v5h-3"/></symbol>
+  <symbol id="f-folder" viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 13h8"/></symbol>
+  <symbol id="f-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></symbol>
+  <symbol id="f-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="f-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
+  <symbol id="f-screens" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="9" rx="1.5"/><rect x="5" y="13" width="14" height="9" rx="1.5"/></symbol>
+  <symbol id="f-pic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></symbol>
+</svg>
+
+<section class="hero">
+  <div>
+    <span class="eyebrow">For PortMaster · free and open source</span>
+    <h1 class="pixel">Your handheld's ports, <b>always up to date</b></h1>
+    <p class="lead">Slopetanium watches the GitHub releases of the PortMaster ports you play. It updates them, rolls them back and backs them up, from a console-style menu on the handheld or from any browser on your Wi-Fi.</p>
+    <div class="ctas">
+      <a class="btn primary big" href="{{.Download}}">Download Slopetanium</a>
+      <a class="btn big" href="/ports">Browse community ports</a>
+    </div>
+    <div class="ver">{{if .Release}}Latest: <b>{{.Release}}</b>{{if .ReleaseAt}} · {{day .ReleaseAt}}{{end}} · {{end}}MIT licence · <a href="https://github.com/rzrbld/slopetanium">source on GitHub</a></div>
+  </div>
+  <div class="device">
+    <div class="shell"><img src="/static/shots/dual.png" width="640" height="976" alt="Slopetanium on a two-screen handheld: the selected port on top, the shelf of ports below"></div>
+    <div class="browser"><div class="dots"><i></i><i></i><i></i></div><img src="/static/shots/web-library.webp" width="1280" height="700" alt="Slopetanium's web page: the library of watched ports"></div>
+  </div>
+</section>
+
+<section class="block" id="features">
+  <h2 class="pixel">Everything a port needs, after it's installed</h2>
+  <p class="sub">PortMaster installs a port once. Slopetanium looks after it from then on, using PortMaster's own installer, so every firmware PortMaster supports is handled its way.</p>
+  <div class="features">
+    <div class="feature"><div class="ic"><svg><use href="#f-gh"/></svg></div><h3>New releases, noticed</h3><p>Watch any GitHub repo that publishes a PortMaster zip. Slopetanium checks on start and every few hours, and marks the ports with an update.</p></div>
+    <div class="feature"><div class="ic"><svg><use href="#f-ver"/></svg></div><h3>Update, roll back, any version</h3><p>Install the newest release or an older one. The last versions you installed stay on the handheld, so a rollback works offline.</p></div>
+    <div class="feature"><div class="ic"><svg><use href="#f-skip"/></svg></div><h3>Skip a broken release</h3><p>Mark a release as unstable and roll back. It isn't offered again; the next release is.</p></div>
+    <div class="feature"><div class="ic"><svg><use href="#f-shield"/></svg></div><h3>Safe installs</h3><p>Free space is checked before downloading and unpacking, and low battery without the charger asks first. Saves are backed up before every update.</p></div>
+    <div class="feature"><div class="ic"><svg><use href="#f-up"/></svg></div><h3>Game files from your PC</h3><p>Drop files or whole folders in the browser. Uploads resume after a Wi-Fi drop, and 4 to 9 GB images are fine on exFAT cards.</p></div>
+    <div class="feature"><div class="ic"><svg><use href="#f-gog"/></svg></div><h3>Your GOG library</h3><p>Sign in to GOG.com once. Ports of games you own there get their installer downloaded straight into the port.</p></div>
+    <div class="feature"><div class="ic"><svg><use href="#f-folder"/></svg></div><h3>File browser and config editor</h3><p>Put saves in place, install mods, download any file or folder, and edit configs in the browser, keeping their encoding and line endings.</p></div>
+    <div class="feature"><div class="ic"><svg><use href="#f-archive"/></svg></div><h3>Move a game to another handheld</h3><p>Download the whole game with its imported data as one zip, and restore it on the other handheld. It starts without importing again.</p></div>
+    <div class="feature"><div class="ic"><svg><use href="#f-trash"/></svg></div><h3>Clean up after imports</h3><p>Installers and CD images take gigabytes once a port has imported them. See which ones and free the space.</p></div>
+  </div>
+</section>
+
+<section class="block split">
+  <div class="txt">
+    <h2 class="pixel">On the handheld</h2>
+    <p>A shelf of box art you browse with the D-pad, at 60 frames per second. It's built on the BananaOS launcher engine, with Slopetanium's own look.</p>
+    <ul>
+      <li><span><b>One screen or two.</b> On a dual-screen handheld such as the RG DS, the top screen shows the selected port; the bottom one holds the shelf, and you can tap it.</span></li>
+      <li><span><b>A to open, Start to update all.</b> Each port's menu has update, roll back, other versions, backups and its game files.</span></li>
+      <li><span><b>Connect</b> shows a QR code and a PIN for the web page.</span></li>
+    </ul>
+  </div>
+  <div class="pics two">
+    <figure><img class="px" src="/static/shots/single.png" width="640" height="480" alt="The shelf on a one-screen handheld" loading="lazy"><figcaption>One screen: the shelf</figcaption></figure>
+    <figure><img class="px" src="/static/shots/single-menu.png" width="640" height="480" alt="A port's menu" loading="lazy"><figcaption>A port's menu</figcaption></figure>
+  </div>
+</section>
+
+<section class="block split rev">
+  <div class="txt">
+    <h2 class="pixel">From any browser</h2>
+    <p>Open Connect on the handheld, scan the QR code, and manage everything from your PC, tablet or phone on the same Wi-Fi.</p>
+    <ul>
+      <li><span><b>Library</b> with covers, versions and one-click updates.</span></li>
+      <li><span><b>Files</b> for each port: upload, download, rename, edit.</span></li>
+      <li><span><b>Backups</b> of saves or the whole game, restored with a drop.</span></li>
+      <li><span><b>PIN-protected</b>, and only on your local network.</span></li>
+    </ul>
+  </div>
+  <div class="pics two">
+    <figure><img src="/static/shots/web-files.webp" width="640" height="860" alt="A port's files in the web page" loading="lazy"><figcaption>A port's files</figcaption></figure>
+    <figure><img src="/static/shots/web-backups.webp" width="640" height="860" alt="A port's backups in the web page" loading="lazy"><figcaption>Backups, and moving a game</figcaption></figure>
+  </div>
+</section>
+
+<section class="block">
+  <h2 class="pixel">Shared by the community</h2>
+  <p class="sub">Share the ports you watch and find the ones others share, with ratings and reviews written on handhelds. Add one in Slopetanium's Community page and it comes with the settings its sharer used.</p>
+  {{if .Top}}<div class="top">{{range .Top}}
+    <a class="tcard" href="/p/{{.Repo}}"><div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" loading="lazy" onerror="this.remove()">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}});font-size:20px">{{initials .Title}}</div>{{end}}</div>
+      <div style="min-width:0"><b>{{.Title}}</b><span>{{if .Reviews}}<span class="stars" style="font-size:12px"><i style="width:{{starpct .Rating}}%"></i></span> {{one .Rating}} · {{end}}{{num .Pulls}} installs</span></div></a>{{end}}
+  </div>{{end}}
+  <p style="margin:20px 0 0"><a class="btn" href="/ports">All community ports →</a></p>
+</section>
+
+<section class="block">
+  <h2 class="pixel">Get started</h2>
+  <p class="sub">Slopetanium is a PortMaster port itself. It runs wherever PortMaster runs and needs nothing else.</p>
+  <div class="steps">
+    <div class="step"><h3>Download</h3><p><a href="{{.Download}}" style="color:var(--accent)">slopetanium.zip</a> from the GitHub releases.</p></div>
+    <div class="step"><h3>Install</h3><p>Put the zip in <code>PortMaster/autoinstall</code> and open PortMaster, or unpack it into your ports folder.</p></div>
+    <div class="step"><h3>Open it</h3><p>Start <b>Slopetanium</b> from Ports. Add repos in the web page via <b>Connect</b>, or pick ports from the catalogue and the community.</p></div>
+  </div>
+</section>
+
+<section class="block trust">
+  <div><h3>Open source</h3><p>MIT licensed, on <a href="https://github.com/rzrbld/slopetanium">GitHub</a>. The menu engine comes from BananaLinux, also MIT.</p></div>
+  <div><h3>No account</h3><p>The community knows a handheld only by a hashed random id. Install counts are opt-in and never include where you are. <a href="/about">Details</a>.</p></div>
+  <div><h3>Your files stay yours</h3><p>Updates unpack over the port like PortMaster does, so saves, settings and imported game data are kept.</p></div>
+</section>
+
+<section class="final">
+  <img src="/static/icon-256.png" alt="">
+  <h2 class="pixel">Keep playing, Slopetanium keeps up</h2>
+  <p>Free, for every handheld PortMaster runs on.</p>
+  <a class="btn primary big" href="{{.Download}}">Download Slopetanium</a>
+</section>
+{{end}}

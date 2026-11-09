@@ -8,6 +8,7 @@
 <meta name="description" content="{{block "desc" .}}PortMaster ports for handhelds, shared by Slopetanium users: ratings, reviews and how many install them.{{end}}">
 <meta property="og:title" content="{{if .Title}}{{.Title}} · {{end}}Slopetanium community">
 <meta property="og:image" content="{{.Base}}/static/icon-256.png">
+<meta property="og:description" content="{{template "desc" .}}">
 <link rel="icon" href="/static/icon-96.png">
 <style>
 @font-face { font-family: "Pixelify"; src: url("/static/PixelifySans-Medium.ttf") format("truetype"); font-display: swap; }
@@ -68,7 +69,7 @@ footer a { color: var(--muted); }
 <body>
 <header class="bar"><div class="wrap">
   <a class="brand" href="/"><img src="/static/icon-96.png" alt=""><span class="pixel"><b>slope</b>tanium</span></a>
-  <nav><a href="/">Ports</a><a href="/about">About</a><a class="cta" href="https://github.com/rzrbld/slopetanium/releases">Get Slopetanium</a></nav>
+  <nav><a href="/#features">Features</a><a href="/ports">Ports</a><a href="/about">About</a><a class="cta" href="https://github.com/rzrbld/slopetanium/releases">Get Slopetanium</a></nav>
 </div></header>
 <main><div class="wrap">{{block "main" .}}{{end}}</div></main>
 <footer><div class="wrap">Slopetanium community: ports shared from Slopetanium on handhelds. Reviews and ratings are posted from Slopetanium itself.

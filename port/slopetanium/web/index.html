@@ -1279,13 +1279,13 @@ function renderCommunity(main, force) {
 }
 function ccover(p, w) {
   const [c1, c2] = tint(p.repo);
-  return `<div class="cover"${w ? ` style="width:${w}px"` : ''}>${p.cover_url ? `<img src="${esc(p.cover_url)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="ph" style="--c1:${c1};--c2:${c2}">${esc(initials(p.title))}</div>`}</div>`;
+  return `<div class="cover"${w ? ` style="width:${w}px"` : ''}>${p.cover_url ? `<img src="${esc(S.settings.community_url)}/cover/${esc(p.repo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : `<div class="ph" style="--c1:${c1};--c2:${c2}">${esc(initials(p.title))}</div>`}</div>`;
 }
 function drawCommunity() {
   const box = $('#cx'); if (!box || route.cport) return;
   const list = CL.data;
   box.innerHTML = `
-    <div class="page-head"><div class="grow"><h1 class="pixel">Community</h1><p class="muted">Ports other Slopetanium users share. Add one to watch and install it here. Also on <a href="${esc(S.settings.community_url)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(S.settings.community_url.replace(/^https?:\/\//, ''))}</a>.</p></div>
+    <div class="page-head"><div class="grow"><h1 class="pixel">Community</h1><p class="muted">Ports other Slopetanium users share. Add one to watch and install it here. Also on <a href="${esc(S.settings.community_url)}/ports" target="_blank" rel="noopener" style="color:var(--accent)">${esc(S.settings.community_url.replace(/^https?:\/\//, ''))}</a>.</p></div>
       <div class="row small"><span class="muted">You post as</span><b id="mynick">…</b><button class="btn ghost sm" onclick="changeNick()">${ico('edit')}</button></div></div>
     <div class="toolbar"><div class="search">${ico('search')}<input id="cq" placeholder="Search community ports" value="${esc(CL.q)}" autocomplete="off"></div>
       <div class="seg" id="cseg">${[['popular', 'Popular'], ['rating', 'Top rated'], ['updated', 'Updated'], ['new', 'New']].map(([k, l]) => `<button data-s="${k}" class="${CL.sort === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>

@@ -67,6 +67,13 @@ CREATE TABLE IF NOT EXISTS pulls (
 	day     INTEGER NOT NULL,             -- days since 1970: enough for "this week"
 	PRIMARY KEY (port_id, tag, author)
 );
+CREATE TABLE IF NOT EXISTS covers (
+	port_id INTEGER PRIMARY KEY REFERENCES ports(id) ON DELETE CASCADE,
+	url     TEXT NOT NULL,                 -- the cover_url it was fetched from
+	ctype   TEXT NOT NULL DEFAULT '',
+	data    BLOB,                          -- empty: the fetch failed (tried again later)
+	fetched INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS pulls_port ON pulls(port_id);
 CREATE INDEX IF NOT EXISTS reviews_port ON reviews(port_id);
 `

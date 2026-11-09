@@ -69,8 +69,10 @@ func newServer(db *sql.DB, salt []byte, gh *GitHub, base string) (*Server, http.
 	})
 	mux.Handle("GET /static/", s.site.static())
 	mux.HandleFunc("GET /p/{owner}/{name}", s.site.handlePort)
+	mux.HandleFunc("GET /cover/{owner}/{name}", s.site.handleCover)
 	mux.HandleFunc("GET /about", s.site.handleAbout)
-	mux.HandleFunc("GET /", s.site.handleIndex)
+	mux.HandleFunc("GET /ports", s.site.handleIndex)
+	mux.HandleFunc("GET /", s.site.handleLanding)
 	return s, mux
 }
 
@@ -103,8 +105,9 @@ func main() {
 			log.Fatal(err)
 		}
 		gh := &GitHub{token: os.Getenv("GITHUB_TOKEN"), base: "https://api.github.com", client: &http.Client{Timeout: 20 * time.Second}}
-		_, h := newServer(db, salt, gh, *base)
+		srvr, h := newServer(db, salt, gh, *base)
 		go gh.refresher(db, *every)
+		go srvr.site.watchRelease(time.Hour)
 		srv := &http.Server{Addr: *listen, Handler: h, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second,
 			WriteTimeout: 60 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: 32 << 10}
 		logf("listening on %s", *listen)

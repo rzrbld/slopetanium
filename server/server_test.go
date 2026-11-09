@@ -172,7 +172,7 @@ func TestCommunity(t *testing.T) {
 	}
 
 	// the website: list, port page (escaped), about, 404
-	_, pg := anon.do("GET", "/", nil)
+	_, pg := anon.do("GET", "/ports", nil)
 	if !strings.Contains(pg["html"].(string), "ReNFS5 (NFS)") {
 		t.Fatal("index")
 	}
@@ -184,10 +184,17 @@ func TestCommunity(t *testing.T) {
 	if st, _ := anon.do("GET", "/p/nobody/nothing", nil); st != 404 {
 		t.Fatal("404")
 	}
+	_, pg = anon.do("GET", "/", nil)
+	if h := pg["html"].(string); !strings.Contains(h, "always up to date") || !strings.Contains(h, "/p/rzrbld/ReNFS5") || !strings.Contains(h, "/releases") {
+		t.Fatal("landing")
+	}
+	if st, _ := anon.do("GET", "/nope", nil); st != 404 {
+		t.Fatal("unknown page")
+	}
 	if st, _ := anon.do("GET", "/about", nil); st != 200 {
 		t.Fatal("about")
 	}
-	if st, _ := anon.do("GET", "/?q=%25&sort=rating", nil); st != 200 {
+	if st, _ := anon.do("GET", "/ports?q=%25&sort=rating", nil); st != 200 {
 		t.Fatal("search")
 	}
 
@@ -220,6 +227,14 @@ func TestCommunity(t *testing.T) {
 	db.QueryRow(`SELECT COUNT(*) FROM authors WHERE id LIKE '%a1a1%'`).Scan(&n)
 	if n != 0 {
 		t.Fatal("device secret stored")
+	}
+}
+
+func TestCoverFetchStaysPublic(t *testing.T) {
+	for _, u := range []string{"https://127.0.0.1/x.png", "https://10.0.0.1/x.png", "https://[::1]/x.png", "https://169.254.169.254/latest", "http://example.com/x.png"} {
+		if ct, data := fetchImage(u); ct != "" || data != nil {
+			t.Fatalf("fetched %s", u)
+		}
 	}
 }
 
