@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Slopetanium</title>
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADG0lEQVR4nO2WsWsTURzHP2k9qRAQbjoCLYJtKKVCydDJoUop2KmU1sGCiFMp0j/AIYODU6cOkhbqILrYUoJDhhDiUlAyhIIhlBhBEigHtam1lYaeNQ7ne3l3uSSXiijid8m793Lv932/3/f7ewf/8a9AC+o1LajX/ljgz7XT2p1SumMSF341+N6RCcBCeYvU01THe5yLgDjl6dE+h1gkLZNsrnCerTonoJ5aBI+mElQyJb48f9Uxga7zBvfCxaHB30dABE9aNoGkZY/jZpFKpkQ1a5eg2wjRiRDblkBs9qKyDcCEZrBQ3pLrXrXvNkJgUgOwjiuBVvu3XNSCek0Evjs0CcDJ+3dcGrjWjrcsx0k63ZKEbxE+yycAmCu/luNoyv6NDIfJ5gpUMiUAWQ4/8KWBuFkkbhYBmDL65XxkOOyY00f70Ef7fAeHNhmwjiuBOX1ElkGQALv2j8YnPd/riYSpZgtt0w8+NCDGs/kNwJkBdwkA6YiTdNpxkI4IiMCq542BSCuuDRA6AZjTR5oSaZjwajaX0TjEcswtlLccFhQCFKhmC4Tmxx1zH24/bCDheBC2m9AMkpbJhGbINdGABMR/RBlUAm4XhObHGVu1BbuWmnGQ8BSh6HAYtvCe9F53rMfNItFcwutVR3CRgUqmxObIT4KuC9OzBEJwIsWq3eJmsem1W80W6ImEHVZUM3OwFGtdApUEwNWXj3l7675Mf9wsSheIG1AN7M4A2JY8WIoBPkSo2m7vyHQofzq9LMfZXIHIcJjFnRsA3Pu24riQAE7zO45314dm5LNKJKAGFqmHeroFNm8uusm3xJXlB57zlUzJkZGAWnMVU0Y/s1ov61a5Yc3dEf3CbdWDpVjzVixc0AzNAntdSEIfXghoQb329dO+HbSrLL0vreiCuzTuZtTuJuyJhBnc+A7Am4+rdQ2IC0eFFwHVmu4s7MaafxWrogQ4M3dtDYgJtxDVk04Z/URTCdkPgIZeoI/2Nf0eUIOfmbtA3Qmejcg9V87vy/FYbqVBTCqmt+v9fy0107DuqxH5IeUH7b4F/gr8AKEMwAHqIyOzAAAAAElFTkSuQmCC">
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--mut:#667085;--line:#e3e6ec;--acc:#2f6fed;--ok:#1a8f4c;--warn:#c27100;--bad:#c62f2f;--chip:#eef1f6}
 @media (prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1b2029;--fg:#e6e9ef;--mut:#98a2b3;--line:#2b3240;--acc:#6f9bff;--ok:#41c27a;--warn:#f0a73a;--bad:#ff6b6b;--chip:#252c38}}
@@ -46,7 +47,7 @@ dialog::backdrop{background:#0008}
 </head>
 <body>
 <header>
-  <h1>Slopetanium</h1>
+  <h1 style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADG0lEQVR4nO2WsWsTURzHP2k9qRAQbjoCLYJtKKVCydDJoUop2KmU1sGCiFMp0j/AIYODU6cOkhbqILrYUoJDhhDiUlAyhIIhlBhBEigHtam1lYaeNQ7ne3l3uSSXiijid8m793Lv932/3/f7ewf/8a9AC+o1LajX/ljgz7XT2p1SumMSF341+N6RCcBCeYvU01THe5yLgDjl6dE+h1gkLZNsrnCerTonoJ5aBI+mElQyJb48f9Uxga7zBvfCxaHB30dABE9aNoGkZY/jZpFKpkQ1a5eg2wjRiRDblkBs9qKyDcCEZrBQ3pLrXrXvNkJgUgOwjiuBVvu3XNSCek0Evjs0CcDJ+3dcGrjWjrcsx0k63ZKEbxE+yycAmCu/luNoyv6NDIfJ5gpUMiUAWQ4/8KWBuFkkbhYBmDL65XxkOOyY00f70Ef7fAeHNhmwjiuBOX1ElkGQALv2j8YnPd/riYSpZgtt0w8+NCDGs/kNwJkBdwkA6YiTdNpxkI4IiMCq542BSCuuDRA6AZjTR5oSaZjwajaX0TjEcswtlLccFhQCFKhmC4Tmxx1zH24/bCDheBC2m9AMkpbJhGbINdGABMR/RBlUAm4XhObHGVu1BbuWmnGQ8BSh6HAYtvCe9F53rMfNItFcwutVR3CRgUqmxObIT4KuC9OzBEJwIsWq3eJmsem1W80W6ImEHVZUM3OwFGtdApUEwNWXj3l7675Mf9wsSheIG1AN7M4A2JY8WIoBPkSo2m7vyHQofzq9LMfZXIHIcJjFnRsA3Pu24riQAE7zO45314dm5LNKJKAGFqmHeroFNm8uusm3xJXlB57zlUzJkZGAWnMVU0Y/s1ov61a5Yc3dEf3CbdWDpVjzVixc0AzNAntdSEIfXghoQb329dO+HbSrLL0vreiCuzTuZtTuJuyJhBnc+A7Am4+rdQ2IC0eFFwHVmu4s7MaafxWrogQ4M3dtDYgJtxDVk04Z/URTCdkPgIZeoI/2Nf0eUIOfmbtA3Qmejcg9V87vy/FYbqVBTCqmt+v9fy0107DuqxH5IeUH7b4F/gr8AKEMwAHqIyOzAAAAAElFTkSuQmCC" width="32" height="32" alt="" style="image-rendering:pixelated">Slopetanium</h1>
   <span class="tabs row">
     <button data-tab="ports" class="on">Ports</button>
     <button data-tab="add">Add</button>
