@@ -38,7 +38,20 @@ hash of that secret (HMAC-SHA256 with a salt that lives next to the database, ne
 - Text is cleaned: printable characters only, with length limits.
 - A port's `config` keeps only the fields Slopetanium knows, and each one is checked.
 
-**Refresh:** every port's latest release, stars and download counts are fetched from GitHub
+**Game information (website only):** with `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` (a Twitch
+app) in `/etc/slopetanium/community.env`, each listed port is matched to its game on IGDB:
+
+- **Matching:** by name. The server tries the title's "(Game Name)", then the GOG title, then the
+  title itself. An exact name wins; otherwise a name with a subtitle ("Vyruz" matches "Vyruz:
+  Destruction of the Untel Empire").
+- **What it adds:** tags (FPS, Racing, Multiplayer…), with a tag filter on `/ports`, and an
+  "About the game" panel on port pages: summary, developer, publisher, year, modes and
+  screenshots.
+- **Pictures:** served from here through `/igdb/{size}/{id}.jpg`.
+- **Refresh:** a match is checked again monthly.
+- **Not for handhelds:** none of this goes into the API Slopetanium uses.
+
+ every port's latest release, stars and download counts are fetched from GitHub
 every 6 hours. Set `GITHUB_TOKEN` for a higher GitHub rate limit.
 
 ## What is stored
@@ -80,4 +93,5 @@ sudo -u slopetanium /opt/slopetanium/slopetanium-community admin -db /var/lib/sl
 | `hide-review <id>` / `show-review <id>` | Hide or show one review |
 | `hide-port owner/name` / `show-port owner/name` | Take a port off the list, or put it back |
 | `ban <author>` / `unban <author>` | Hide a handheld's reviews and refuse its writes |
+| `igdb owner/name <id\|auto\|none>` | Pin a port's IGDB game, match it again, or show none |
 | `backup <file>` | A consistent copy of the database |

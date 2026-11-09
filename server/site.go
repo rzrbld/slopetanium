@@ -3,16 +3,16 @@ package main
 
 import (
 	"embed"
-	"io"
-	"net"
-	"syscall"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"math"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -100,6 +100,40 @@ var funcs = template.FuncMap{
 		return fmt.Sprint(n)
 	},
 	"float": func(i int) float64 { return float64(i) },
+	"join":  func(v []string) string { return strings.Join(v, ", ") },
+	"first": func(n int, v []string) []string {
+		if len(v) > n {
+			return v[:n]
+		}
+		return v
+	},
+	// whole rows of three
+	"rows3": func(v []string) []string {
+		if len(v) > 6 {
+			v = v[:6]
+		}
+		if n := len(v) - len(v)%3; n >= 3 {
+			return v[:n]
+		}
+		return v
+	},
+	"pct100": func(f float64) string { return fmt.Sprintf("%.0f", f) },
+	"qs": func(q, sort, tag string) string {
+		v := []string{}
+		if q != "" {
+			v = append(v, "q="+template.URLQueryEscaper(q))
+		}
+		if sort != "" && sort != "popular" {
+			v = append(v, "sort="+sort)
+		}
+		if tag != "" {
+			v = append(v, "tag="+template.URLQueryEscaper(tag))
+		}
+		if len(v) == 0 {
+			return "/ports"
+		}
+		return "/ports?" + strings.Join(v, "&")
+	},
 	"one": func(f float64) string { return fmt.Sprintf("%.1f", f) },
 	// stars: five, the filled ones as a percentage width (half stars and all)
 	"starpct": func(f float64) int { return int(math.Round(f / 5 * 100)) },
@@ -139,8 +173,8 @@ var funcs = template.FuncMap{
 		return m
 	},
 	"sum5": func(a [5]int64) int64 { return a[0] + a[1] + a[2] + a[3] + a[4] },
-	"rev": func() []int { return []int{5, 4, 3, 2, 1} },
-	"at":  func(a [5]int64, i int) int64 { return a[i-1] },
+	"rev":  func() []int { return []int{5, 4, 3, 2, 1} },
+	"at":   func(a [5]int64, i int) int64 { return a[i-1] },
 	"str": func(v any) string {
 		switch x := v.(type) {
 		case string:
@@ -205,17 +239,24 @@ func (st *Site) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if sort == "" {
 		sort = "popular"
 	}
-	ports, err := listPorts(st.s.db, q.Get("q"), sort, 100, 0)
+	tag := q.Get("tag")
+	ports, err := listPorts(st.s.db, q.Get("q"), sort, 100, 0, tag)
 	if err != nil {
 		logf("index: %v", err)
 		http.Error(w, "Server error", 500)
 		return
 	}
 	var total struct{ Ports, Pulls, Reviews int64 }
-	_ = st.s.db.QueryRow(`SELECT (SELECT COUNT(*) FROM ports p WHERE ` + visible + `),
+	_ = st.s.db.QueryRow(`SELECT (SELECT COUNT(*) FROM ports p WHERE `+visible+`),
 		(SELECT COUNT(*) FROM pulls), (SELECT COUNT(*) FROM reviews r JOIN authors a ON a.id = r.author WHERE r.hidden = 0 AND a.banned = 0)`).
 		Scan(&total.Ports, &total.Pulls, &total.Reviews)
-	st.render(w, 200, "index", map[string]any{"Title": "Community ports", "Ports": ports, "Q": q.Get("q"), "Sort": sort, "Total": total})
+	tags, _ := allTags(st.s.db)
+	title := "Community ports"
+	if tag != "" {
+		title = tag + " ports"
+	}
+	st.render(w, 200, "index", map[string]any{"Title": title, "Ports": ports, "Q": q.Get("q"), "Sort": sort, "Total": total,
+		"Tag": tag, "Tags": tags})
 }
 
 func (st *Site) handlePort(w http.ResponseWriter, r *http.Request) {

@@ -70,6 +70,7 @@ func newServer(db *sql.DB, salt []byte, gh *GitHub, base string) (*Server, http.
 	mux.Handle("GET /static/", s.site.static())
 	mux.HandleFunc("GET /p/{owner}/{name}", s.site.handlePort)
 	mux.HandleFunc("GET /cover/{owner}/{name}", s.site.handleCover)
+	mux.HandleFunc("GET /igdb/{size}/{file}", s.site.handleIGDBImage)
 	mux.HandleFunc("GET /about", s.site.handleAbout)
 	mux.HandleFunc("GET /ports", s.site.handleIndex)
 	mux.HandleFunc("GET /", s.site.handleLanding)
@@ -108,6 +109,11 @@ func main() {
 		srvr, h := newServer(db, salt, gh, *base)
 		go gh.refresher(db, *every)
 		go srvr.site.watchRelease(time.Hour)
+		if srvr.igdb = newIGDB(os.Getenv("IGDB_CLIENT_ID"), os.Getenv("IGDB_CLIENT_SECRET")); srvr.igdb != nil {
+			go srvr.igdb.refresher(db)
+		} else {
+			logf("no IGDB_CLIENT_ID / IGDB_CLIENT_SECRET: no game info on the website")
+		}
 		srv := &http.Server{Addr: *listen, Handler: h, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second,
 			WriteTimeout: 60 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: 32 << 10}
 		logf("listening on %s", *listen)
@@ -125,7 +131,7 @@ func main() {
 
 func admin(db *sql.DB, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("admin: list-reviews <repo> | hide-review <id> | show-review <id> | hide-port <repo> | show-port <repo> | ban <author> | unban <author> | stats | backup <file>")
+		return fmt.Errorf("admin: list-reviews <repo> | hide-review <id> | show-review <id> | hide-port <repo> | show-port <repo> | ban <author> | unban <author> | igdb <repo> <id|auto|none> | stats | backup <file>")
 	}
 	arg := ""
 	if len(args) > 1 {
@@ -167,6 +173,22 @@ func admin(db *sql.DB, args []string) error {
 		return exec(`UPDATE authors SET banned = 1 WHERE id = ?`, arg)
 	case "unban":
 		return exec(`UPDATE authors SET banned = 0 WHERE id = ?`, arg)
+	case "igdb":
+		// igdb <owner/name> <id | auto | none>: pin a port's game by hand, or let it be matched again
+		if len(args) < 3 {
+			return fmt.Errorf("igdb <owner/name> <igdb id | auto | none>")
+		}
+		pin := int64(0)
+		switch args[2] {
+		case "auto":
+		case "none":
+			pin = -1
+		default:
+			if _, err := fmt.Sscan(args[2], &pin); err != nil || pin <= 0 {
+				return fmt.Errorf("an IGDB game id, auto or none")
+			}
+		}
+		return exec(`UPDATE ports SET igdb_pin = ?, igdb_at = 0 WHERE repo = ?`, pin, arg)
 	case "backup":
 		// a consistent copy while the server runs (SQLite's VACUUM INTO)
 		if arg == "" {

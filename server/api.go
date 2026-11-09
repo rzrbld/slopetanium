@@ -24,6 +24,7 @@ type Server struct {
 	db     *sql.DB
 	salt   []byte
 	gh     *GitHub
+	igdb   *IGDB    // nil without credentials
 	writes *limiter // per IP address (kept in memory only, never written down)
 	byAuth *limiter // per author
 	pulls  *limiter
@@ -275,11 +276,15 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *Server) detail(repo, viewer string) (*PortDetail, error) {
-	row := s.db.QueryRow(`SELECT p.id, p.config, `+summaryCols+` FROM ports p WHERE p.repo = ? AND `+visible, repo)
+	row := s.db.QueryRow(`SELECT p.id, p.config, p.igdb, `+summaryCols+` FROM ports p WHERE p.repo = ? AND `+visible, repo)
 	var d PortDetail
-	var cfg string
-	err := row.Scan(&d.id, &cfg, &d.Repo, &d.Title, &d.Description, &d.CoverURL, &d.LatestTag, &d.LatestAt, &d.LatestSize,
-		&d.PortSummary.Stars, &d.Downloads, &d.Pulls, &d.Rating, &d.Reviews, &d.Sharers, &d.Created)
+	var cfg, game string
+	sum, err := scanSummary(row, &d.id, &cfg, &game)
+	d.PortSummary = sum
+	if err == nil && game != "" {
+		d.Game = &Game{}
+		_ = json.Unmarshal([]byte(game), d.Game)
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fail(404, "Not a community port")
 	}
@@ -391,6 +396,7 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request) error {
 			_, _ = s.db.Exec(`UPDATE ports SET gh_error = ? WHERE id = ?`, gerr.Error(), id)
 		}
 		logf("shared %s (new)", repo)
+		s.igdb.poke()
 	} else if err != nil {
 		return err
 	} else {

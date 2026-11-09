@@ -249,3 +249,113 @@ func TestRateLimit(t *testing.T) {
 		t.Fatal("limit")
 	}
 }
+
+func TestGameNames(t *testing.T) {
+	cases := map[string][]string{
+		"ReNFS5 (Need for Speed: Porsche Unleashed)": {"Need for Speed: Porsche Unleashed", "ReNFS5"},
+		"The ReThing (The Thing)":                    {"The Thing", "The ReThing"},
+		"ReRed Faction II":                           {"ReRed Faction II", "Red Faction II"},
+	}
+	for title, want := range cases {
+		got := gameNames(title, "x/y", nil)
+		for _, w := range want {
+			found := false
+			for _, g := range got {
+				if g == w {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("%q: %v lacks %q", title, got, w)
+			}
+		}
+	}
+	if g := gameNames("ReConflict", "x/y", map[string]any{"gog": map[string]any{"title": "Conflict: Desert Storm"}}); g[0] != "Conflict: Desert Storm" {
+		t.Fatalf("gog title first: %v", g)
+	}
+	if norm("The Thing") != norm("thing") || norm("Conflict: Desert Storm") != "conflict desert storm" {
+		t.Fatal("norm")
+	}
+}
+
+func TestIGDB(t *testing.T) {
+	gh := fakeGitHub(t)
+	defer gh.Close()
+	var searched []string
+	ig := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			w.Write([]byte(`{"access_token":"tok","expires_in":5000}`))
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer tok" || r.Header.Get("Client-ID") != "cid" {
+			w.WriteHeader(401)
+			return
+		}
+		b, _ := io.ReadAll(r.Body)
+		searched = append(searched, string(b))
+		// a near miss first, then the game
+		w.Write([]byte(`[{"id":1,"name":"Need for Speed: Porsche Unleashed Deluxe","total_rating_count":99},
+			{"id":94,"name":"Need for Speed: Porsche Unleashed","summary":"Drive <b>Porsches</b>.","first_release_date":954288000,
+			 "genres":[{"name":"Racing"},{"name":"Shooter"}],"player_perspectives":[{"name":"First person"}],
+			 "game_modes":[{"name":"Single player"},{"name":"Multiplayer"}],"themes":[{"name":"Science fiction"}],
+			 "involved_companies":[{"company":{"name":"EA Canada"},"developer":true},{"company":{"name":"Electronic Arts"},"publisher":true}],
+			 "cover":{"image_id":"co9bt7"},"screenshots":[{"image_id":"sc6abc"}],"total_rating":81.4,"total_rating_count":40,
+			 "url":"https://www.igdb.com/games/need-for-speed-porsche-unleashed"}]`))
+	}))
+	defer ig.Close()
+	db, _ := openDB(filepath.Join(t.TempDir(), "c.db"))
+	srvr, h := newServer(db, []byte("salt-for-tests-salt-for-tests-xx"), &GitHub{base: gh.URL, client: gh.Client()}, "https://example.test")
+	srvr.igdb = &IGDB{id: "cid", secret: "sec", client: ig.Client(), tokenURL: ig.URL + "/token", apiURL: ig.URL, kick: make(chan struct{}, 1)}
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	a := client{t, srv.URL, strings.Repeat("a1", 32)}
+	anon := client{t, srv.URL, ""}
+	a.do("POST", "/v1/ports", map[string]any{"repo": "rzrbld/ReNFS5", "title": "ReNFS5 (Need for Speed: Porsche Unleashed)"})
+	srvr.igdb.refreshDue(db)
+	if len(searched) == 0 || !strings.Contains(searched[0], `search "Need for Speed: Porsche Unleashed"`) {
+		t.Fatalf("searched: %v", searched)
+	}
+	var gid int64
+	db.QueryRow(`SELECT igdb_id FROM ports`).Scan(&gid)
+	if gid != 94 {
+		t.Fatalf("matched %d, want the exact name (94)", gid)
+	}
+	// the website: tags (FPS from shooter + first person), the panel, the tag filter
+	_, pg := anon.do("GET", "/p/rzrbld/ReNFS5", nil)
+	html := pg["html"].(string)
+	for _, want := range []string{">FPS<", ">Racing<", ">Sci-fi<", ">Multiplayer<", "About the game", "EA Canada", "/igdb/t_screenshot_med/sc6abc.jpg", "IGDB.com", "Drive &lt;b&gt;Porsches&lt;/b&gt;."} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("port page lacks %q", want)
+		}
+	}
+	_, pg = anon.do("GET", "/ports?tag=Racing", nil)
+	if !strings.Contains(pg["html"].(string), "/p/rzrbld/ReNFS5") {
+		t.Fatal("tag filter lost the port")
+	}
+	_, pg = anon.do("GET", "/ports?tag=Horror", nil)
+	if strings.Contains(pg["html"].(string), "/p/rzrbld/ReNFS5") {
+		t.Fatal("tag filter kept the port")
+	}
+	// the handheld's API doesn't carry it
+	_, d := anon.do("GET", "/v1/ports/rzrbld/ReNFS5", nil)
+	if _, ok := d["tags"]; ok {
+		t.Fatal("tags in the API")
+	}
+	if _, ok := d["game"]; ok {
+		t.Fatal("game in the API")
+	}
+	// pictures only of listed games' ids
+	if st, _ := anon.do("GET", "/igdb/t_cover_big/zzzz9999.jpg", nil); st != 404 {
+		t.Fatal("unlisted picture served")
+	}
+	if st, _ := anon.do("GET", "/igdb/t_original/co9bt7.jpg", nil); st != 404 {
+		t.Fatal("unknown size served")
+	}
+	// pinned by hand: none
+	admin(db, []string{"igdb", "rzrbld/ReNFS5", "none"})
+	srvr.igdb.refreshDue(db)
+	_, pg = anon.do("GET", "/p/rzrbld/ReNFS5", nil)
+	if strings.Contains(pg["html"].(string), "About the game") {
+		t.Fatal("cleared game still shown")
+	}
+}

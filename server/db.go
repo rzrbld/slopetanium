@@ -3,6 +3,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -74,6 +75,17 @@ CREATE TABLE IF NOT EXISTS covers (
 	data    BLOB,                          -- empty: the fetch failed (tried again later)
 	fetched INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS port_tags (
+	port_id INTEGER NOT NULL REFERENCES ports(id) ON DELETE CASCADE,
+	tag     TEXT NOT NULL,
+	PRIMARY KEY (port_id, tag)
+);
+CREATE TABLE IF NOT EXISTS images (
+	key     TEXT PRIMARY KEY,              -- "t_cover_big/co9bt7": IGDB pictures, kept once fetched
+	ctype   TEXT NOT NULL,
+	data    BLOB NOT NULL,
+	fetched INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS pulls_port ON pulls(port_id);
 CREATE INDEX IF NOT EXISTS reviews_port ON reviews(port_id);
 `
@@ -87,6 +99,17 @@ func openDB(path string) (*sql.DB, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("schema: %w", err)
 	}
+	// columns added later (an existing database gets them too)
+	for _, col := range []string{
+		`igdb TEXT NOT NULL DEFAULT ''`, // the game, as the website shows it (JSON)
+		`igdb_id INTEGER NOT NULL DEFAULT 0`,
+		`igdb_at INTEGER NOT NULL DEFAULT 0`,  // last looked up
+		`igdb_pin INTEGER NOT NULL DEFAULT 0`, // set by hand: an IGDB id, or -1 for none
+	} {
+		if _, err := db.Exec(`ALTER TABLE ports ADD COLUMN ` + col); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			return nil, fmt.Errorf("migrate: %w", err)
+		}
+	}
 	return db, nil
 }
 
@@ -94,20 +117,22 @@ func now() int64 { return time.Now().Unix() }
 
 // PortSummary: a card on the website, a row in the handheld's Community page.
 type PortSummary struct {
-	Repo        string  `json:"repo"`
-	Title       string  `json:"title"`
-	Description string  `json:"description"`
-	CoverURL    string  `json:"cover_url"`
-	LatestTag   string  `json:"latest_tag"`
-	LatestAt    int64   `json:"latest_at"`
-	LatestSize  int64   `json:"latest_size"`
-	Stars       int64   `json:"stars"`
-	Downloads   int64   `json:"gh_downloads"`
-	Pulls       int64   `json:"pulls"`
-	Rating      float64 `json:"rating"`
-	Reviews     int64   `json:"reviews"`
-	Sharers     int64   `json:"sharers"`
-	Created     int64   `json:"created"`
+	Repo        string   `json:"repo"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	CoverURL    string   `json:"cover_url"`
+	LatestTag   string   `json:"latest_tag"`
+	LatestAt    int64    `json:"latest_at"`
+	LatestSize  int64    `json:"latest_size"`
+	Stars       int64    `json:"stars"`
+	Downloads   int64    `json:"gh_downloads"`
+	Pulls       int64    `json:"pulls"`
+	Rating      float64  `json:"rating"`
+	Reviews     int64    `json:"reviews"`
+	Sharers     int64    `json:"sharers"`
+	Created     int64    `json:"created"`
+	Tags        []string `json:"-"` // from IGDB: the website only
+	GameCover   string   `json:"-"`
 }
 
 const summaryCols = `p.repo, p.title, CASE WHEN p.description != '' THEN p.description ELSE p.gh_desc END, p.cover_url,
@@ -115,22 +140,27 @@ const summaryCols = `p.repo, p.title, CASE WHEN p.description != '' THEN p.descr
 	(SELECT COUNT(*) FROM pulls WHERE port_id = p.id),
 	COALESCE((SELECT AVG(r.rating) FROM reviews r JOIN authors a ON a.id = r.author WHERE r.port_id = p.id AND r.hidden = 0 AND a.banned = 0), 0),
 	(SELECT COUNT(*) FROM reviews r JOIN authors a ON a.id = r.author WHERE r.port_id = p.id AND r.hidden = 0 AND a.banned = 0),
-	(SELECT COUNT(*) FROM shares WHERE port_id = p.id), p.created`
+	(SELECT COUNT(*) FROM shares WHERE port_id = p.id), p.created,
+	COALESCE(json_extract(CASE WHEN p.igdb = '' THEN '{}' ELSE p.igdb END, '$.tags'), '[]'),
+	COALESCE(json_extract(CASE WHEN p.igdb = '' THEN '{}' ELSE p.igdb END, '$.cover'), '')`
 
 // visible: shared by someone, checked on GitHub, not taken down
 const visible = `p.hidden = 0 AND p.verified = 1 AND EXISTS (SELECT 1 FROM shares WHERE port_id = p.id)`
 
-func scanSummary(sc interface{ Scan(...any) error }) (PortSummary, error) {
+func scanSummary(sc interface{ Scan(...any) error }, extra ...any) (PortSummary, error) {
 	var s PortSummary
-	err := sc.Scan(&s.Repo, &s.Title, &s.Description, &s.CoverURL, &s.LatestTag, &s.LatestAt, &s.LatestSize, &s.Stars,
-		&s.Downloads, &s.Pulls, &s.Rating, &s.Reviews, &s.Sharers, &s.Created)
+	var tags string
+	dest := append(extra, &s.Repo, &s.Title, &s.Description, &s.CoverURL, &s.LatestTag, &s.LatestAt, &s.LatestSize, &s.Stars,
+		&s.Downloads, &s.Pulls, &s.Rating, &s.Reviews, &s.Sharers, &s.Created, &tags, &s.GameCover)
+	err := sc.Scan(dest...)
+	_ = json.Unmarshal([]byte(tags), &s.Tags) // the game's own order: FPS first, then genres
 	if s.Title == "" {
 		s.Title = s.Repo[strings.Index(s.Repo, "/")+1:]
 	}
 	return s, err
 }
 
-func listPorts(db *sql.DB, q, sort string, limit, offset int) ([]PortSummary, error) {
+func listPorts(db *sql.DB, q, sort string, limit, offset int, tag ...string) ([]PortSummary, error) {
 	order := map[string]string{
 		"popular": "10 DESC, 12 DESC, 1",
 		"rating":  "11 DESC, 12 DESC, 1",
@@ -147,6 +177,10 @@ func listPorts(db *sql.DB, q, sort string, limit, offset int) ([]PortSummary, er
 		where += ` AND (p.repo LIKE ? ESCAPE '\' OR p.title LIKE ? ESCAPE '\' OR p.description LIKE ? ESCAPE '\' OR p.gh_desc LIKE ? ESCAPE '\')`
 		like := "%" + strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q) + "%"
 		args = append(args, like, like, like, like)
+	}
+	if len(tag) > 0 && tag[0] != "" {
+		where += ` AND EXISTS (SELECT 1 FROM port_tags t WHERE t.port_id = p.id AND t.tag = ? COLLATE NOCASE)`
+		args = append(args, tag[0])
 	}
 	args = append(args, limit, offset)
 	rows, err := db.Query(`SELECT `+summaryCols+` FROM ports p WHERE `+where+` ORDER BY `+order+` LIMIT ? OFFSET ?`, args...)
@@ -192,7 +226,14 @@ type PortDetail struct {
 	ByCFW      []Count        `json:"by_cfw"`
 	Hist       [5]int64       `json:"stars_hist"` // ratings 1..5
 	Week       int64          `json:"pulls_week"`
+	Game       *Game          `json:"-"` // IGDB: the website only
 	id         int64
+}
+
+// allTags: the tags of listed ports, most used first
+func allTags(db *sql.DB) ([]Count, error) {
+	return counts(db, `SELECT t.tag, COUNT(*) FROM port_tags t JOIN ports p ON p.id = t.port_id WHERE `+visible+`
+		GROUP BY t.tag ORDER BY 2 DESC, 1 LIMIT 40`)
 }
 
 func counts(db *sql.DB, q string, args ...any) ([]Count, error) {

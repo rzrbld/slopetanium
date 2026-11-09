@@ -22,29 +22,38 @@
 .card .desc { font-size: 13.5px; color: var(--muted); margin: 6px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--muted); }
 .card .meta b { color: var(--text); font-variant-numeric: tabular-nums; }
+.tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.tag { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); text-decoration: none; white-space: nowrap; }
+.tagbar { display: flex; gap: 6px; flex-wrap: wrap; margin: -4px 0 18px; }
+.tagbar .tag { height: 28px; padding: 0 11px; font-size: 13px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); }
+.tagbar .tag span { color: var(--faint); font-weight: 500; }
+.tagbar .tag:hover { color: var(--text); border-color: var(--line-2); }
+.tagbar .tag.on { color: var(--accent-ink); background: var(--accent); border-color: transparent; }
+.tagbar .tag.on span { color: var(--accent-ink); opacity: .7; }
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty img { width: 80px; margin: 0 auto 12px; display: block; }
 @media (max-width: 700px) { .hero { grid-template-columns: 1fr; } .hero h1 { font-size: 29px; } .grid { grid-template-columns: 1fr; } .card { grid-template-columns: 80px 1fr; } .card .cover { width: 80px; } }
 {{end}}
 {{define "main"}}
 <section class="hero">
-  <div><h1 class="pixel">Community ports</h1>
+  <div><h1 class="pixel">{{if .Tag}}{{.Tag}} ports{{else}}Community ports{{end}}</h1>
     <p>PortMaster ports for handhelds that Slopetanium users share. Open one in Slopetanium's Community page to install it and keep it updated.</p></div>
   <div class="totals"><div class="total"><b>{{num .Total.Ports}}</b><span>ports</span></div><div class="total"><b>{{num .Total.Pulls}}</b><span>installs</span></div><div class="total"><b>{{num .Total.Reviews}}</b><span>reviews</span></div></div>
 </section>
 <div class="tools">
-  <form action="/ports" method="get"><input name="q" value="{{.Q}}" placeholder="Search ports" aria-label="Search ports">{{if ne .Sort "popular"}}<input type="hidden" name="sort" value="{{.Sort}}">{{end}}</form>
-  <div class="seg">{{$s := .Sort}}{{$q := .Q}}
-    <a href="/ports?sort=popular{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "popular"}}on{{end}}">Popular</a>
-    <a href="/ports?sort=rating{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "rating"}}on{{end}}">Top rated</a>
-    <a href="/ports?sort=updated{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "updated"}}on{{end}}">Recently updated</a>
-    <a href="/ports?sort=new{{if $q}}&q={{$q}}{{end}}" class="{{if eq $s "new"}}on{{end}}">Newly shared</a>
+  <form action="/ports" method="get"><input name="q" value="{{.Q}}" placeholder="Search ports" aria-label="Search ports">{{if ne .Sort "popular"}}<input type="hidden" name="sort" value="{{.Sort}}">{{end}}{{if .Tag}}<input type="hidden" name="tag" value="{{.Tag}}">{{end}}</form>
+  <div class="seg">{{$s := .Sort}}{{$q := .Q}}{{$t := .Tag}}
+    <a href="{{qs $q "popular" $t}}" class="{{if eq $s "popular"}}on{{end}}">Popular</a>
+    <a href="{{qs $q "rating" $t}}" class="{{if eq $s "rating"}}on{{end}}">Top rated</a>
+    <a href="{{qs $q "updated" $t}}" class="{{if eq $s "updated"}}on{{end}}">Recently updated</a>
+    <a href="{{qs $q "new" $t}}" class="{{if eq $s "new"}}on{{end}}">Newly shared</a>
   </div>
 </div>
+{{if .Tags}}<div class="tagbar">{{$s := .Sort}}{{$q := .Q}}{{$t := .Tag}}<a href="{{qs $q $s ""}}" class="tag {{if not $t}}on{{end}}">All</a>{{range .Tags}}<a href="{{qs $q $s .Key}}" class="tag {{if eq .Key $t}}on{{end}}">{{.Key}} <span>{{.N}}</span></a>{{end}}</div>{{end}}
 {{if .Ports}}
 <div class="grid">{{range .Ports}}
   <a class="card" href="/p/{{.Repo}}">
-    <div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" loading="lazy" onerror="this.remove()">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}})">{{initials .Title}}</div>{{end}}</div>
+    <div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" loading="lazy" onerror="this.remove()">{{else if .GameCover}}<img src="/igdb/t_cover_big/{{.GameCover}}.jpg" alt="" loading="lazy" onerror="this.remove()">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}})">{{initials .Title}}</div>{{end}}</div>
     <div style="min-width:0">
       <h3>{{.Title}}</h3><div class="repo">{{.Repo}}</div>
       {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}
@@ -53,6 +62,7 @@
         <span><b>{{num .Pulls}}</b> install{{if ne .Pulls 1}}s{{end}}</span>
         {{if .LatestTag}}<span class="chip">{{short .LatestTag}}</span>{{end}}
       </div>
+      {{if .Tags}}<div class="tags">{{range first 3 .Tags}}<span class="tag">{{.}}</span>{{end}}</div>{{end}}
     </div>
   </a>{{end}}
 </div>
