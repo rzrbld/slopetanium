@@ -47,7 +47,7 @@ nav a:hover { color: var(--text); background: var(--surface-2); }
 nav a.cta { color: var(--accent-ink); background: var(--accent); }
 nav a.cta:hover { background: var(--accent-2); color: var(--accent-ink); }
 main { padding: 26px 0 70px; }
-footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--faint); font-size: 13px; }
+footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--faint); font-size: 13px; line-height: 1.7; }
 footer a { color: var(--muted); }
 .btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 15px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface-2); font-weight: 600; font-size: 14px; text-decoration: none; color: var(--text); cursor: pointer; }
 .btn:hover { background: var(--surface-3); }
@@ -62,14 +62,20 @@ footer a { color: var(--muted); }
 .cover .ph { position: absolute; inset: 0; display: grid; place-items: center; font-family: "Pixelify", sans-serif; font-size: 30px; color: rgba(255,255,255,.9); }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 16px 18px; }
 .panel h2 { font-size: 16px; margin: 0 0 12px; }
-@media (max-width: 700px) { nav a:not(.cta) { display: none; } .brand span { font-size: 18px; } }
+.opt-m { display: none; }
+@media (max-width: 700px) {
+  header.bar .wrap { gap: 10px; } nav { gap: 2px; }
+  nav a.opt, .opt-t { display: none; } .opt-m { display: inline !important; } nav a { padding: 7px 10px; }
+  .brand span { font-size: 18px; } .brand img { width: 30px; height: 30px; }
+  .wrap { padding: 0 16px; } main { padding: 18px 0 50px; }
+}
 {{block "css" .}}{{end}}
 </style>
 </head>
 <body>
 <header class="bar"><div class="wrap">
   <a class="brand" href="/"><img src="/static/icon-96.png" alt=""><span class="pixel"><b>slope</b>tanium</span></a>
-  <nav><a href="/#features">Features</a><a href="/ports">Ports</a><a href="/about">About</a><a class="cta" href="https://github.com/rzrbld/slopetanium/releases">Get Slopetanium</a></nav>
+  <nav><a class="opt" href="/#features">Features</a><a href="/ports">Ports</a><a class="opt" href="/about">About</a><a class="cta" href="https://github.com/rzrbld/slopetanium/releases">Get <span class="opt-t">Slopetanium</span><span class="opt-m">it</span></a></nav>
 </div></header>
 <main><div class="wrap">{{block "main" .}}{{end}}</div></main>
 <footer><div class="wrap">Slopetanium community: ports shared from Slopetanium on handhelds. Reviews and ratings are posted from Slopetanium itself.

@@ -330,7 +330,11 @@ func tagsFor(gm *Game) []string {
 	if has(gm.Genres, "Shooter") && has(gm.Perspectives, "Third person") {
 		add("Third-person shooter")
 	}
+	shooterSaid := len(tags) > 0 // FPS / third-person shooter already says it
 	for _, x := range gm.Genres {
+		if x == "Shooter" && shooterSaid {
+			continue
+		}
 		add(x)
 	}
 	for _, x := range gm.Themes {

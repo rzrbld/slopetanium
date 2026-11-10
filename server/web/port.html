@@ -43,8 +43,14 @@ dt { color: var(--faint); } dd { margin: 0; overflow-wrap: anywhere; }
 .shots a:hover img { transform: scale(1.04); }
 .attrib { font-size: 12px; color: var(--faint); margin-top: 12px; }
 .attrib a { color: var(--muted); }
-@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .shots { grid-template-columns: 1fr 1fr; } }
+.gamegrid { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+.gamegrid dl { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+@media (max-width: 860px) { .cols, .gamegrid { grid-template-columns: 1fr; } .gamegrid dl { order: -1; } }
+@media (max-width: 600px) {
+  .shots { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 10px; margin: 16px -18px 0; padding: 0 18px 4px; scrollbar-width: none; }
+  .shots::-webkit-scrollbar { display: none; }
+  .shots a { flex: 0 0 82%; scroll-snap-align: center; }
+}
 @media (max-width: 600px) { .head { grid-template-columns: 96px 1fr; gap: 16px; } .head .cover { width: 96px; } .head h1 { font-size: 23px; } }
 {{end}}
 {{define "main"}}{{with .P}}
@@ -68,7 +74,7 @@ dt { color: var(--faint); } dd { margin: 0; overflow-wrap: anywhere; }
 {{with .Game}}
 <section class="panel game">
   <h2>About the game: {{.Name}}{{if .Year}} <span class="faint" style="font-weight:500">({{.Year}})</span>{{end}}</h2>
-  <div class="cols" style="grid-template-columns:1fr 300px;gap:24px">
+  <div class="gamegrid">
     <div>{{if .Summary}}<p class="sum">{{.Summary}}</p>{{end}}
       {{if .Screenshots}}<div class="shots">{{range rows3 .Screenshots}}<a href="/igdb/t_screenshot_big/{{.}}.jpg" target="_blank" rel="noopener"><img src="/igdb/t_screenshot_med/{{.}}.jpg" alt="Screenshot of the game" loading="lazy"></a>{{end}}</div>{{end}}</div>
     <dl>

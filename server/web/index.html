@@ -30,6 +30,12 @@
 .tagbar .tag:hover { color: var(--text); border-color: var(--line-2); }
 .tagbar .tag.on { color: var(--accent-ink); background: var(--accent); border-color: transparent; }
 .tagbar .tag.on span { color: var(--accent-ink); opacity: .7; }
+@media (max-width: 700px) {
+  .tagbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: -4px -16px 16px; padding: 0 16px; -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); mask-image: linear-gradient(90deg, #000 90%, transparent); }
+  .tagbar::-webkit-scrollbar { display: none; }
+  .tools .seg { width: 100%; } .tools .seg a { flex: 1; text-align: center; padding: 5px 6px; }
+  .hero .totals { width: 100%; } .total { flex: 1; min-width: 0; }
+}
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty img { width: 80px; margin: 0 auto 12px; display: block; }
 @media (max-width: 700px) { .hero { grid-template-columns: 1fr; } .hero h1 { font-size: 29px; } .grid { grid-template-columns: 1fr; } .card { grid-template-columns: 80px 1fr; } .card .cover { width: 80px; } }
@@ -45,8 +51,8 @@
   <div class="seg">{{$s := .Sort}}{{$q := .Q}}{{$t := .Tag}}
     <a href="{{qs $q "popular" $t}}" class="{{if eq $s "popular"}}on{{end}}">Popular</a>
     <a href="{{qs $q "rating" $t}}" class="{{if eq $s "rating"}}on{{end}}">Top rated</a>
-    <a href="{{qs $q "updated" $t}}" class="{{if eq $s "updated"}}on{{end}}">Recently updated</a>
-    <a href="{{qs $q "new" $t}}" class="{{if eq $s "new"}}on{{end}}">Newly shared</a>
+    <a href="{{qs $q "updated" $t}}" class="{{if eq $s "updated"}}on{{end}}">Updated</a>
+    <a href="{{qs $q "new" $t}}" class="{{if eq $s "new"}}on{{end}}">New</a>
   </div>
 </div>
 {{if .Tags}}<div class="tagbar">{{$s := .Sort}}{{$q := .Q}}{{$t := .Tag}}<a href="{{qs $q $s ""}}" class="tag {{if not $t}}on{{end}}">All</a>{{range .Tags}}<a href="{{qs $q $s .Key}}" class="tag {{if eq .Key $t}}on{{end}}">{{.Key}} <span>{{.N}}</span></a>{{end}}</div>{{end}}
