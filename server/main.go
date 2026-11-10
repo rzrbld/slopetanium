@@ -45,7 +45,8 @@ func loadSalt(path string) ([]byte, error) {
 
 func newServer(db *sql.DB, salt []byte, gh *GitHub, base string) (*Server, http.Handler) {
 	s := &Server{db: db, salt: salt, gh: gh,
-		writes: newLimiter(40, 90*time.Second), byAuth: newLimiter(30, 2*time.Minute), pulls: newLimiter(120, 10*time.Second)}
+		writes: newLimiter(40, 90*time.Second), byAuth: newLimiter(30, 2*time.Minute), pulls: newLimiter(60, time.Minute),
+		calls: newLimiter(120, time.Second), reviews: newLimiter(20, 30*time.Minute), newPorts: newLimiter(10, 2*time.Hour)}
 	s.site = newSite(s, base)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/ports", s.api(s.handleList))
@@ -109,6 +110,12 @@ func main() {
 		srvr, h := newServer(db, salt, gh, *base)
 		go gh.refresher(db, *every)
 		go srvr.site.watchRelease(time.Hour)
+		go func() {
+			for {
+				prunePictures(db)
+				time.Sleep(6 * time.Hour)
+			}
+		}()
 		if srvr.igdb = newIGDB(os.Getenv("IGDB_CLIENT_ID"), os.Getenv("IGDB_CLIENT_SECRET")); srvr.igdb != nil {
 			go srvr.igdb.refresher(db)
 		} else {
@@ -131,7 +138,7 @@ func main() {
 
 func admin(db *sql.DB, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("admin: list-reviews <repo> | hide-review <id> | show-review <id> | hide-port <repo> | show-port <repo> | ban <author> | unban <author> | igdb <repo> <id|auto|none> | stats | backup <file>")
+		return fmt.Errorf("admin: list-reviews <repo> | hide-review <id> | show-review <id> | hide-port <repo> | show-port <repo> | ban <author> | unban <author> | igdb <repo> <id|auto|none> | refresh | stats | backup <file>")
 	}
 	arg := ""
 	if len(args) > 1 {
@@ -173,6 +180,9 @@ func admin(db *sql.DB, args []string) error {
 		return exec(`UPDATE authors SET banned = 1 WHERE id = ?`, arg)
 	case "unban":
 		return exec(`UPDATE authors SET banned = 0 WHERE id = ?`, arg)
+	case "refresh":
+		// every port checked on GitHub (and matched on IGDB) again within minutes
+		return exec(`UPDATE ports SET refreshed = 0, igdb_at = CASE WHEN igdb_pin < 0 THEN igdb_at ELSE 0 END`)
 	case "igdb":
 		// igdb <owner/name> <id | auto | none>: pin a port's game by hand, or let it be matched again
 		if len(args) < 3 {

@@ -56,7 +56,7 @@ dt { color: var(--faint); } dd { margin: 0; overflow-wrap: anywhere; }
 {{define "main"}}{{with .P}}
 <a class="back" href="/ports">← All ports</a>
 <section class="head">
-  <div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" onerror="this.remove()">{{else if .GameCover}}<img src="/igdb/t_cover_big/{{.GameCover}}.jpg" alt="" onerror="this.remove()">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}});font-size:44px">{{initials .Title}}</div>{{end}}</div>
+  <div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="">{{else if .GameCover}}<img src="/igdb/t_cover_big/{{.GameCover}}.jpg" alt="">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}});font-size:44px">{{initials .Title}}</div>{{end}}</div>
   <div style="min-width:0">
     <h1>{{.Title}}</h1>
     <div class="repo"><a href="https://github.com/{{.Repo}}">github.com/{{.Repo}}</a>{{if .Stars}} · ★ {{.Stars}} on GitHub{{end}}</div>

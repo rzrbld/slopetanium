@@ -103,8 +103,9 @@ func openDB(path string) (*sql.DB, error) {
 	for _, col := range []string{
 		`igdb TEXT NOT NULL DEFAULT ''`, // the game, as the website shows it (JSON)
 		`igdb_id INTEGER NOT NULL DEFAULT 0`,
-		`igdb_at INTEGER NOT NULL DEFAULT 0`,  // last looked up
-		`igdb_pin INTEGER NOT NULL DEFAULT 0`, // set by hand: an IGDB id, or -1 for none
+		`igdb_at INTEGER NOT NULL DEFAULT 0`,      // last looked up
+		`igdb_pin INTEGER NOT NULL DEFAULT 0`,     // set by hand: an IGDB id, or -1 for none
+		`release_tags TEXT NOT NULL DEFAULT '[]'`, // its recent release tags (JSON): installs count for these only
 	} {
 		if _, err := db.Exec(`ALTER TABLE ports ADD COLUMN ` + col); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			return nil, fmt.Errorf("migrate: %w", err)
@@ -145,7 +146,8 @@ const summaryCols = `p.repo, p.title, CASE WHEN p.description != '' THEN p.descr
 	COALESCE(json_extract(CASE WHEN p.igdb = '' THEN '{}' ELSE p.igdb END, '$.cover'), '')`
 
 // visible: shared by someone, checked on GitHub, not taken down
-const visible = `p.hidden = 0 AND p.verified = 1 AND EXISTS (SELECT 1 FROM shares WHERE port_id = p.id)`
+const visible = `p.hidden = 0 AND p.verified = 1 AND EXISTS (SELECT 1 FROM shares sh LEFT JOIN authors au ON au.id = sh.author
+	WHERE sh.port_id = p.id AND COALESCE(au.banned, 0) = 0)`
 
 func scanSummary(sc interface{ Scan(...any) error }, extra ...any) (PortSummary, error) {
 	var s PortSummary

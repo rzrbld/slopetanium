@@ -59,7 +59,7 @@
 {{if .Ports}}
 <div class="grid">{{range .Ports}}
   <a class="card" href="/p/{{.Repo}}">
-    <div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" loading="lazy" onerror="this.remove()">{{else if .GameCover}}<img src="/igdb/t_cover_big/{{.GameCover}}.jpg" alt="" loading="lazy" onerror="this.remove()">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}})">{{initials .Title}}</div>{{end}}</div>
+    <div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" loading="lazy">{{else if .GameCover}}<img src="/igdb/t_cover_big/{{.GameCover}}.jpg" alt="" loading="lazy">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}})">{{initials .Title}}</div>{{end}}</div>
     <div style="min-width:0">
       <h3>{{.Title}}</h3><div class="repo">{{.Repo}}</div>
       {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}

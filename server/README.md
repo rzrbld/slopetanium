@@ -94,4 +94,5 @@ sudo -u slopetanium /opt/slopetanium/slopetanium-community admin -db /var/lib/sl
 | `hide-port owner/name` / `show-port owner/name` | Take a port off the list, or put it back |
 | `ban <author>` / `unban <author>` | Hide a handheld's reviews and refuse its writes |
 | `igdb owner/name <id\|auto\|none>` | Pin a port's IGDB game, match it again, or show none |
+| `refresh` | Check every port on GitHub and IGDB again within minutes |
 | `backup <file>` | A consistent copy of the database |

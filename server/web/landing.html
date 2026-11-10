@@ -168,7 +168,7 @@ section.block > p.sub { color: var(--muted); margin: 0 0 28px; max-width: 680px;
   <h2 class="pixel">Shared by the community</h2>
   <p class="sub">Share the ports you watch and find the ones others share, with ratings and reviews written on handhelds. Add one in Slopetanium's Community page and it comes with the settings its sharer used.</p>
   {{if .Top}}<div class="top">{{range .Top}}
-    <a class="tcard" href="/p/{{.Repo}}"><div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" loading="lazy" onerror="this.remove()">{{else if .GameCover}}<img src="/igdb/t_cover_big/{{.GameCover}}.jpg" alt="" loading="lazy" onerror="this.remove()">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}});font-size:20px">{{initials .Title}}</div>{{end}}</div>
+    <a class="tcard" href="/p/{{.Repo}}"><div class="cover">{{if .CoverURL}}<img src="/cover/{{.Repo}}" alt="" loading="lazy">{{else if .GameCover}}<img src="/igdb/t_cover_big/{{.GameCover}}.jpg" alt="" loading="lazy">{{else}}<div class="ph" style="background:linear-gradient(150deg,{{tint .Repo 0}},{{tint .Repo 1}});font-size:20px">{{initials .Title}}</div>{{end}}</div>
       <div style="min-width:0"><b>{{.Title}}</b><div class="meta">{{if .Reviews}}<span><span class="stars" style="font-size:12px"><i style="width:{{starpct .Rating}}%"></i></span> {{one .Rating}}</span>{{end}}{{if .Pulls}}<span>{{num .Pulls}} install{{if ne .Pulls 1}}s{{end}}</span>{{end}}{{range first 2 .Tags}}<span class="tg">{{.}}</span>{{end}}</div></div></a>{{end}}
   </div>{{end}}
   <p style="margin:20px 0 0"><a class="btn" href="/ports">All community ports →</a></p>

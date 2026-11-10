@@ -5,14 +5,11 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"io"
 	"io/fs"
 	"math"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -211,7 +208,8 @@ func (st *Site) render(w http.ResponseWriter, status int, page string, data map[
 	data["Base"] = st.base
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=60")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; "+
+		"script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.WriteHeader(status)
@@ -274,99 +272,6 @@ func (st *Site) handlePort(w http.ResponseWriter, r *http.Request) {
 
 func (st *Site) handleAbout(w http.ResponseWriter, r *http.Request) {
 	st.render(w, 200, "about", map[string]any{"Title": "About"})
-}
-
-// handleCover: a port's box art, fetched once from its cover_url and served from here (fast, and visitors' browsers
-// don't call third-party image hosts)
-func (st *Site) handleCover(w http.ResponseWriter, r *http.Request) {
-	repo := r.PathValue("owner") + "/" + r.PathValue("name")
-	var id int64
-	var url, game string
-	if err := st.s.db.QueryRow(`SELECT p.id, p.cover_url, COALESCE(json_extract(CASE WHEN p.igdb = '' THEN '{}' ELSE p.igdb END, '$.cover'), '')
-		FROM ports p WHERE p.repo = ? AND `+visible, repo).Scan(&id, &url, &game); err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	if url == "" {
-		// no box art of its own: the game's cover from IGDB (handhelds fetch their art here too)
-		if game == "" {
-			http.NotFound(w, r)
-			return
-		}
-		http.Redirect(w, r, "/igdb/t_cover_big/"+game+".jpg", http.StatusFound)
-		return
-	}
-	var ctype, have string
-	var data []byte
-	var fetched int64
-	err := st.s.db.QueryRow(`SELECT url, ctype, data, fetched FROM covers WHERE port_id = ?`, id).Scan(&have, &ctype, &data, &fetched)
-	stale := err != nil || have != url || (len(data) == 0 && now()-fetched > 3600)
-	if stale {
-		ctype, data = fetchImage(url)
-		_, _ = st.s.db.Exec(`INSERT INTO covers (port_id, url, ctype, data, fetched) VALUES (?, ?, ?, ?, ?)
-			ON CONFLICT(port_id) DO UPDATE SET url = excluded.url, ctype = excluded.ctype, data = excluded.data, fetched = excluded.fetched`,
-			id, url, ctype, data, now())
-	}
-	if len(data) == 0 {
-		http.NotFound(w, r)
-		return
-	}
-	w.Header().Set("Content-Type", ctype)
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_, _ = w.Write(data)
-}
-
-// imageClient: public internet only (a cover_url comes from a handheld: never this machine or its network)
-var imageClient = &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{
-	DialContext: (&net.Dialer{Timeout: 10 * time.Second, Control: func(network, address string, _ syscall.RawConn) error {
-		host, _, err := net.SplitHostPort(address)
-		if err != nil {
-			return err
-		}
-		ip := net.ParseIP(host)
-		if ip == nil || !publicIP(ip) {
-			return fmt.Errorf("not a public address: %s", host)
-		}
-		return nil
-	}}).DialContext,
-	TLSHandshakeTimeout: 10 * time.Second, MaxResponseHeaderBytes: 64 << 10,
-}}
-
-func publicIP(ip net.IP) bool {
-	return !(ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
-		ip.IsMulticast() || ip.IsUnspecified() || ip.IsInterfaceLocalMulticast() ||
-		(ip.To4() != nil && (ip.To4()[0] == 100 && ip.To4()[1]&0xc0 == 64 || ip.To4()[0] == 0)))
-}
-
-// fetchImage: an image of at most 6 MB (jpeg, png, webp, gif), or nothing
-func fetchImage(url string) (string, []byte) {
-	if !strings.HasPrefix(url, "https://") {
-		return "", nil
-	}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", nil
-	}
-	req.Header.Set("User-Agent", "slopetanium-community (box art)")
-	resp, err := imageClient.Do(req)
-	if err != nil {
-		logf("cover %s: %v", url, err)
-		return "", nil
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 6<<20+1))
-	if err != nil || resp.StatusCode != 200 || len(data) > 6<<20 {
-		logf("cover %s: HTTP %d, %d bytes", url, resp.StatusCode, len(data))
-		return "", nil
-	}
-	ct := http.DetectContentType(data)
-	switch ct {
-	case "image/jpeg", "image/png", "image/webp", "image/gif":
-		return ct, data
-	}
-	logf("cover %s: not an image (%s)", url, ct)
-	return "", nil
 }
 
 func (st *Site) static() http.Handler {

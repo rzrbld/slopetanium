@@ -8,6 +8,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -18,6 +19,9 @@ import (
 	"time"
 	"unicode"
 )
+
+// errBadQuery: IGDB refused this one query (that port is skipped; the others go on)
+var errBadQuery = fmt.Errorf("IGDB refused the query")
 
 type IGDB struct {
 	id, secret string
@@ -99,6 +103,9 @@ func (g *IGDB) query(endpoint, body string, out any) error {
 		g.mu.Lock()
 		g.token = ""
 		g.mu.Unlock()
+	}
+	if resp.StatusCode == 400 {
+		return errBadQuery
 	}
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("IGDB: HTTP %d", resp.StatusCode)
@@ -216,7 +223,7 @@ func (g *IGDB) match(names []string) (*rawGame, error) {
 		return &hits[0]
 	}
 	for i, n := range names {
-		q := strings.ReplaceAll(n, `"`, " ")
+		q := strings.NewReplacer(`"`, " ", `\`, " ").Replace(n)
 		if err := g.query("games", fmt.Sprintf(`search "%s"; %s limit 20;`, q, gameFields), &results[i]); err != nil {
 			return nil, err
 		}
@@ -407,6 +414,11 @@ func (g *IGDB) refreshDue(db *sql.DB) {
 			}
 			raw, err = g.match(gameNames(title, j.repo, cfg))
 		}
+		if errors.Is(err, errBadQuery) {
+			logf("igdb %s: %v", j.repo, err)
+			_, _ = db.Exec(`UPDATE ports SET igdb_at = ? WHERE id = ?`, now(), j.id) // a month on, again
+			continue
+		}
 		if err != nil {
 			logf("igdb %s: %v", j.repo, err)
 			return // offline or limited: later
@@ -448,39 +460,4 @@ func storeGame(db *sql.DB, portID int64, raw *rawGame) error {
 		}
 	}
 	return tx.Commit()
-}
-
-// ------------------------------------------------------------------ IGDB pictures, through this server
-
-var igdbImageID = regexp.MustCompile(`^[a-z0-9]{4,24}$`)
-var igdbSizes = map[string]bool{"t_cover_big": true, "t_screenshot_med": true, "t_screenshot_big": true, "t_720p": true}
-
-func (st *Site) handleIGDBImage(w http.ResponseWriter, r *http.Request) {
-	size, id := r.PathValue("size"), strings.TrimSuffix(r.PathValue("file"), ".jpg")
-	if !igdbSizes[size] || !igdbImageID.MatchString(id) {
-		http.NotFound(w, r)
-		return
-	}
-	// only pictures of listed ports' games
-	var n int
-	_ = st.s.db.QueryRow(`SELECT COUNT(*) FROM ports p WHERE `+visible+` AND p.igdb LIKE ?`, `%"`+id+`"%`).Scan(&n)
-	if n == 0 {
-		http.NotFound(w, r)
-		return
-	}
-	key := size + "/" + id
-	var ctype string
-	var data []byte
-	if err := st.s.db.QueryRow(`SELECT ctype, data FROM images WHERE key = ?`, key).Scan(&ctype, &data); err != nil || len(data) == 0 {
-		ctype, data = fetchImage("https://images.igdb.com/igdb/image/upload/" + size + "/" + id + ".jpg")
-		if len(data) == 0 {
-			http.NotFound(w, r)
-			return
-		}
-		_, _ = st.s.db.Exec(`INSERT OR REPLACE INTO images (key, ctype, data, fetched) VALUES (?, ?, ?, ?)`, key, ctype, data, now())
-	}
-	w.Header().Set("Content-Type", ctype)
-	w.Header().Set("Cache-Control", "public, max-age=604800")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_, _ = w.Write(data)
 }

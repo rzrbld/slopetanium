@@ -3,7 +3,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
+	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -231,8 +235,8 @@ func TestCommunity(t *testing.T) {
 }
 
 func TestCoverFetchStaysPublic(t *testing.T) {
-	for _, u := range []string{"https://127.0.0.1/x.png", "https://10.0.0.1/x.png", "https://[::1]/x.png", "https://169.254.169.254/latest", "http://example.com/x.png"} {
-		if ct, data := fetchImage(u); ct != "" || data != nil {
+	for _, u := range []string{"https://127.0.0.1/x.png", "https://10.0.0.1/x.png", "https://[::1]/x.png", "https://169.254.169.254/latest", "http://example.com/x.png", "https://example.com:8443/x.png", "https://[64:ff9b::7f00:1]/x.png"} {
+		if ct, data := fetchImage(u, 600, 900); ct != "" || data != nil {
 			t.Fatalf("fetched %s", u)
 		}
 	}
@@ -363,5 +367,90 @@ func TestIGDB(t *testing.T) {
 	_, pg = anon.do("GET", "/p/rzrbld/ReNFS5", nil)
 	if strings.Contains(pg["html"].(string), "About the game") {
 		t.Fatal("cleared game still shown")
+	}
+}
+
+func TestSecurityFixes(t *testing.T) {
+	gh := fakeGitHub(t)
+	defer gh.Close()
+	db, _ := openDB(filepath.Join(t.TempDir(), "c.db"))
+	_, h := newServer(db, []byte("salt-for-tests-salt-for-tests-xx"), &GitHub{base: gh.URL, client: gh.Client()}, "https://example.test")
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	count := func(q string) (n int) { db.QueryRow(q).Scan(&n); return }
+
+	// made-up ids cost nothing: reading writes no author rows
+	for i := 0; i < 20; i++ {
+		c := client{t, srv.URL, fmt.Sprintf("%064x", i+1)}
+		c.do("GET", "/v1/me", nil)
+		c.do("GET", "/v1/ports/rzrbld/ReNFS5", nil)
+	}
+	if n := count(`SELECT COUNT(*) FROM authors`); n != 0 {
+		t.Fatalf("%d author rows from reads", n)
+	}
+	a := client{t, srv.URL, strings.Repeat("a1", 32)}
+	b := client{t, srv.URL, strings.Repeat("b2", 32)}
+	// store links only to stores; GitHub down: nothing listed
+	a.do("POST", "/v1/ports", map[string]any{"repo": "rzrbld/ReNFS5", "config": map[string]any{"buy": []any{
+		map[string]any{"store": "GOG", "url": "https://www.gog.com/en/game/x"}, map[string]any{"store": "GOG", "url": "https://gog.com.evil.example/x"}}}})
+	_, d := a.do("GET", "/v1/ports/rzrbld/ReNFS5", nil)
+	if buy := d["config"].(map[string]any)["buy"].([]any); len(buy) != 1 {
+		t.Fatalf("buy links: %v", buy)
+	}
+	gh.Close()
+	if st, _ := a.do("POST", "/v1/ports", map[string]any{"repo": "someone/new"}); st != 503 {
+		t.Fatalf("share while GitHub is down: %d", st)
+	}
+	if n := count(`SELECT COUNT(*) FROM ports WHERE repo = 'someone/new'`); n != 0 {
+		t.Fatal("unconfirmed port stored")
+	}
+	// installs only of real releases
+	if _, j := a.do("POST", "/v1/pulls", map[string]any{"repo": "rzrbld/ReNFS5", "tag": "made-up"}); j["counted"] != false {
+		t.Fatal("made-up version counted")
+	}
+	if _, j := a.do("POST", "/v1/pulls", map[string]any{"repo": "rzrbld/ReNFS5", "tag": "v1"}); j["counted"] != true {
+		t.Fatal("real version not counted")
+	}
+	// names: no made-up look-alikes, no other scripts
+	for _, n := range []string{"Mint Otter 3f2a", "Ｒazblade", "rаzblade"} {
+		if st, _ := a.do("PUT", "/v1/me", map[string]any{"nick": n}); st != 400 {
+			t.Fatalf("nick %q: %d", n, st)
+		}
+	}
+	// a banned handheld's share doesn't keep a port listed
+	var author string
+	db.QueryRow(`SELECT author FROM shares`).Scan(&author)
+	admin(db, []string{"ban", author})
+	if _, j := b.do("GET", "/v1/ports", nil); len(j["ports"].([]any)) != 0 {
+		t.Fatal("listed by a banned handheld")
+	}
+	if st, _ := b.do("POST", "/v1/ports/rzrbld/ReNFS5/reviews", map[string]any{"rating": 5}); st != 404 {
+		t.Fatalf("review of an unlisted port: %d", st)
+	}
+}
+
+func TestShrink(t *testing.T) {
+	// a huge PNG header (decompression bomb) is refused before decoding
+	var bomb bytes.Buffer
+	png.Encode(&bomb, image.NewGray(image.Rect(0, 0, 1, 1)))
+	raw := bomb.Bytes()
+	binary.BigEndian.PutUint32(raw[16:], 60000) // IHDR width
+	binary.BigEndian.PutUint32(raw[20:], 60000) // IHDR height
+	if _, _, err := shrink(raw, 600, 900); err == nil {
+		t.Fatal("bomb decoded")
+	}
+	// a big picture comes back as a small JPEG within the box
+	var big bytes.Buffer
+	png.Encode(&big, image.NewRGBA(image.Rect(0, 0, 2400, 1800)))
+	ct, out, err := shrink(big.Bytes(), 600, 900)
+	if err != nil || ct != "image/jpeg" {
+		t.Fatal(err)
+	}
+	cfg, _, _ := image.DecodeConfig(bytes.NewReader(out))
+	if cfg.Width != 600 || cfg.Height != 450 {
+		t.Fatalf("%dx%d", cfg.Width, cfg.Height)
+	}
+	if _, _, err := shrink([]byte("<svg onload=alert(1)>"), 600, 900); err == nil {
+		t.Fatal("svg accepted")
 	}
 }

@@ -30,6 +30,7 @@ type ghInfo struct {
 	At        int64
 	Size      int64
 	Downloads int64
+	Tags      []string // every release with a zip, newest first
 }
 
 func (g *GitHub) get(path string, v any) error {
@@ -88,6 +89,9 @@ func (g *GitHub) Fetch(repo string) (*ghInfo, error) {
 		for _, a := range rel.Assets {
 			if strings.HasSuffix(strings.ToLower(a.Name), ".zip") {
 				info.Downloads += a.Downloads
+				if len(info.Tags) == 0 || info.Tags[len(info.Tags)-1] != rel.Tag {
+					info.Tags = append(info.Tags, rel.Tag)
+				}
 				if info.Tag == "" {
 					info.Tag, info.At, info.Size = rel.Tag, rel.Published.Unix(), a.Size
 				}
@@ -101,6 +105,10 @@ func (g *GitHub) Fetch(repo string) (*ghInfo, error) {
 }
 
 func (g *GitHub) store(db *sql.DB, id int64, info *ghInfo) error {
+	tags, _ := json.Marshal(info.Tags)
+	if _, err := db.Exec(`UPDATE ports SET release_tags = ? WHERE id = ?`, string(tags), id); err != nil {
+		return err
+	}
 	_, err := db.Exec(`UPDATE ports SET repo = ?, gh_desc = ?, gh_stars = ?, gh_downloads = ?, latest_tag = ?, latest_at = ?,
 		latest_size = ?, verified = 1, refreshed = ?, gh_error = '' WHERE id = ?`,
 		info.Repo, cleanText(info.Desc, 300, false), info.Stars, info.Downloads, info.Tag, info.At, info.Size, now(), id)
@@ -124,7 +132,7 @@ func (g *GitHub) refresher(db *sql.DB, every time.Duration) {
 func (g *GitHub) refreshDue(db *sql.DB, every time.Duration) {
 	rows, err := db.Query(`SELECT id, repo FROM ports WHERE hidden = 0 AND
 		((verified = 1 AND refreshed < ?) OR (verified = 0 AND refreshed < ?)) ORDER BY refreshed LIMIT 20`,
-		now()-int64(every.Seconds()), now()-1800)
+		now()-int64(every.Seconds()), now()-86400)
 	if err != nil {
 		logf("refresh: %v", err)
 		return

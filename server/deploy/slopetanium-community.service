@@ -10,6 +10,8 @@ EnvironmentFile=-/etc/slopetanium/community.env
 ExecStart=/opt/slopetanium/slopetanium-community serve -listen 127.0.0.1:8787 -db /var/lib/slopetanium/community.db -base https://slopetanium.pw
 Restart=always
 RestartSec=3
+Environment=GOMEMLIMIT=200MiB
+UMask=0077
 # nothing but its own data
 NoNewPrivileges=yes
 ProtectSystem=strict
@@ -24,6 +26,20 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 RestrictNamespaces=yes
 LockPersonality=yes
 MemoryMax=300M
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+PrivateUsers=yes
+RemoveIPC=yes
 
 [Install]
 WantedBy=multi-user.target

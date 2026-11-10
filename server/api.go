@@ -21,14 +21,17 @@ import (
 )
 
 type Server struct {
-	db     *sql.DB
-	salt   []byte
-	gh     *GitHub
-	igdb   *IGDB    // nil without credentials
-	writes *limiter // per IP address (kept in memory only, never written down)
-	byAuth *limiter // per author
-	pulls  *limiter
-	site   *Site
+	db       *sql.DB
+	salt     []byte
+	gh       *GitHub
+	igdb     *IGDB    // nil without credentials
+	writes   *limiter // per IP address (kept in memory only, never written down)
+	calls    *limiter // any call carrying a device id, per network
+	reviews  *limiter // reviews a day, per network
+	newPorts *limiter // ports new to the community a day, per network
+	byAuth   *limiter // per author
+	pulls    *limiter
+	site     *Site
 }
 
 // ------------------------------------------------------------------ helpers
@@ -73,20 +76,33 @@ func readBody(r *http.Request, v any) error {
 	return nil
 }
 
-// clientIP: behind Caddy (the server listens on localhost only), Caddy's X-Forwarded-For is the client
+// clientIP: who is asking, for rate limits only (never stored). Behind Caddy (the server listens on localhost
+// only) it's the X-Real-IP Caddy sets from the connection. An IPv6 address counts by its /64: one network, one key.
 func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
+	h := strings.TrimSpace(r.Header.Get("X-Real-IP"))
+	if h == "" {
+		h, _, _ = net.SplitHostPort(r.RemoteAddr)
 	}
-	h, _, _ := net.SplitHostPort(r.RemoteAddr)
-	return h
+	ip := net.ParseIP(h)
+	if ip == nil {
+		return h
+	}
+	if ip.To4() == nil {
+		return ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
+	}
+	return ip.String()
 }
 
 var secretRe = regexp.MustCompile(`^[0-9a-f]{32,128}$`)
 
 // author: who is writing, from the handheld's random secret. Only a keyed hash of it is kept, so the secret can't be
 // recovered from the database, and nobody without the salt can link a review to a handheld.
+// Nothing is written here: a handheld gets a row only when it shares, reviews, names itself or counts an install
+// (after that call's rate limit), so made-up ids cost the server nothing.
 func (s *Server) author(r *http.Request) (string, error) {
+	if !s.calls.allow(clientIP(r)) {
+		return "", fail(429, "Too many requests; try again in a minute")
+	}
 	sec := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Slop-Device")))
 	if !secretRe.MatchString(sec) {
 		return "", fail(401, "Slopetanium sends a device id with this call")
@@ -94,13 +110,9 @@ func (s *Server) author(r *http.Request) (string, error) {
 	m := hmac.New(sha256.New, s.salt)
 	m.Write([]byte(sec))
 	id := hex.EncodeToString(m.Sum(nil))[:24]
-	t := now()
-	if _, err := s.db.Exec(`INSERT INTO authors (id, created, last_seen) VALUES (?, ?, ?)
-		ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen`, id, t, t); err != nil {
-		return "", err
-	}
 	var banned int
-	if err := s.db.QueryRow(`SELECT banned FROM authors WHERE id = ?`, id).Scan(&banned); err != nil {
+	err := s.db.QueryRow(`SELECT banned FROM authors WHERE id = ?`, id).Scan(&banned)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
 	if banned != 0 {
@@ -109,11 +121,24 @@ func (s *Server) author(r *http.Request) (string, error) {
 	return id, nil
 }
 
-func (s *Server) limitWrite(r *http.Request, author string) error {
+// touch: the author's row, when it writes something
+func (s *Server) touch(author string) error {
+	t := now()
+	_, err := s.db.Exec(`INSERT INTO authors (id, created, last_seen) VALUES (?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen`, author, t, t)
+	return err
+}
+
+func (s *Server) limitWrite(r *http.Request, author string, extra ...*limiter) error {
 	if !s.writes.allow(clientIP(r)) || !s.byAuth.allow(author) {
 		return fail(429, "Too many changes at once; try again in a few minutes")
 	}
-	return nil
+	for _, l := range extra {
+		if !l.allow(clientIP(r)) {
+			return fail(429, "That's a lot for one day; try again tomorrow")
+		}
+	}
+	return s.touch(author)
 }
 
 // cleanText: printable text, trimmed, at most n characters (newlines kept when multiline)
@@ -222,7 +247,7 @@ func cleanConfig(in map[string]any) map[string]any {
 			if m, ok := x.(map[string]any); ok && len(buy) < 4 {
 				store, _ := m["store"].(string)
 				u, _ := m["url"].(string)
-				if u = httpsURL(u); u != "" && cleanText(store, 40, false) != "" {
+				if u = httpsURL(u); u != "" && storeHost(u) && cleanText(store, 40, false) != "" {
 					buy = append(buy, map[string]string{"store": cleanText(store, 40, false), "url": u})
 				}
 			}
@@ -245,9 +270,28 @@ func cleanConfig(in map[string]any) map[string]any {
 	return out
 }
 
+// stores a "Buy on" link may point to (a sharer could otherwise send people anywhere)
+var storeHosts = []string{"gog.com", "store.steampowered.com", "steampowered.com", "humblebundle.com", "itch.io",
+	"zoom-platform.com", "store.epicgames.com", "ea.com", "ubisoft.com", "amazon.com", "fanatical.com", "greenmangaming.com"}
+
+func storeHost(u string) bool {
+	pu, err := url.Parse(u)
+	if err != nil {
+		return false
+	}
+	h := strings.ToLower(pu.Hostname())
+	for _, s := range storeHosts {
+		if h == s || strings.HasSuffix(h, "."+s) {
+			return true
+		}
+	}
+	return false
+}
+
+// portID: a listed port (reviews and installs are for those only)
 func portID(db *sql.DB, repo string) (int64, error) {
 	var id int64
-	err := db.QueryRow(`SELECT id FROM ports WHERE repo = ?`, repo).Scan(&id)
+	err := db.QueryRow(`SELECT id FROM ports p WHERE p.repo = ? AND `+visible, repo).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, fail(404, "Not a community port")
 	}
@@ -370,6 +414,9 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request) error {
 	err = s.db.QueryRow(`SELECT id, verified FROM ports WHERE repo = ?`, repo).Scan(&id, &verified)
 	if errors.Is(err, sql.ErrNoRows) {
 		// new to the community: GitHub must know it, with a release zip
+		if !s.newPorts.allow(clientIP(r)) {
+			return fail(429, "That's a lot of new ports for one day; try again tomorrow")
+		}
 		info, gerr := s.gh.Fetch(repo)
 		if gerr != nil && errors.Is(gerr, errNotFound) {
 			return fail(400, "GitHub has no such public repo: "+repo)
@@ -377,26 +424,30 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request) error {
 		if gerr != nil && errors.Is(gerr, errNoZip) {
 			return fail(400, repo+" has no release with a port .zip yet")
 		}
+		if gerr != nil {
+			// nothing is listed that GitHub hasn't confirmed
+			return fail(503, "GitHub can't be asked right now; try sharing again later")
+		}
 		cfg, _ := json.Marshal(cleanConfig(in.Config))
-		t := now()
-		res, err := s.db.Exec(`INSERT INTO ports (repo, title, description, cover_url, config, created) VALUES (?, ?, ?, ?, ?, ?)`,
-			repo, cleanText(in.Title, 80, false), cleanText(in.Description, 600, true), httpsURL(in.CoverURL), string(cfg), t)
+		res, err := s.db.Exec(`INSERT INTO ports (repo, title, description, cover_url, config, created) VALUES (?, ?, ?, ?, ?, ?)
+			ON CONFLICT(repo) DO NOTHING`,
+			info.Repo, cleanText(in.Title, 80, false), cleanText(in.Description, 600, true), httpsURL(in.CoverURL), string(cfg), now())
 		if err != nil {
 			return err
 		}
-		id, _ = res.LastInsertId()
-		if gerr == nil {
+		if n, _ := res.RowsAffected(); n == 0 { // shared by someone else a moment ago
+			if err := s.db.QueryRow(`SELECT id FROM ports WHERE repo = ?`, info.Repo).Scan(&id); err != nil {
+				return err
+			}
+		} else {
+			id, _ = res.LastInsertId()
 			if err := s.gh.store(s.db, id, info); err != nil {
 				return err
 			}
-			_ = s.db.QueryRow(`SELECT repo FROM ports WHERE id = ?`, id).Scan(&repo) // GitHub's spelling
-			verified = 1
-		} else {
-			// GitHub busy or rate limited: shown once the refresher has checked it
-			_, _ = s.db.Exec(`UPDATE ports SET gh_error = ? WHERE id = ?`, gerr.Error(), id)
+			logf("shared %s (new)", info.Repo)
+			s.igdb.poke()
 		}
-		logf("shared %s (new)", repo)
-		s.igdb.poke()
+		_ = s.db.QueryRow(`SELECT repo, verified FROM ports WHERE id = ?`, id).Scan(&repo, &verified) // GitHub's spelling
 	} else if err != nil {
 		return err
 	} else {
@@ -428,9 +479,10 @@ func (s *Server) handleUnshare(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	id, err := portID(s.db, r.PathValue("owner")+"/"+r.PathValue("name"))
-	if err != nil {
-		return err
+	var id int64
+	if err := s.db.QueryRow(`SELECT id FROM ports WHERE repo = ?`, r.PathValue("owner")+"/"+r.PathValue("name")).Scan(&id); err != nil {
+		writeJSON(w, 200, map[string]any{"shared": false})
+		return nil
 	}
 	if _, err := s.db.Exec(`DELETE FROM shares WHERE port_id = ? AND author = ?`, id, author); err != nil {
 		return err
@@ -445,11 +497,14 @@ func (s *Server) handleReview(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if err := s.limitWrite(r, author); err != nil {
-		return err
-	}
 	repo := r.PathValue("owner") + "/" + r.PathValue("name")
 	id, err := portID(s.db, repo)
+	if err != nil {
+		return err
+	}
+	if err := s.limitWrite(r, author, s.reviews); err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -485,9 +540,10 @@ func (s *Server) handleUnreview(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	id, err := portID(s.db, r.PathValue("owner")+"/"+r.PathValue("name"))
-	if err != nil {
-		return err
+	var id int64
+	if err := s.db.QueryRow(`SELECT id FROM ports WHERE repo = ?`, r.PathValue("owner")+"/"+r.PathValue("name")).Scan(&id); err != nil {
+		writeJSON(w, 200, map[string]any{"ok": true})
+		return nil
 	}
 	if _, err := s.db.Exec(`DELETE FROM reviews WHERE port_id = ? AND author = ?`, id, author); err != nil {
 		return err
@@ -515,6 +571,12 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) error {
 		nick := cleanText(in.Nick, 24, false)
 		if nick != "" && utf8.RuneCountInString(nick) < 2 {
 			return fail(400, "A name has at least 2 characters")
+		}
+		if nick != "" && !nickRe.MatchString(nick) {
+			return fail(400, "A name uses letters A-Z, digits, spaces, dots, dashes and underscores")
+		}
+		if madeUpNick(nick) {
+			return fail(400, "That looks like one of the made-up names; pick your own")
 		}
 		var taken int
 		_ = s.db.QueryRow(`SELECT COUNT(*) FROM authors WHERE nick = ? COLLATE NOCASE AND id != ?`, nick, author).Scan(&taken)
@@ -558,12 +620,12 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) error {
 // POST /v1/pulls {repo, tag, device, cfw}: an install, from handhelds whose owner said yes. Counted once per handheld
 // and version, for community ports only; nothing about where it came from is kept.
 func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) error {
+	if !s.pulls.allow(clientIP(r)) {
+		return fail(429, "Too many")
+	}
 	author, err := s.author(r)
 	if err != nil {
 		return err
-	}
-	if !s.pulls.allow(clientIP(r)) {
-		return fail(429, "Too many")
 	}
 	var in struct {
 		Repo   string `json:"repo"`
@@ -579,13 +641,29 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	var id int64
-	if err := s.db.QueryRow(`SELECT id FROM ports p WHERE p.repo = ? AND `+visible, repo).Scan(&id); err != nil {
+	var tags string
+	if err := s.db.QueryRow(`SELECT id, release_tags FROM ports p WHERE p.repo = ? AND `+visible, repo).Scan(&id, &tags); err != nil {
 		writeJSON(w, 200, map[string]any{"counted": false})
 		return nil
 	}
 	tag := cleanText(in.Tag, 80, false)
 	if tag == "" {
 		return fail(400, "Which version?")
+	}
+	known := []string{}
+	_ = json.Unmarshal([]byte(tags), &known)
+	found := false
+	for _, k := range known {
+		if k == tag {
+			found = true
+		}
+	}
+	if !found { // not a release of this port (that GitHub listed lately)
+		writeJSON(w, 200, map[string]any{"counted": false})
+		return nil
+	}
+	if err := s.touch(author); err != nil {
+		return err
 	}
 	_, err = s.db.Exec(`INSERT OR IGNORE INTO pulls (port_id, tag, author, device, cfw, day) VALUES (?, ?, ?, ?, ?, ?)`,
 		id, tag, author, cleanText(in.Device, 40, false), cleanText(in.CFW, 40, false), now()/86400)
@@ -594,6 +672,28 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) error {
 	}
 	writeJSON(w, 200, map[string]any{"counted": true})
 	return nil
+}
+
+var nickRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ._-]*$`)
+
+// madeUpNick: shaped like the names handhelds get without one ("Mint Otter 3f2a")
+func madeUpNick(n string) bool {
+	f := strings.Fields(strings.ToLower(n))
+	if len(f) != 3 || len(f[2]) != 4 {
+		return false
+	}
+	if _, err := strconv.ParseUint(f[2], 16, 16); err != nil {
+		return false
+	}
+	in := func(list []string, w string) bool {
+		for _, x := range list {
+			if strings.ToLower(x) == w {
+				return true
+			}
+		}
+		return false
+	}
+	return in(nickA, f[0]) && in(nickB, f[1])
 }
 
 func firstNonEmpty(v ...string) string {
