@@ -196,6 +196,7 @@ namespace banana
 			return t;
 		}
 		t->px.resize(n);
+		t->uniform = true;
 		bool opaque = true;
 		const uint8_t* s = b.px.data();
 		for (size_t i = 0; i < n; i++, s += 4)
@@ -204,6 +205,7 @@ namespace banana
 			if (a != 255) opaque = false;
 			auto m = [a](uint32_t v) { uint32_t x = v * a + 128; return (x + (x >> 8)) >> 8; };
 			t->px[i] = (a << 24) | (m(s[0]) << 16) | (m(s[1]) << 8) | m(s[2]);
+			if (i && t->px[i] != t->px[0]) t->uniform = false;
 		}
 		t->opaque = opaque;
 		encodeRuns(*t);
@@ -368,7 +370,46 @@ namespace banana
 		auto t0 = std::chrono::steady_clock::now();
 		struct Timed { std::chrono::steady_clock::time_point t0; double& ms; ~Timed() { ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count(); } } timed{ t0, composeMs };
 		frameNo++;
-		if (overlay) overlay(cur);
+		if (overlay)
+		{
+			if (!underlay) underlay.reset(new SoftBackend(widths[1], H, widths[0]));
+			underlay->beginScreen(cur);
+			underlay->rec[cur].swap(rec[cur]);
+			underlay->endScreen();
+			Damage changed = underlay->takeDamage(cur);
+			if (!changed.empty()) underlayTex[cur].reset();
+			rec[cur].clear();
+			overlay(cur);
+			if (rec[cur].empty())
+			{
+				// With no overlay, copy only engine damage. Closing a modal
+				// restores its retained background without replaying the shelf.
+				if (hadOverlay[cur] || full[cur]) changed = { 0, 0, W, H };
+				for (int y = changed.y0; y < changed.y1; y++)
+					std::copy(underlay->scr[cur].data() + (size_t)y * W + changed.x0,
+					          underlay->scr[cur].data() + (size_t)y * W + changed.x1,
+					          scr[cur].data() + (size_t)y * W + changed.x0);
+				dmg[cur].add(changed);
+				hadOverlay[cur] = false; full[cur] = false;
+				last[cur].clear(); dropBase(cur);
+				return;
+			}
+			if (!underlayTex[cur])
+			{
+				auto t = std::make_shared<SoftTex>();
+				t->w = W; t->h = H; t->px = underlay->scr[cur];
+				// Composition starts from opaque black: these pixels are
+				// already premultiplied, with one solid run per row.
+				t->opaque = true; t->ix1 = W; t->iy1 = H;
+				t->runs.assign(H, (SoftTex::SOLID << 30) | (uint32_t)W);
+				t->rowAt.resize(H + 1);
+				for (int y = 0; y <= H; y++) t->rowAt[y] = y;
+				underlayTex[cur] = t;
+			}
+			rec[cur].insert(rec[cur].begin(), { Cmd::DRAW, underlayTex[cur], 0, 0,
+			                                  (float)W, (float)H, { 1, 1, 1, 1 } });
+			hadOverlay[cur] = true;
+		}
 		resolve();
 		std::vector<Item>& old = last[cur];
 		if (!full[cur]) updateBase(old);
@@ -451,7 +492,11 @@ namespace banana
 		int x0 = std::max(cl.x0, edge(x)), y0 = std::max(cl.y0, edge(y));
 		int x1 = std::min(cl.x1, edge(x + w)), y1 = std::min(cl.y1, edge(y + h));
 		if (x0 >= x1 || y0 >= y1) return;
-		uint32_t p = premul(c);
+		solidRect(x0, y0, x1, y1, premul(c));
+	}
+
+	void SoftBackend::solidRect(int x0, int y0, int x1, int y1, uint32_t p)
+	{
 		for (int yy = y0; yy < y1; yy++)
 		{
 			uint32_t* d = &tgt[(size_t)yy * W];
@@ -461,7 +506,10 @@ namespace banana
 			{
 				// the same colour over each pixel: the source's share is a constant
 				uint32_t k = 255 - (p >> 24);
-				for (int xx = x0; xx < x1; xx++) d[xx] = p + mul255(d[xx], k);
+				int xx = x0;
+				V8 colour = (V8)(uint32_t __attribute__((vector_size(16)))){ p, p, p, p };
+				for (; xx + 4 <= x1; xx += 4) store4(d + xx, over4(colour, load4(d + xx)));
+				for (; xx < x1; xx++) d[xx] = p + mul255(d[xx], k);
 			}
 		}
 	}
@@ -633,6 +681,13 @@ namespace banana
 		auto q = [](float v) { return (uint32_t)std::lround(std::min(1.0f, std::max(0.0f, v)) * 255); };
 		uint32_t tr = q(tint.r), tg = q(tint.g), tb = q(tint.b), ta = q(tint.a);
 		uint32_t tintWord = premul(tint);	// what an alpha texture's coverage scales
+		// Nine-slice panel centres are tiny constant-colour images stretched
+		// over most of the screen. Sampling them per pixel under a lock is
+		// unnecessary: a solid fill has exactly the same premultiplied result.
+		if (t->uniform && !t->px.empty()) {
+			solidRect(x0, y0, x1, y1, tinted(t->px[0], tr, tg, tb, ta));
+			return;
+		}
 		if (exact) { blitRuns(t, bx0, by0, x0, y0, x1, y1, tr, tg, tb, ta, tintWord); return; }
 		std::lock_guard<std::mutex> scaledHeld(scaledLock);
 
