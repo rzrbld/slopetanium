@@ -86,11 +86,11 @@ def main():
     core = core_mod.Core(args.root, args.controlfolder, ports_dir=args.ports_dir,
                          harbourmaster=args.harbourmaster, apps_dir=args.apps_dir, app_shortcuts_dir=args.app_shortcuts_dir)
     port = args.port or core.settings().get("web_port", 8686)
-    webc = WebControl(core, web, core_mod, os.path.join(args.root, "web"), port)
+    webc = WebControl(core, web, core_mod, os.path.join(os.path.dirname(HERE), "web"), port)
     core.webc = webc
 
     if args.serve:
-        local = web.start(core, os.path.join(args.root, "web"), 0, host="127.0.0.1")
+        local = web.start(core, os.path.join(os.path.dirname(HERE), "web"), 0, host="127.0.0.1")
         pf = os.path.join(core.conf_dir, "core.port")
         with open(pf + ".tmp", "w") as fh:
             fh.write("%d\n" % local.server_address[1])

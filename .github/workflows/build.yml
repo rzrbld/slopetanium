@@ -21,6 +21,7 @@ jobs:
           python3 -m py_compile port/slopetanium/app/*.py
           python3 tests/test_core.py
           python3 tests/test_apps.py
+          python3 tests/test_native_self.py
 
       - name: Core stays Python 3.7 compatible
         run: |

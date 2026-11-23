@@ -282,3 +282,9 @@ MIT, see [LICENSE](LICENSE).
   - Pixelify Sans in ROCKNIXDS's build: SIL Open Font License 1.1
     (`port/slopetanium/assets/fonts/OFL.txt`).
 - **Not used:** no BananaOS artwork, such as the banana mark or the console icons.
+
+### Writable OS home-menu installation
+
+An OS may seed the original release ZIP on its data partition and launch its native UI directly, keeping Slopetanium outside Ports. Set `SLOP_SELF_APPS_DIR` and `SLOP_SELF_SHORTCUTS_DIR` to the managed package root and a private launcher directory, then pass the installed package folder as `--root`. Its ordinary upstream release ZIPs update atomically through the app backend, including rollback, without Harbourmaster or a duplicate Ports shortcut. `SLOP_CONF_DIR` keeps settings, downloads and backups outside the replaced code tree. Firmware updates should seed only a missing installation and preserve existing app updates.
+
+`SLOP_TOP_ROTATION=90|180|270` describes the top panel's physical mounting; the OS supplies it. Logical layout and touch coordinates remain upright. This support ships in upstream UI binaries so independent updates preserve the display profile.
