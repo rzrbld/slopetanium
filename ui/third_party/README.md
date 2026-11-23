@@ -16,3 +16,5 @@ The look is Slopetanium's own theme over the engine: palette, accent, background
 No BananaOS artwork (the banana mark, the console icons) is used.
 
 Unequal-panel support: the software compositor now includes the independent screen strides, damage bounds and active-panel geometry from `rzrbld/bananaos_duo` commit `dfaf28ba85a0fa68e29498eb0a26a25eb852875d` (the same MIT-licensed BananaLinux engine). `rnds/RndsUI.*` additionally uses per-panel widths for the sheet, cover/details columns, shelf, face buttons and matching touch regions. Slopetanium's existing host hooks, palette and artwork remain its own.
+
+The compositor retains Slopetanium’s GCC 10/11 `__builtin_shuffle` fallback; the release toolchain deliberately stays on Debian 11 for its older glibc baseline.

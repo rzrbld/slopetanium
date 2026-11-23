@@ -35,7 +35,14 @@ namespace banana
 	static inline V16 div255(V16 t) { t += 128; return (t + (t >> 8)) >> 8; }
 	static inline V8 load4(const uint32_t* p) { V8 v; memcpy(&v, p, 16); return v; }
 	static inline void store4(uint32_t* p, V8 v) { memcpy(p, &v, 16); }
+	// (Slopetanium: GCC before 12 has no __builtin_shufflevector; __builtin_shuffle is the same with a mask vector)
+#if defined(__clang__) || __GNUC__ >= 12
 	static inline V8 alphas(V8 v) { return __builtin_shufflevector(v, v, 3, 3, 3, 3, 7, 7, 7, 7, 11, 11, 11, 11, 15, 15, 15, 15); }
+	static inline V8 spread4(V8 v) { return __builtin_shufflevector(v, v, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3); }
+#else
+	static inline V8 alphas(V8 v) { return __builtin_shuffle(v, (V8){ 3, 3, 3, 3, 7, 7, 7, 7, 11, 11, 11, 11, 15, 15, 15, 15 }); }
+	static inline V8 spread4(V8 v) { return __builtin_shuffle(v, (V8){ 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 }); }
+#endif
 	// source-over of premultiplied words, s + d * (255 - s's alpha) (as over(): its two shortcuts give the same)
 	static inline V8 over4(V8 s, V8 d) { return s + narrow(div255(wide(d) * wide((V8)(255 - alphas(s))))); }
 
@@ -57,7 +64,7 @@ namespace banana
 		{
 			uint32_t c4; memcpy(&c4, c + i, 4);
 			V8 cv = (V8)(uint32_t __attribute__((vector_size(16)))){ c4, c4, c4, c4 };
-			cv = __builtin_shufflevector(cv, cv, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3);
+			cv = spread4(cv);
 			V8 sv = narrow(div255(colw * wide(cv)));
 			store4(d + i, over4(sv, load4(d + i)));
 		}
