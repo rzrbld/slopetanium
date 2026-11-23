@@ -41,6 +41,7 @@ class NativeSelfUpdate(unittest.TestCase):
                     with zipfile.ZipFile(legacy,'w') as z: z.writestr('Slopetanium.sh','old release')
                     with self.assertRaises(RuntimeError): c._check_zip(str(legacy),{'repo':'rzrbld/slopetanium'})
                     r=c.add_repo({'repo':'rzrbld/slopetanium'}); wait(c)
+                    self.assertTrue(c.has_update(r), 'A seeded app must detect new releases before its first self-update')
                     with mock.patch.object(c,'_make_room_for_self_update') as rename, mock.patch.object(c,'_refuse_if_running') as running:
                         job=c.queue_install(r['id'],'v2',force=True); wait(c); self.assertEqual(job.state,'done',job.message)
                         rename.assert_not_called(); running.assert_not_called()

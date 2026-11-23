@@ -1151,7 +1151,7 @@ class Core(object):
 
     def has_update(self, r):
         latest = self.latest_release(r)
-        if not latest or not r.get("port_name"):
+        if not latest:
             return False
         if self.port_dir(r) is None:
             return False  # not installed: an install, not an update
