@@ -414,7 +414,10 @@ class Core(object):
         apps_dir = apps_dir or os.environ.get("SLOP_APPS_DIR") or ("/data/store/apps" if banana else os.path.join(self.ports_dir, ".slopetanium-apps"))
         app_shortcuts_dir = app_shortcuts_dir or os.environ.get("SLOP_APP_SHORTCUTS_DIR") or ("/data/store/tiles" if banana else self.ports_dir)
         self.apps = apps_mod.Apps(apps_dir, app_shortcuts_dir)
-        self.conf_dir = os.path.join(self.root, "conf")
+        # OS home-menu installations update themselves without appearing in Ports.
+        self.self_apps = apps_mod.Apps(os.environ["SLOP_SELF_APPS_DIR"], os.environ["SLOP_SELF_SHORTCUTS_DIR"]) if os.environ.get("SLOP_SELF_APPS_DIR") and os.environ.get("SLOP_SELF_SHORTCUTS_DIR") else None
+        self.code_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.conf_dir = os.path.abspath(os.environ.get("SLOP_CONF_DIR") or os.path.join(self.root, "conf"))
         self.cache_dir = os.path.join(self.conf_dir, "cache")
         self.backup_dir = os.path.join(self.conf_dir, "backups")
         self.state_file = os.path.join(self.conf_dir, "state.json")
@@ -905,6 +908,11 @@ class Core(object):
         self.log("%s: latest %s%s" % (r["repo"], latest["tag"] if latest else "-",
                                        " (no change)" if data is None else ""))
 
+    def _app_installer(self, r):
+        if self.self_apps is not None and r.get("repo", "").lower() == "rzrbld/slopetanium":
+            return self.self_apps
+        return self.apps
+
     # ---------------------------------------------------------------- installed ports
     def installed_ports(self):
         """port.json files as harbourmaster wrote them, keyed by name."""
@@ -933,7 +941,7 @@ class Core(object):
     def _installed_info(self, r, installed):
         """The entry's installed port: by the name PortMaster recorded, else a folder named like the release zip
         (a port copied in by hand has no port.json; its version is unknown until it is installed once)."""
-        app = self.apps.info(r["repo"])
+        app = self._app_installer(r).info(r["repo"])
         if app or r.get("installed_package_type") == "app":
             return app
         names = [n for n in [r.get("port_name") or ""] + list(r.get("aliases") or []) if n]
@@ -1143,7 +1151,7 @@ class Core(object):
 
     def has_update(self, r):
         latest = self.latest_release(r)
-        if not latest or not r.get("port_name"):
+        if not latest:
             return False
         if self.port_dir(r) is None:
             return False  # not installed: an install, not an update
@@ -1208,7 +1216,8 @@ class Core(object):
         with zipfile.ZipFile(zip_path) as zf:
             unpacked = sum(i.file_size for i in zf.infolist())
             biggest = max([i.file_size for i in zf.infolist()] or [0])
-        install_dir = self.apps.root if package_type == "app" else self.ports_dir
+        installer = self._app_installer(r)
+        install_dir = installer.root if package_type == "app" else self.ports_dir
         os.makedirs(install_dir, exist_ok=True)
         check_fits(install_dir, biggest, "A file in this release")
         free = free_space(install_dir)
@@ -1222,14 +1231,17 @@ class Core(object):
             except Exception as e:
                 self.log("%s: saves not backed up before installing (%s)" % (r["repo"], e))
         if pdir and os.path.realpath(pdir) == os.path.realpath(self.root):
-            self._make_room_for_self_update()
+            # Native app updates atomically exchange whole directories; no running
+            # binary is overwritten. PortMaster's in-place layout still needs this.
+            if package_type != "app":
+                self._make_room_for_self_update()
         else:
             self._refuse_if_running(r)
         job.message = "Installing app" if package_type == "app" else "Installing with PortMaster"
         self.changed += 1
         self.log("%s: installing %s" % (r["repo"], tag))
         if package_type == "app":
-            info = self.apps.install(r["repo"], tag, zip_path, r.get("app_entry", ""), check_fits)
+            info = installer.install(r["repo"], tag, zip_path, r.get("app_entry", ""), check_fits)
             roots = {""} | set(n.split("/", 1)[0] for n in info["_app"]["files"] if "/" in n)
             keep = set(r.get("keep_on_uninstall") or [])
             keep.update(n for n in info["_app"]["files"] if n.lower().endswith((".cfg", ".ini", ".conf")))
@@ -1285,6 +1297,15 @@ class Core(object):
         if bad:
             raise RuntimeError("Corrupt file in zip: %s" % bad)
         requested = (repo or {}).get("package_type", "auto")
+        if self.self_apps is not None and (repo or {}).get("repo", "").lower() == "rzrbld/slopetanium":
+            with zipfile.ZipFile(path) as native:
+                try:
+                    manifest = json.loads(native.read("slopetanium/app/native-app.json").decode("utf-8"))
+                except (KeyError, ValueError):
+                    raise RuntimeError("This Slopetanium release predates native OS app support; choose a newer release")
+                if manifest.get("schema") != 1:
+                    raise RuntimeError("Unsupported Slopetanium native app package")
+            requested = "app"
         portmaster = requested == "portmaster" or (requested == "auto" and any(n.endswith("port.json") for n in names))
         if portmaster:
             if not any(n.endswith("port.json") for n in names) and not any(n.lower().endswith(".sh") and "/" not in n for n in names):
@@ -1371,7 +1392,7 @@ class Core(object):
         if not pdir:
             raise RuntimeError("%s is not installed" % r["repo"])
         if os.path.abspath(pdir) == self.root:
-            raise RuntimeError("Slopetanium can't uninstall itself; use PortMaster")
+            raise RuntimeError("Slopetanium can't uninstall itself while running")
         if backup:
             stamp = time.strftime("%Y%m%d-%H%M%S")
             for keep in r.get("keep_on_uninstall", []):
@@ -1386,9 +1407,9 @@ class Core(object):
                         shutil.copy2(src, dst)
                     self.log("%s: backed up %s to %s" % (r["repo"], keep, dst))
         self._refuse_if_running(r)
-        if self.apps.info(r["repo"]):
+        if self._app_installer(r).info(r["repo"]):
             job.message = "Uninstalling app"
-            self.apps.uninstall(r["repo"])
+            self._app_installer(r).uninstall(r["repo"])
         else:
             job.message = "Uninstalling with PortMaster"
             rc, out = self.run_harbourmaster(["uninstall", r["port_name"]], job)
@@ -1740,7 +1761,7 @@ class Core(object):
         if p and os.path.isfile(p):
             return p
         if info and os.path.realpath(info["_dir"]) == os.path.realpath(self.root):
-            own = os.path.join(self.root, "assets", "icons", "slopetanium-cover.png")
+            own = os.path.join(self.code_root, "assets", "icons", "slopetanium-cover.png")
             if os.path.isfile(own):
                 return own
         return None

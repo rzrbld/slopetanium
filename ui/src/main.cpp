@@ -1205,6 +1205,7 @@ struct Window
 	SDL_Renderer* ren = nullptr;
 	SDL_Texture* tex = nullptr;
 	int W = 0, H = 0;
+	int rotation = 0;
 	int screen = 0;			// which composed screen it shows
 	int shown = -1;			// the screen its texture holds now (another one: a full upload)
 	SDL_Rect dst{};
@@ -1222,6 +1223,9 @@ static bool openWindow(Window& w, int display, int bw, int bh, bool windowed)
 	if (!w.ren) w.ren = SDL_CreateRenderer(w.win, -1, SDL_RENDERER_SOFTWARE);
 	if (!w.ren) { logf("renderer: %s", SDL_GetError()); return false; }
 	SDL_GetRendererOutputSize(w.ren, &w.W, &w.H);
+	if (display == 0 && getenv("SLOP_TOP_ROTATION")) w.rotation = atoi(getenv("SLOP_TOP_ROTATION"));
+	if (w.rotation != 90 && w.rotation != 180 && w.rotation != 270) w.rotation = 0;
+	if (w.rotation == 90 || w.rotation == 270) std::swap(w.W, w.H);
 	w.tex = SDL_CreateTexture(w.ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, bw, bh);
 	if (!w.tex) { logf("texture: %s", SDL_GetError()); return false; }
 	float fit = std::min(w.W / (float)bw, w.H / (float)bh);
@@ -1246,7 +1250,12 @@ static bool present(Window& w, banana::SoftBackend& be, const banana::Damage& dm
 	SDL_UpdateTexture(w.tex, &r, px, bw * 4);
 	SDL_SetRenderDrawColor(w.ren, (theme::screenBg >> 16) & 255, (theme::screenBg >> 8) & 255, theme::screenBg & 255, 255);
 	SDL_RenderClear(w.ren);
-	SDL_RenderCopy(w.ren, w.tex, nullptr, &w.dst);
+	if (w.rotation) {
+		// dst is in logical upright coordinates; rotate around the physical output's centre.
+		SDL_Rect dst = w.dst;
+		if (w.rotation == 90 || w.rotation == 270) { dst.x=(w.H-dst.w)/2; dst.y=(w.W-dst.h)/2; }
+		SDL_RenderCopyEx(w.ren, w.tex, nullptr, &dst, w.rotation, nullptr, SDL_FLIP_NONE);
+	} else SDL_RenderCopy(w.ren, w.tex, nullptr, &w.dst);
 	SDL_RenderPresent(w.ren);
 	return true;
 }
@@ -1338,6 +1347,8 @@ int main(int argc, char** argv)
 	// its own physical output without stretching either screen's content.
 	if (!headless) {
 		SDL_GetDisplayBounds(0,&topBounds);
+		int rotation = getenv("SLOP_TOP_ROTATION") ? atoi(getenv("SLOP_TOP_ROTATION")) : 0;
+		if (rotation == 90 || rotation == 270) std::swap(topBounds.w, topBounds.h);
 		if (host.dual && ndisp>=2) SDL_GetDisplayBounds(1,&bottomBounds);
 		else bottomBounds=topBounds;
 	}
@@ -1596,8 +1607,12 @@ int main(int argc, char** argv)
 				Window& w = wins[host.dual ? scr : 0];
 				if (!host.dual) scr = host.shownScreen();
 				// the finger in the composed screen's device px (the touch spans the display; the screen is centred in it)
-				float px = (ev.tfinger.x*w.W-w.dst.x)*host.be->width(scr)/w.dst.w;
-				float py = (ev.tfinger.y*w.H-w.dst.y)*host.be->height()/w.dst.h;
+				float tx=ev.tfinger.x, ty=ev.tfinger.y;
+				if (w.rotation == 90) { tx=ev.tfinger.y; ty=1-ev.tfinger.x; }
+				else if (w.rotation == 270) { tx=1-ev.tfinger.y; ty=ev.tfinger.x; }
+				else if (w.rotation == 180) { tx=1-tx; ty=1-ty; }
+				float px = (tx*w.W-w.dst.x)*host.be->width(scr)/w.dst.w;
+				float py = (ty*w.H-w.dst.y)*host.be->height()/w.dst.h;
 				float cx = px / host.s, cy = py / host.s;
 				bool overlayOwns = host.mode != Host::SHELF && (host.dual ? (host.mode == Host::MENU ? scr == 1 : true) : true);
 				if (overlayOwns)
