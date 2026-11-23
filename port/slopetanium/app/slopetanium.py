@@ -70,6 +70,8 @@ def main():
     ap.add_argument("--controlfolder", default=os.environ.get("controlfolder", ""))
     ap.add_argument("--root", default=os.path.dirname(HERE), help="the port folder (slopetanium/)")
     ap.add_argument("--ports-dir", default=None)
+    ap.add_argument("--apps-dir", default=None, help="managed app files (BananaOS: /data/store/apps)")
+    ap.add_argument("--app-shortcuts-dir", default=None, help="app launchers (BananaOS: /data/store/tiles)")
     ap.add_argument("--harbourmaster", default=None, help="override (tests)")
     ap.add_argument("--port", type=int, default=None, help="web port")
     ap.add_argument("--headless", action="store_true", help="web interface only, no screen")
@@ -82,7 +84,7 @@ def main():
     import web
 
     core = core_mod.Core(args.root, args.controlfolder, ports_dir=args.ports_dir,
-                         harbourmaster=args.harbourmaster)
+                         harbourmaster=args.harbourmaster, apps_dir=args.apps_dir, app_shortcuts_dir=args.app_shortcuts_dir)
     port = args.port or core.settings().get("web_port", 8686)
     webc = WebControl(core, web, core_mod, os.path.join(args.root, "web"), port)
     core.webc = webc

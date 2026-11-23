@@ -513,8 +513,8 @@ namespace rnds
 				}
 			// a user theme's pictures behind the screens, at the screens' device size
 			int sw = (int)std::lround(640 * s), sh = (int)std::lround(480 * s);
-			if (!themeFiles.wallTop.empty()) if (Bitmap b = decodeFile(themeFiles.wallTop); !b.empty()) wallTop = resize(b, sw, sh);
-			if (!themeFiles.wallBottom.empty()) if (Bitmap b = decodeFile(themeFiles.wallBottom); !b.empty()) wallBottom = resize(b, sw, sh);
+			if (!themeFiles.wallTop.empty()) if (Bitmap b = decodeFile(themeFiles.wallTop); !b.empty()) wallTop = resize(b, (int)std::lround(be->layoutWidth(0,s)*s), sh);
+			if (!themeFiles.wallBottom.empty()) if (Bitmap b = decodeFile(themeFiles.wallBottom); !b.empty()) wallBottom = resize(b, (int)std::lround(be->layoutWidth(1,s)*s), sh);
 			tintAccent(logo);
 			wifi = loadPng("wifi" + sfx);
 			batt = loadPng("battery" + sfx);
@@ -1357,9 +1357,9 @@ namespace rnds
 				title = gm.title;
 				sub = v == LAUNCH ? "Ready" : gm.sub;
 			}
-			g.titleLines = layoutWrap(utf8to32(title), tstyle(tTitle()), 470, 2);
+			g.titleLines = layoutWrap(utf8to32(title), tstyle(tTitle()), bottomWidth()-170, 2);
 			g.subLines.clear();
-			if (!sub.empty()) g.subLines.push_back(layoutEllipsis(utf8to32(sub), tstyle(tSub()), 470));
+			if (!sub.empty()) g.subLines.push_back(layoutEllipsis(utf8to32(sub), tstyle(tSub()), bottomWidth()-170));
 			g.sub = utf8to32(sub);	// (drawn with drawFit: a long one scrolls)
 			// one height for every name: room for two title lines and the subtitle, so a long name doesn't move the
 			// shelf (the text is centred in it)
@@ -1371,7 +1371,7 @@ namespace rnds
 			int n = v == LAUNCH ? 1 : count();
 			int at = v == LAUNCH ? 0 : center();
 			g.countW = countShown() ? countWidth(at, n) : 0;
-			g.railW = 604 - railCut(n);
+			g.railW = (bottomWidth()-36) - railCut(n);
 
 			if (v == HOME)
 			{
@@ -1404,7 +1404,7 @@ namespace rnds
 			g.mids.clear(); g.midW.clear();
 			if (v == HOME || (v == LIBRARY && src->gameCount() > 0))
 			{
-				float room = 604 - g.leftW - g.rightW - 2 * 10;
+				float room = (bottomWidth()-36) - g.leftW - g.rightW - 2 * 10;
 				for (auto& h : src->hints(v == LIBRARY, ui->mSys, ui->mGame))
 				{
 					Face f{ h.first, h.second, 0, ACT_NONE };
@@ -1435,9 +1435,12 @@ namespace rnds
 			b.shadows = { inset(0, 6, 0, P.sheetHi), inset(0, -8, 0, P.sheetLo), outer(4, 4, SHADE40) };
 			return b;
 		}
+		// Slopetanium: geometry belongs to each panel, not a fixed 4:3 canvas.
+		float topWidth() const { return be->layoutWidth(0,s); }
+		float bottomWidth() const { return be->layoutWidth(1,s); }
 		void drawSheet(const Color& accent, float x, float y)
 		{
-			Sprite m = mask(18, 604, 406), o = box(sheetOverlay(), 604, 406);
+			Sprite m = mask(18, topWidth()-36, 406), o = box(sheetOverlay(), topWidth()-36, 406);
 			if (!m.valid() || !o.valid()) return;
 			drawSprite(m, x, y, nullptr, mix(accent, P.sheetMix, P.sheetBase));
 			drawSprite(o, x, y);
@@ -1657,15 +1660,15 @@ namespace rnds
 
 			std::string clock = src->clockText(), date = src->dateText();
 			float cw = line(clock, ts(true, 20)).width, dw = line(date, ts(false, 20)).width;
-			drawText(clock, ts(true, 20), 622 - cw, 20 + ry, INK);
-			drawText(date, ts(false, 20), 622 - cw - 8 - dw, 20 + ry, INK);
+			drawText(clock, ts(true, 20), topWidth()-18 - cw, 20 + ry, INK);
+			drawText(date, ts(false, 20), topWidth()-18 - cw - 8 - dw, 20 + ry, INK);
 		}
 
 		// the game list's top screen, left: the box cover in a pixel frame, bobbing like the home screen's icon, its
 		// shadow on the sheet and a shine that sweeps over it every few seconds
 		void drawCover(const GameInfo& gm, const SysInfo& sy, float ry)
 		{
-			const float cx = 163, cy = 263;		// the cover's centre at rest
+			const float cx = topWidth()/4+3, cy = 263;		// the cover's centre at rest
 			CacheEntry* ce = coverArt(gm.box);
 			bool pending = ce == nullptr && !gm.box.empty();
 			if (ce && !ce->sp.valid()) ce = nullptr;
@@ -1719,7 +1722,7 @@ namespace rnds
 		// the game list's top screen, right: title, genre and year, the play stats and the achievements
 		void drawGameInfo(const GameInfo& gm, const SysInfo& sy, float ry)
 		{
-			const float L = 300, W = 296;
+			const float L = topWidth()/2-20, W = topWidth()-L-44;
 			TStyle tt = ts(true, 26, 0.52f), tsb = ts(false, 20);
 			// the title on as many lines as it needs, up to TITLE_LINES (a long one was cut at two with room to spare)
 			const int TITLE_LINES = 4;
@@ -1836,7 +1839,7 @@ namespace rnds
 		// the left holds the system's icon, as drawCover draws it without a cover)
 		void drawEmpty(float ry)
 		{
-			const float L = 300, W = 296;
+			const float L = topWidth()/2-20, W = topWidth()-L-44;
 			TStyle tt = ts(true, 26, 0.52f), th = ts(false, 20);
 			std::vector<TextLine> tl = layoutWrap(utf8to32(src->emptyTitle()), tstyle(tt), (int)W, 2), hl;
 			std::string hint = src->emptyHint();
@@ -1854,7 +1857,7 @@ namespace rnds
 		{
 			be->beginScreen(0);
 			if (!wallTop.empty()) drawSprite(still("wall-top", wallTop, true), 0, 0);
-			drawBox(screenBox(!wallTop.empty()), 0, 0, 640, 480);
+			drawBox(screenBox(!wallTop.empty()), 0, 0, be->layoutWidth(s), 480);
 			float ry = rise(topAt);
 			drawStatus(ry);
 			const SysInfo& sy = sys(ui->mSys);
@@ -1869,9 +1872,9 @@ namespace rnds
 				float total = 96 + 10 + 52 + (chip ? 10 + 74 : 0);
 				float y0 = 81 + (366 - total) / 2 + ry;
 				float b = bob();
-				drawBox(heroBox(), 272, y0 + b, 96, 96);
+				drawBox(heroBox(), topWidth()/2-48, y0 + b, 96, 96);
 				Sprite ic = icon(sy.icon);
-				if (ic.valid()) be->draw(ic.tex, std::round(X(280)), std::round(X(y0 + 8 + b)), std::round(X(80)), std::round(X(80)), Color(1, 1, 1, 1));
+				if (ic.valid()) be->draw(ic.tex, std::round(X(topWidth()/2-40)), std::round(X(y0 + 8 + b)), std::round(X(80)), std::round(X(80)), Color(1, 1, 1, 1));
 
 				// stats; an app's tile has its time alone (one entry, started or not, is nothing to count)
 				std::string vals[3] = { std::to_string(sy.games), std::to_string(sy.played), sy.time };
@@ -1887,7 +1890,7 @@ namespace rnds
 					colW[i] = std::max(84.0f, std::max(lb[i].width, ll[i].width));
 					total3 += colW[i];
 				}
-				float x = 320 - total3 / 2, sy0 = y0 + 106;
+				float x = topWidth()/2 - total3 / 2, sy0 = y0 + 106;
 				for (int i = c0; i < 3; i++)
 				{
 					drawLine(lb[i], tb, x + (colW[i] - lb[i].width) / 2, sy0, 28, INK);
@@ -1901,7 +1904,7 @@ namespace rnds
 					TextLine le = layoutLine(utf8to32(sy.resumeEyebrow), tstyle(te));
 					const float ltW = 300;
 					float cw = chipWidth(sy);
-					float cx = 320 - cw / 2, cy = y0 + 168;
+					float cx = topWidth()/2 - cw / 2, cy = y0 + 168;
 					drawBox(chipBox(), cx, cy, cw, 74);
 					Sprite c = cart(CartArt{ sy.resumeCart, sy.resumeLabel, sy.resumeBox, "", sy.icon }, 54, 56);
 					drawSprite(c, cx + 11, cy + 9);
@@ -2043,7 +2046,7 @@ namespace rnds
 		{
 			int n = src->gameCount();
 			if (ui->mView != LIBRARY || n == 0) return;
-			float inner = 604 - railCut(n) - 4;
+			float inner = (bottomWidth()-36) - railCut(n) - 4;
 			int at = n < 2 ? 0 : (int)std::lround((x - 20 - 21) * (n - 1) / std::max(1.0f, inner - 42));
 			at = std::min(n - 1, std::max(0, at));
 			if (at != ui->mGame) setGame(at);
@@ -2053,7 +2056,7 @@ namespace rnds
 		{
 			be->beginScreen(1);
 			if (!wallBottom.empty()) drawSprite(still("wall-bottom", wallBottom, true), 0, 0);
-			drawBox(screenBox(!wallBottom.empty()), 0, 0, 640, 480);
+			drawBox(screenBox(!wallBottom.empty()), 0, 0, be->layoutWidth(s), 480);
 			float rb = rise(shellAt);
 			Geo g = geometry();
 			View v = ui->mView;
@@ -2081,35 +2084,35 @@ namespace rnds
 					drawBox(kbdBox(), 18, 21.5f + rb, kl, 23);
 					drawText("L", tKbd(), 24, 23.5f + rb, P.kbdInk);
 					drawLine(lp, tsh, 18 + kl + 8 + aw, 21 + rb, 24, INK);
-					drawBox(kbdBox(), 622 - kr, 21.5f + rb, kr, 23);
-					drawText("R", tKbd(), 622 - kr + 6, 23.5f + rb, P.kbdInk);
-					drawLine(ln, tsh, 622 - kr - 8 - aw - ln.width, 21 + rb, 24, INK);
+					drawBox(kbdBox(), (bottomWidth()-18) - kr, 21.5f + rb, kr, 23);
+					drawText("R", tKbd(), (bottomWidth()-18) - kr + 6, 23.5f + rb, P.kbdInk);
+					drawLine(ln, tsh, (bottomWidth()-18) - kr - 8 - aw - ln.width, 21 + rb, 24, INK);
 				}
 				if (arrows)
 				{
 					drawArrow(false, 18 + kl + 8, 33 + rb, pressedArrow == 0);
-					drawArrow(true, 622 - kr - 8, 33 + rb, pressedArrow == 1);
+					drawArrow(true, (bottomWidth()-18) - kr - 8, 33 + rb, pressedArrow == 1);
 				}
 			}
 
 			// bubble
 			float by = g.bubbleY + rb;
-			drawBox(bubbleBox(), 66, by, 508, g.bubbleH);
+			drawBox(bubbleBox(),66,by,bottomWidth()-132, g.bubbleH);
 			float contentH = g.titleLines.size() * 32.5f + 3 + g.subLines.size() * lineHeight(tSub());
 			float cy = by + 3 + 8 + ((g.bubbleH - 24) - contentH) / 2;
 			float p = pop();
 			for (size_t i = 0; i < g.titleLines.size(); i++)
-				drawLine(g.titleLines[i], tTitle(), 320 - g.titleLines[i].width / 2, cy + p + 32.5f * i, 32.5f, INK);
+				drawLine(g.titleLines[i], tTitle(), (bottomWidth()/2) - g.titleLines[i].width / 2, cy + p + 32.5f * i, 32.5f, INK);
 			float ey = cy + g.titleLines.size() * 32.5f + 3;
-			if (!g.subLines.empty()) drawFit(g.sub, tSub(), 85, ey + p, lineHeight(tSub()), 470, MUTED, true, true);
+			if (!g.subLines.empty()) drawFit(g.sub, tSub(), 85, ey + p, lineHeight(tSub()), bottomWidth()-170, MUTED, true, true);
 			// pointer: the border-coloured triangle and the inner one that opens the border into it
 			float pb = by + g.bubbleH - 3;
-			drawTriangle("ptrO", 306, pb, 334, pb, 320, pb + 16, LINE);
-			drawTriangle("ptrI", 309, pb, 331, pb, 320, pb + 13, P.bubbleBody);
+			drawTriangle("ptrO", (bottomWidth()/2-14), pb, (bottomWidth()/2+14), pb, (bottomWidth()/2), pb + 16, LINE);
+			drawTriangle("ptrI", (bottomWidth()/2-11), pb, (bottomWidth()/2+11), pb, (bottomWidth()/2), pb + 13, P.bubbleBody);
 
 			// reel
 			float ry = g.reelY + rb;
-			be->pushClip(std::round(X(10)), std::round(X(ry)), std::round(X(620)), std::round(X(g.reelH)));
+			be->pushClip(std::round(X(10)), std::round(X(ry)), std::round(X((bottomWidth()-20))), std::round(X(g.reelH)));
 			if (v != LAUNCH && n > 0)
 				drawBox(trackBox(), 26, ry + 34, 588, 80);
 			if (v != LAUNCH && n > 0)	// no plate (and no START) over an empty library
@@ -2151,7 +2154,7 @@ namespace rnds
 						sc = std::fabs(tx) < 61.0f ? sc : 0.84f;
 					}
 					if (op <= 0) continue;
-					Xf xf; xf.ox = 320; xf.oy = ry + 16; xf.sc = sc; xf.tx = tx; xf.alpha = op;
+					Xf xf; xf.ox = (bottomWidth()/2); xf.oy = ry + 16; xf.sc = sc; xf.tx = tx; xf.alpha = op;
 					if (v == HOME)
 					{
 						const SysInfo& si = sys(i);
@@ -2159,7 +2162,7 @@ namespace rnds
 						Sprite ic = icon(si.icon);
 						if (ic.valid())
 						{
-							float ix = 320 + (280 - 320) * sc + tx, iy = ry + 16 + 8 * sc;
+							float ix = (bottomWidth()/2) + (-40) * sc + tx, iy = ry + 16 + 8 * sc;
 							be->draw(ic.tex, X(ix), X(iy), X(80 * sc), X(80 * sc), Color(1, 1, 1, op));
 						}
 						if (si.fav) drawBox(badgeBox(), 272 + 77, ry + 16 + 9, 10, 10, &xf);
@@ -2175,7 +2178,7 @@ namespace rnds
 					TStyle tsr = ts(true, 20, 2.4f);
 					// Banana: on the plate's accent, in its width (a longer translation scrolls)
 					std::string plate = v == LIBRARY ? src->plateLabel(ui->mGame) : "";	// Slopetanium
-					drawFit(plate.empty() ? std::string("START") : plate, tsr, 320 - 54, ry + 124, 24, 108, Color::hex(inkOn(accent.base)), true, true);
+					drawFit(plate.empty() ? std::string("START") : plate, tsr, (bottomWidth()/2) - 54, ry + 124, 24, 108, Color::hex(inkOn(accent.base)), true, true);
 				}
 			}
 			be->popClip();
@@ -2200,7 +2203,7 @@ namespace rnds
 			char a[16], b[16];
 			snprintf(a, sizeof a, "%02d", total == 0 ? 0 : at + 1);
 			snprintf(b, sizeof b, "%02d", total);
-			float cx = 622 - g.countW;
+			float cx = (bottomWidth()-18) - g.countW;
 			TextLine la = line(a, ts(true, 18)), lsl = line(" / ", ts(false, 18)), lb = line(b, ts(false, 18));
 			drawLine(la, ts(true, 18), cx, 390, 22, INK);
 			drawLine(lsl, ts(false, 18), cx + la.width, 390, 22, MUTED);
@@ -2209,13 +2212,13 @@ namespace rnds
 
 			// face buttons
 			drawFace(g.left, 18, g.leftW, pressedAction && pressedSide == 0);
-			drawFace(g.right, 622 - g.rightW, g.rightW, pressedAction && pressedSide == 1 && g.right.kind != 2);
+			drawFace(g.right, (bottomWidth()-18) - g.rightW, g.rightW, pressedAction && pressedSide == 1 && g.right.kind != 2);
 			// the host's hints, centred between the two
 			if (!g.mids.empty())
 			{
 				float total = -10;
 				for (float w : g.midW) total += w + 10;
-				float x = 18 + g.leftW + (604 - g.leftW - g.rightW - total) / 2;
+				float x = 18 + g.leftW + ((bottomWidth()-36) - g.leftW - g.rightW - total) / 2;
 				for (size_t i = 0; i < g.mids.size(); i++) { drawFace(g.mids[i], x, g.midW[i], false); x += g.midW[i] + 10; }
 			}
 			if (railDrag && v == LIBRARY && n > 0)
@@ -2263,7 +2266,7 @@ namespace rnds
 			y = std::round(y);
 
 			// the cartridge, cut off where it enters the slot; the mouth's front edge over it
-			be->pushClip(std::round(X(10)), std::round(X(ry)), std::round(X(620)), std::round(X(clipY)) - std::round(X(ry)));
+			be->pushClip(std::round(X(10)), std::round(X(ry)), std::round(X((bottomWidth()-20))), std::round(X(clipY)) - std::round(X(ry)));
 			Sprite c = cart(artOf(game(ui->mGame)), 100, 104);
 			drawSprite(c, 270, y);
 			be->popClip();
@@ -2279,7 +2282,7 @@ namespace rnds
 				const float sx[2] = { 262, 378 };
 				for (float x : sx)
 				{
-					float dir = x < 320 ? -1.0f : 1.0f;
+					float dir = x < (bottomWidth()/2) ? -1.0f : 1.0f;
 					be->fill(std::round(X(x + dir * d)), std::round(X(clipY - 6 - d * 0.6f)), std::round(X(4)), std::round(X(4)), sp);
 					be->fill(std::round(X(x + dir * (d + 6))), std::round(X(clipY - 1)), std::round(X(4)), std::round(X(4)), sp);
 					be->fill(std::round(X(x + dir * d * 0.5f)), std::round(X(clipY - 12 - d)), std::round(X(4)), std::round(X(4)), sp);
@@ -2312,24 +2315,24 @@ namespace rnds
 			slotIndex = -1; side = -1;
 			auto in = [&](float rx, float ry, float rw, float rh) { return x >= rx && x < rx + rw && y >= ry && y < ry + rh; };
 			if (in(18, 422, g.leftW, 40)) { side = 0; return g.left.action; }
-			if (in(622 - g.rightW, 422, g.rightW, 40)) { side = 1; return g.right.action; }
+			if (in((bottomWidth()-18) - g.rightW, 422, g.rightW, 40)) { side = 1; return g.right.action; }
 			// Slopetanium: the hints between them, where drawBottom puts them
 			if (!g.mids.empty())
 			{
 				float total = -10;
 				for (float w : g.midW) total += w + 10;
-				float mx = 18 + g.leftW + (604 - g.leftW - g.rightW - total) / 2;
+				float mx = 18 + g.leftW + ((bottomWidth()-36) - g.leftW - g.rightW - total) / 2;
 				for (size_t i = 0; i < g.mids.size(); i++) { if (in(mx, 422, g.midW[i], 40)) { side = 2 + (int)i; return ACT_HOST; } mx += g.midW[i] + 10; }
 			}
 			if (v == LAUNCH) return ACT_NONE;
 			// the shoulders (with a game list's arrows): each half of the row, from the screen's edge and as tall as the
 			// gap over the bubble, for a finger
-			if (in(0, 10, 276, 46)) return ACT_PREV;
-			if (in(364, 10, 276, 46)) return ACT_NEXT;
+			if (in(0,10,bottomWidth()/2-44,46)) return ACT_PREV;
+			if (in(bottomWidth()/2+44,10,bottomWidth()/2-44,46)) return ACT_NEXT;
 			// a game list's rail, from the reel's foot to the face buttons: a tap jumps there, a drag scrubs the list
 			if (v == LIBRARY && count() > 0 && in(12, 384, g.railW + 12, 36)) return ACT_RAIL;
-			if (in(320 - g.startW / 2, g.reelY + 120, g.startW, 32)) return ACT_OPEN;
-			if (!in(10, g.reelY, 620, g.reelH)) return ACT_NONE;
+			if (in((bottomWidth()/2) - g.startW / 2, g.reelY + 120, g.startW, 32)) return ACT_OPEN;
+			if (!in(10, g.reelY, (bottomWidth()-20), g.reelH)) return ACT_NONE;
 			// topmost slot first
 			int best = -1, bestZ = -1;
 			for (int i = 0; i < (int)slots.size(); i++)
@@ -2337,12 +2340,12 @@ namespace rnds
 				float tx, sc, op;
 				slotValue(slots[i], tx, sc, op);
 				if (op <= 0) continue;
-				float sx = 320 - 48 * sc + tx, sy = g.reelY + 16, sw = 96 * sc;
+				float sx = (bottomWidth()/2) - 48 * sc + tx, sy = g.reelY + 16, sw = 96 * sc;
 				bool hit = in(sx, sy, sw, sw);
 				int ns = (int)slots.size();
 				if (endless(ns))
 					for (int k : { -2, -1, 1, 2 })
-						if (in(320 - 48 * 0.84f + tx + k * ns * 122.0f, sy, 96 * 0.84f, 96 * 0.84f)) hit = true;
+						if (in((bottomWidth()/2) - 48 * 0.84f + tx + k * ns * 122.0f, sy, 96 * 0.84f, 96 * 0.84f)) hit = true;
 				if (!hit) continue;
 				int d = slots[i].d, z = d == 0 ? 4 : 3 - std::min(std::abs(d), 2);
 				if (z >= bestZ) { bestZ = z; best = i; }

@@ -174,12 +174,12 @@ namespace banana
 	static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "the alpha byte is read from the words' memory");
 	static void encodeRuns(SoftTex& t) { encodeRuns(t, (const uint8_t*)t.px.data() + 3, 4, (size_t)t.w * 4); }
 
-	SoftBackend::SoftBackend(int w, int h) : W(w), H(h)
+	SoftBackend::SoftBackend(int w, int h, int topWidth) : W(w), H(h), widths{ topWidth > 0 ? topWidth : w, w }
 	{
 		for (int s = 0; s < 2; s++)
 		{
-			scr[s].assign((size_t)W * H, 0xff000000u);
-			dmg[s] = { 0, 0, W, H };
+			scr[s].assign((size_t)widths[s] * H, 0xff000000u);
+			dmg[s] = { 0, 0, widths[s], H };
 		}
 	}
 
@@ -213,6 +213,7 @@ namespace banana
 	void SoftBackend::beginScreen(int screen)
 	{
 		cur = screen;
+		W = widths[screen];
 		rec[cur].clear();
 	}
 

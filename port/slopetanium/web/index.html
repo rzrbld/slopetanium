@@ -608,7 +608,7 @@ async function skip(id, tag, on) { await act(() => api('POST', `/api/repos/${id}
 function uninstall(id) {
   const r = repo(id), d = $('#dlg');
   d.innerHTML = `<div class="dl-in"><h3>Uninstall ${esc(r.title)}?</h3>
-    <p class="muted">PortMaster removes <b>ports/${esc(r.port_dir)}</b>, with its imported game data and saves.</p>
+    <p class="muted">${r.installed_package_type === 'app' ? 'Slopetanium' : 'PortMaster'} removes <b>${esc(r.install_path || ('ports/' + r.port_dir))}</b>, with its imported game data and saves.</p>
     <label class="check"><input type="checkbox" id="bk" checked> First back up ${esc((r.keep_on_uninstall || ['conf']).join(', '))}</label></div>
     <div class="dl-acts"><button class="btn ghost" data-v="0">Cancel</button><button class="btn danger" data-v="1">Uninstall</button></div>`;
   d.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; const keep = $('#bk').checked; d.close();
@@ -787,7 +787,7 @@ function md(text) {
 function paneOverview(body, r) {
   const latest = r.releases.find(x => x.tag === r.latest_tag), job = r.job;
   const facts = [['Installed', r.installed ? (r.installed_tag ? shortTag(r.installed_tag) : 'unknown') : 'no'], ['Latest', shortTag(r.latest_tag)],
-    ['Download', r.size ? size(r.size) : '—'], ['Folder', r.port_dir ? 'ports/' + r.port_dir : '—'], ['Checked', ago(r.last_checked)]];
+    ['Download', r.size ? size(r.size) : '—'], ['Folder', r.install_path || (r.port_dir ? 'ports/' + r.port_dir : '—')], ['Checked', ago(r.last_checked)]];
   let html = '<div class="stack">';
   if (job && (busyJob(r) || job.state === 'failed')) {
     const ind = job.progress == null, bad = job.state === 'failed';
@@ -1173,6 +1173,8 @@ function paneSettings(body, r) {
       <label class="f">Game files folder <span class="hint">inside the port; "." is the port's own folder</span><input name="originals_dir" value="${esc(r.originals_dir)}"></label>
       <label class="f">Game files pattern <span class="hint">optional, e.g. *.iso,*.cue</span><input name="originals_pattern" value="${esc(r.originals_pattern || '')}"></label>
       <label class="f">Back up <span class="hint">folders, comma separated</span><input name="keep_on_uninstall" value="${esc((r.keep_on_uninstall || []).join(', '))}"></label>
+      <label class="f">Installer<select name="package_type">${['auto','portmaster','app'].map(k => `<option value="${k}" ${(r.package_type || 'auto') === k ? 'selected' : ''}>${{auto:'Detect from release',portmaster:'PortMaster port',app:'Linux app ZIP'}[k]}</option>`).join('')}</select></label>
+      <label class="f">App launcher <span class="hint">usually detected; a path inside the release ZIP if it has several launchers</span><input name="app_entry" value="${esc(r.app_entry || '')}"></label>
       <label class="f">Port name <span class="hint">the zip name PortMaster records</span><input name="port_name" value="${esc(r.port_name)}"></label>
     </div>
     <label class="f">Cover picture <span class="hint">an https:// address of the game's box art; empty: the port's screenshot</span><input name="cover_url" value="${esc(r.cover_url || '')}"></label>
@@ -1187,7 +1189,7 @@ function paneSettings(body, r) {
   $('#pform', body).onsubmit = e => {
     e.preventDefault(); const f = e.target;
     act(() => api('PATCH', `/api/repos/${r.id}`, {
-      repo: f.repo.value, asset_pattern: f.asset_pattern.value, originals_dir: f.originals_dir.value, originals_pattern: f.originals_pattern.value,
+      repo: f.repo.value, package_type: f.package_type.value, app_entry: f.app_entry.value, asset_pattern: f.asset_pattern.value, originals_dir: f.originals_dir.value, originals_pattern: f.originals_pattern.value,
       keep_on_uninstall: f.keep_on_uninstall.value, port_name: f.port_name.value, cover_url: f.cover_url.value, prereleases: f.prereleases.checked,
       gog: f.gog_id.value.trim() ? { id: +f.gog_id.value, title: (r.gog && r.gog.title) || '', dest: f.gog_dest.value, files: f.gog_files.value } : null }), 'Saved');
   };
@@ -1352,7 +1354,7 @@ function renderAdd(main, force) {
   if (!force && typing(main)) return;
   const cat = S.catalogue || [];
   main.innerHTML = `
-    <div class="page-head"><div class="grow"><h1 class="pixel">Add a port</h1><p class="muted">Watch any GitHub repo whose releases carry a PortMaster port zip.</p></div></div>
+    <div class="page-head"><div class="grow"><h1 class="pixel">Add an app or port</h1><p class="muted">Watch the original GitHub repository. Releases can contain a PortMaster port or a self-contained Linux app ZIP.</p></div></div>
     <div class="stack">
       <section class="section"><header><h2>Catalogue</h2><p>Ports Slopetanium knows: where their game files go, their box art, GOG where it applies.</p></header>
         <div class="content"><div class="cat">${cat.map(c => { const [c1, c2] = tint(c.repo), name = c.title || c.repo.split('/')[1];
@@ -1367,6 +1369,8 @@ function renderAdd(main, force) {
           <label class="f">Repo<input name="repo" required placeholder="rzrbld/TheFamilia" autocomplete="off"></label>
           <details class="adv"><summary>More options</summary>
             <div class="form-grid" style="margin-top:10px">
+              <label class="f">Installer<select name="package_type"><option value="auto">Detect from release</option><option value="portmaster">PortMaster port</option><option value="app">Linux app ZIP</option></select></label>
+              <label class="f">App launcher<input name="app_entry" placeholder="detected automatically"></label>
               <label class="f">Release zip pattern<input name="asset_pattern" placeholder="the first .zip"></label>
               <label class="f">Game files folder<input name="originals_dir" value="source"></label>
               <label class="f">Back up<input name="keep_on_uninstall" value="conf"></label>
@@ -1377,7 +1381,7 @@ function renderAdd(main, force) {
   main.onclick = e => { const b = e.target.closest('[data-cat]'); if (b) act(() => api('POST', '/api/catalogue/add', { repo: b.dataset.cat }), `Watching ${b.dataset.cat}`); };
   $('#addf', main).onsubmit = async e => {
     e.preventDefault(); const f = e.target;
-    const r = await act(() => api('POST', '/api/repos', { repo: f.repo.value, asset_pattern: f.asset_pattern.value, originals_dir: f.originals_dir.value, keep_on_uninstall: f.keep_on_uninstall.value, prereleases: f.prereleases.checked, share: f.share.checked }), 'Added: checking its releases…');
+    const r = await act(() => api('POST', '/api/repos', { repo: f.repo.value, package_type: f.package_type.value, app_entry: f.app_entry.value, asset_pattern: f.asset_pattern.value, originals_dir: f.originals_dir.value, keep_on_uninstall: f.keep_on_uninstall.value, prereleases: f.prereleases.checked, share: f.share.checked }), 'Added: checking its releases…');
     if (r) go('library');
   };
 }

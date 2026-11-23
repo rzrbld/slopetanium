@@ -197,7 +197,7 @@ struct Rel { std::string tag, body; bool pre = false, installed = false, cached 
 struct Backup { std::string name; double size = 0; bool autoMade = false; };
 struct Port
 {
-	std::string id, title, repo, status, inst, latest, art, cover, error, prev, portDir, keep;
+	std::string kind, id, title, repo, status, inst, latest, art, cover, error, prev, portDir, keep;
 	bool installed = false;
 	double size = 0, origTotal = 0;
 	std::vector<std::pair<std::string, double>> orig;
@@ -247,7 +247,7 @@ static State parseState(const std::string& text)
 		{
 			const JVal& r = *e;
 			Port p;
-			p.id = r.str("id"); p.title = plainText(r.str("title")); p.repo = r.str("repo"); p.status = r.str("status");
+			p.kind = r.str("installed_package_type"); p.id = r.str("id"); p.title = plainText(r.str("title")); p.repo = r.str("repo"); p.status = r.str("status");
 			p.inst = r.str("installed_tag"); p.latest = r.str("latest_tag"); p.art = r.str("art"); p.error = r.str("error");
 			p.prev = r.str("previous_tag"); p.portDir = r.str("port_dir");
 			p.cover = r.str("cover");
@@ -530,7 +530,7 @@ struct Host
 		m.title = p.title;
 		m.lines = { { p.repo, theme::muted } };
 		// no game files yet: where they come from
-		bool noFiles = p.origTotal <= 0 && p.imported.empty() && !p.gogPresent;
+		bool noFiles = p.kind != "app" && p.origTotal <= 0 && p.imported.empty() && !p.gogPresent;
 		if (noFiles && p.installed && !p.uploadDir.empty())
 			m.lines.push_back({ "Game files: upload them from the web page (Connect)", theme::warn });
 		if (noFiles && !p.buyUrl.empty())
@@ -652,7 +652,7 @@ struct Host
 	{
 		Menu m;
 		m.title = "Uninstall?";
-		m.lines = { { p.title, theme::muted }, { "Removes ports/" + p.portDir + " with its data and saves.", theme::warn } };
+		m.lines = { { p.title, theme::muted }, { p.kind == "app" ? "Removes this app with its data and saves." : "Removes ports/" + p.portDir + " with its data and saves.", theme::warn } };
 		m.items = {
 			{ "Uninstall, back up " + (p.keep.empty() ? std::string("nothing") : p.keep), [this, p] { menus.clear(); mode = SHELF;
 				link->post(path(p, "uninstall"), "{\"confirm\":\"uninstall\",\"backup\":true}"); flash("Uninstalling " + p.title); }, theme::red },
@@ -905,7 +905,8 @@ struct Host
 	}
 
 	// over the top screen's sheet: an inner card
-	void card(float alpha) { panel("card", 30, 72, 580, 382, alpha); }
+	float canvasWidth() const { return be->layoutWidth(s); }
+	void card(float alpha) { panel("card",30,72,canvasWidth()-60,382,alpha); }
 
 	void drawNotes(const std::string& tag)
 	{
@@ -915,7 +916,7 @@ struct Host
 		card(a);
 		const Rel* rel = nullptr;
 		for (auto& r : p->rels) if (r.tag == tag) rel = &r;
-		text("What's new in " + tag, 52, 92, 22, theme::accentBase, true, 536, a);
+		text("What's new in " + tag, 52, 92, 22, theme::accentBase, true, canvasWidth()-104, a);
 		float y = 126;
 		std::string body = rel ? rel->body : "";
 		if (body.empty()) body = "No release notes.";
@@ -935,7 +936,7 @@ struct Host
 			o = st0 == std::string::npos ? "" : o.substr(st0);
 			if (o.rfind("- ", 0) == 0) o = "· " + o.substr(2);
 			if (o.empty()) { y += 8; continue; }
-			for (auto& l : wrap(o, 18, 536, 5))
+			for (auto& l : wrap(o, 18, canvasWidth()-104, 5))
 			{
 				if (y > 424) { text("…", 52, y - 4, 18, theme::muted, false, 0, a); return; }
 				text(l, 52, y, 18, theme::ink, false, 0, a);
@@ -948,16 +949,16 @@ struct Host
 	{
 		float a = overlayP();
 		card(a);
-		const float L = 300, W = 290;
+		const float L = canvasWidth()/2-20, W = canvasWidth()-L-50;
 		if (!st.webRunning)
 		{
-			text("Starting the web interface…", 320, 250, 22, theme::muted, true, 0, a, 0, false, true);
+			text("Starting the web interface…", canvasWidth()/2, 250, 22, theme::muted, true, 0, a, 0, false, true);
 			return;
 		}
 		std::string url = st.urls.empty() ? "" : st.urls[0];
 		// the QR card where the cover goes
 		BoxStyle qb = style(6, 3, theme::edge, 0xffffff, {}, { Shadow{ 4, 4, 0, Color(0, 0, 0, 0.4f), false } });
-		nine("qrcard", qb, 8, 56, 156, 214, 214, a);
+		nine("qrcard", qb, 8, canvasWidth()/4-104, 156, 214, 214, a);
 		if (!url.empty())
 		{
 			std::string full = url + "/?pin=" + st.pin;
@@ -1008,7 +1009,7 @@ struct Host
 				}
 				if (sp.tex)
 				{
-					float dx = std::round(X(56 + 107)) - sp.tex->w / 2.0f, dy = std::round(X(156 + 107)) - sp.tex->h / 2.0f;
+					float dx = std::round(X(canvasWidth()/4+3)) - sp.tex->w / 2.0f, dy = std::round(X(156 + 107)) - sp.tex->h / 2.0f;
 					be->draw(sp.tex, std::round(dx), std::round(dy), (float)sp.tex->w, (float)sp.tex->h, Color(1, 1, 1, a));
 				}
 			}
@@ -1043,8 +1044,8 @@ struct Host
 		float w = std::min(560.0f, textW(toast, true, 18) + 40);
 		BoxStyle b = style(12, 3, theme::edge, 0x10141c, { Band{ 0, 6, Color::hex(0x232b3a) } }, { Shadow{ 3, 3, 0, Color(0, 0, 0, 0.45f), false } });
 		float y = screen == 1 ? 352 : 410;
-		nine("toast", b, 13, 320 - w / 2, y, w, 38, a);
-		text(toast, 320, y + 8, 18, theme::ink, true, w - 30, a, 0, false, true);
+		nine("toast", b, 13, (canvasWidth()-w)/2, y, w, 38, a);
+		text(toast, canvasWidth()/2, y + 8, 18, theme::ink, true, w - 30, a, 0, false, true);
 	}
 
 	// what each screen gets over the engine's frame
@@ -1069,8 +1070,8 @@ struct Host
 			{
 				if (mode == MENU && !menus.empty())
 				{
-					fill(0, 0, 640, 480, 0x000000, 0.5f * overlayP());
-					drawMenu(1, 66, 34, 508, 380);
+					fill(0,0,canvasWidth(),480, 0x000000, 0.5f * overlayP());
+					drawMenu(1,66,34,canvasWidth()-132,380);
 				}
 				drawToast(1);
 			}
@@ -1223,7 +1224,9 @@ static bool openWindow(Window& w, int display, int bw, int bh, bool windowed)
 	SDL_GetRendererOutputSize(w.ren, &w.W, &w.H);
 	w.tex = SDL_CreateTexture(w.ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, bw, bh);
 	if (!w.tex) { logf("texture: %s", SDL_GetError()); return false; }
-	w.dst = SDL_Rect{ (w.W - bw) / 2, (w.H - bh) / 2, bw, bh };
+	float fit = std::min(w.W / (float)bw, w.H / (float)bh);
+	int dw=(int)std::lround(bw*fit), dh=(int)std::lround(bh*fit);
+	w.dst = SDL_Rect{ (w.W-dw)/2, (w.H-dh)/2, dw, dh };
 	SDL_RendererInfo ri;
 	SDL_GetRendererInfo(w.ren, &ri);
 	logf("display %d: %dx%d, screen %dx%d, renderer %s%s", display, w.W, w.H, bw, bh, ri.name,
@@ -1234,7 +1237,7 @@ static bool openWindow(Window& w, int display, int bw, int bh, bool windowed)
 // copies what changed into the window's texture and shows it; false when there was nothing to show
 static bool present(Window& w, banana::SoftBackend& be, const banana::Damage& dmg, int screen)
 {
-	int bw = be.width(), bh = be.height();
+	int bw = be.width(screen), bh = be.height();
 	banana::Damage d = dmg;
 	if (w.shown != screen) { d = banana::Damage{ 0, 0, bw, bh }; w.shown = screen; }
 	if (d.empty()) return false;
@@ -1269,7 +1272,7 @@ static std::string touchPath(SDL_TouchID id)
 // ---- headless pictures (for the README and tests): both screens as PNG ------------------------------------------
 static void writeScreen(banana::SoftBackend& be, int screen, const std::string& path)
 {
-	int w = be.width(), h = be.height();
+	int w = be.width(screen), h = be.height();
 	std::vector<uint8_t> rgb((size_t)w * h * 3);
 	const uint32_t* px = be.pixels(screen);
 	for (size_t i = 0; i < (size_t)w * h; i++) { rgb[i * 3] = (px[i] >> 16) & 255; rgb[i * 3 + 1] = (px[i] >> 8) & 255; rgb[i * 3 + 2] = px[i] & 255; }
@@ -1280,7 +1283,13 @@ int main(int argc, char** argv)
 {
 	std::string assets = ".", conf = ".", portFile, token = getenv("SLOP_LOCAL_TOKEN") ? getenv("SLOP_LOCAL_TOKEN") : "";
 	std::string shot, script, touchBottom = getenv("SLOP_TOUCH_BOTTOM") ? getenv("SLOP_TOUCH_BOTTOM") : "fe5e0000.i2c";
-	int screens = 0;	// 0 auto
+	int screens = 0; // 0 auto
+	SDL_Rect topBounds{0,0,640,480}, bottomBounds{0,0,640,480};
+	auto sizeOption = [](const std::string& value, SDL_Rect& bounds) {
+		char extra; int w,h;
+		if (sscanf(value.c_str(), "%dx%d%c", &w,&h,&extra)!=2 || w<160 || h<160 || w>16384 || h>16384) return false;
+		bounds.w=w; bounds.h=h; return true;
+	};
 	float forceScale = 0;
 	bool windowed = false, stats = getenv("SLOP_FPS") != nullptr;
 	for (int i = 1; i < argc; i++)
@@ -1292,6 +1301,12 @@ int main(int argc, char** argv)
 		else if (a == "--port-file") portFile = next();
 		else if (a == "--token") token = next();
 		else if (a == "--screens") screens = atoi(next().c_str());
+		else if (a == "--top-size" || a == "--bottom-size" || a == "--size") {
+			SDL_Rect b{};
+			if (!sizeOption(next(),b)) { logf("invalid panel size"); return 2; }
+			if (a!="--bottom-size") topBounds=b;
+			if (a!="--top-size") bottomBounds=b;
+		}
 		else if (a == "--scale") forceScale = (float)atof(next().c_str());
 		else if (a == "--windowed") windowed = true;
 		else if (a == "--shot") shot = next();
@@ -1318,21 +1333,30 @@ int main(int argc, char** argv)
 
 	int ndisp = headless ? 1 : SDL_GetNumVideoDisplays();
 	host.dual = screens == 2 || (screens == 0 && ndisp >= 2);
-	// the scale: the engine's CSS px grid (640x480) to the display, letterboxed
-	SDL_Rect b0{ 0, 0, 640, 480 };
-	if (!headless) SDL_GetDisplayBounds(0, &b0);
-	float s = forceScale > 0 ? forceScale : std::min(b0.w / 640.0f, b0.h / 480.0f);
-	if (windowed && forceScale <= 0) s = 1;
-	s = std::max(0.5f, std::floor(s * 20 + 0.001f) / 20);	// a tidy step: whole CSS px land on whole device px more often
-	host.s = s;
-	int bw = (int)std::lround(640 * s), bh = (int)std::lround(480 * s);
-	themeFiles.wallTop = theme::wall(conf, bw, bh, s, true);
-	themeFiles.wallBottom = theme::wall(conf, bw, bh, s, false);
+	// Slopetanium: each panel keeps its own aspect. Both render at a common
+	// height so the layout/typography has one scale; SDL fits each canvas to
+	// its own physical output without stretching either screen's content.
+	if (!headless) {
+		SDL_GetDisplayBounds(0,&topBounds);
+		if (host.dual && ndisp>=2) SDL_GetDisplayBounds(1,&bottomBounds);
+		else bottomBounds=topBounds;
+	}
+	if (!host.dual) bottomBounds=topBounds;
+	float s = forceScale>0 ? forceScale : std::min(topBounds.h,bottomBounds.h)/480.0f;
+	if (windowed && forceScale<=0) s=1;
+	s=std::max(0.5f,std::min(3.0f,s));
+	host.s=s;
+	int bh=(int)std::lround(480*s);
+	int topW=(int)std::lround((double)topBounds.w/topBounds.h*bh);
+	int bw=(int)std::lround((double)bottomBounds.w/bottomBounds.h*bh);
+	if (topW<80 || bw<80 || (int64_t)std::max(topW,bw)*bh>16000000) { logf("panel canvas exceeds supported size"); return 2; }
+	themeFiles.wallTop = theme::wall(conf, topW,bh,s,true);
+	themeFiles.wallBottom = theme::wall(conf,bw,bh,s,false);
 	host.R = Font::load(assets + "/fonts/PixelifySans-Regular.ttf");
 	host.M = Font::load(assets + "/fonts/PixelifySans-Medium.ttf");
 	if (!host.R || !host.M) { logf("fonts missing in %s/fonts", assets.c_str()); return 1; }
 
-	host.be.reset(new banana::SoftBackend(bw, bh));
+	host.be.reset(new banana::SoftBackend(bw, bh, topW));
 	host.be->overlay = [&host](int screen) { host.overlay(screen); };
 	host.ui.reset(new UI(&host.src, host.be.get(), assets, s, "dark"));
 	host.link.reset(new slop::CoreLink(portFile, token, [&host] { host.wake(); }));
@@ -1406,7 +1430,7 @@ int main(int argc, char** argv)
 	std::vector<Window> wins(host.dual ? 2 : 1);
 	if (host.dual)
 	{
-		if (!openWindow(wins[0], 0, bw, bh, windowed) || !openWindow(wins[1], ndisp >= 2 ? 1 : 0, bw, bh, windowed)) return 1;
+		if (!openWindow(wins[0], 0, topW, bh, windowed) || !openWindow(wins[1], ndisp >= 2 ? 1 : 0, bw, bh, windowed)) return 1;
 		wins[0].screen = 0; wins[1].screen = 1;
 	}
 	else
@@ -1572,7 +1596,8 @@ int main(int argc, char** argv)
 				Window& w = wins[host.dual ? scr : 0];
 				if (!host.dual) scr = host.shownScreen();
 				// the finger in the composed screen's device px (the touch spans the display; the screen is centred in it)
-				float px = ev.tfinger.x * w.W - w.dst.x, py = ev.tfinger.y * w.H - w.dst.y;
+				float px = (ev.tfinger.x*w.W-w.dst.x)*host.be->width(scr)/w.dst.w;
+				float py = (ev.tfinger.y*w.H-w.dst.y)*host.be->height()/w.dst.h;
 				float cx = px / host.s, cy = py / host.s;
 				bool overlayOwns = host.mode != Host::SHELF && (host.dual ? (host.mode == Host::MENU ? scr == 1 : true) : true);
 				if (overlayOwns)

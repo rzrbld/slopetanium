@@ -51,8 +51,10 @@ namespace banana
 	class SoftBackend : public rnds::Backend
 	{
 	public:
-		SoftBackend(int w, int h);
-		int width() const { return W; }
+		SoftBackend(int w, int h, int topWidth = 0);
+		int width(int screen = 1) const { return widths[screen]; }
+		int screenWidth(int screen) const override { return widths[screen]; }
+		int currentScreen() const override { return cur; }
 		int height() const { return H; }
 		// the composed screen, 0xXXRRGGBB rows of W words
 		const uint32_t* pixels(int screen) const { return scr[screen].data(); }
@@ -60,10 +62,10 @@ namespace banana
 		Damage takeDamage(int screen) { Damage d = dmg[screen]; dmg[screen] = Damage(); return d; }
 		// everything again (new scanout buffers): the next frame is drawn in full
 		// (the background copy goes too: it is another screen's draws now - a game's panel, 2026-11-03)
-		void invalidate() { for (int s = 0; s < 2; s++) { dmg[s] = { 0, 0, W, H }; last[s].clear(); full[s] = true; dropBase(s); } }
+		void invalidate() { for (int s = 0; s < 2; s++) { dmg[s] = { 0, 0, widths[s], H }; last[s].clear(); full[s] = true; dropBase(s); } }
 		// a screen's pixels to draw on directly (the boot animation): all of it counts as changed, and the engine's
 		// next frame is drawn over all of it
-		uint32_t* canvas(int screen) { dmg[screen] = { 0, 0, W, H }; last[screen].clear(); full[screen] = true; dropBase(screen); return scr[screen].data(); }
+		uint32_t* canvas(int screen) { dmg[screen] = { 0, 0, widths[screen], H }; last[screen].clear(); full[screen] = true; dropBase(screen); return scr[screen].data(); }
 
 		// (touches nothing of the backend's but the new texture: callable from the picture workers)
 		rnds::TexPtr upload(const rnds::Bitmap& b, bool smooth) override;
@@ -135,6 +137,7 @@ namespace banana
 		void doDraw(SoftTex* t, float x, float y, float w, float h, const rnds::Color& tint, const Clip& cl);
 		void doFill(float x, float y, float w, float h, const rnds::Color& c, const Clip& cl);
 		int W, H, cur = 0;
+		int widths[2];
 		std::vector<uint32_t> scr[2];
 		Damage dmg[2];
 		std::vector<Clip> clips;

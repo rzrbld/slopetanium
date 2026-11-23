@@ -2,7 +2,7 @@
 
 # Slopetanium
 
-An updater for PortMaster ports that are published as GitHub releases, in the spirit of
+An updater for apps and PortMaster ports that are published as GitHub releases, in the spirit of
 [Obtainium](https://github.com/ImranR98/Obtainium). It runs on the handheld as a port, with
 a console-style home menu on the device and a web interface for your PC, phone or tablet.
 
@@ -90,6 +90,29 @@ a console-style home menu on the device and a web interface for your PC, phone o
     server works.
 - **A catalogue of ports.** rzrbld's ports are watched from the first start: ReNFS5, The ReThing,
   ReConflict, Vurus, The Familia, ReRed Faction II, and Slopetanium itself.
+
+## Linux apps from their original repositories
+
+Add an app's own GitHub URL, for example `https://github.com/kyannon/gba-ds`. Slopetanium selects a compatible Linux ZIP from that repository's releases. It does not mirror the app, copy its source into this project, rebuild it or maintain an app fork.
+
+- **Detect from release** is the default for new watches: ZIPs containing `port.json` use PortMaster's harbourmaster. A self-contained Linux app ZIP with a launch script uses Slopetanium's app installer. Existing watches keep their PortMaster installer.
+- An app ZIP needs one top-level `.sh` launcher, or one `launch.sh` / `run.sh` just inside its app folder. If it has several launchers, select **Linux app ZIP** and set **App launcher** under Edit. Apps must support the handheld's CPU and available libraries; Android APKs, source archives and OS package formats are not supported.
+- On BananaOS, app files go under `/data/store/apps/<owner>__<repo>` and launchers under `/data/store/tiles`, so apps appear on the Apps shelf. On other systems, managed files live in `.slopetanium-apps` under Ports and launcher scripts appear in Ports. `--apps-dir` and `--app-shortcuts-dir` (or `SLOP_APPS_DIR` / `SLOP_APP_SHORTCUTS_DIR`) select other locations.
+- Updates are staged before swapping the app directory. Saves and other user-created files remain. Modified `.cfg`, `.ini`, `.conf` files and files under configuration/save directories are preserved; unchanged shipped defaults can update. The cached original release ZIP provides rollback through **Other versions**. There are no app-specific patches or install hooks.
+- Installed app configuration/save paths are included in the backup selection. Edit **Back up** for an app that stores user data in a different location. Uninstall removes only that app's managed directory and its own generated launcher.
+
+## Display geometry
+
+The native UI supports widescreen layouts and uses each display's aspect ratio independently, including single widescreen displays and dual handhelds with unequal panels. Text, the shelf, details, release notes, Connect and touch coordinates use each canvas's width; the renderer fits each canvas to its own output. The two canvases share a height-based layout scale, so neither screen inherits the other's width.
+
+Headless regression examples:
+
+```bash
+python3 tests/test_ui_layout.py --binary ui/slopetanium-ui --output /tmp/slop-layout
+# Individual Duo Lite render (with the core running):
+ui/slopetanium-ui --assets port/slopetanium/assets --conf /tmp/slop/conf \
+  --screens 2 --top-size 1920x1080 --bottom-size 1280x960 --shot /tmp/duo
+```
 
 ## Using it
 
@@ -209,6 +232,7 @@ Slopetanium.sh ──> app/slopetanium.py --serve   (Python: GitHub, downloads, 
 ```bash
 tools/build-ui.sh        # slopetanium-ui.aarch64 in Docker (Debian 11 cross toolchain, glibc 2.30+)
 tools/build.sh           # dist/slopetanium.zip (+ .md5): the port, with the menu binary when built
+python3 tests/test_apps.py   # app archive transactions and upstream-repo integration
 python3 tests/test_core.py   # the core end to end, offline (fake GitHub + fake harbourmaster)
 python3 tests/test_large.py  # 5-6 GB uploads, downloads and restores over HTTP (needs ~20 GB free)
 ```
@@ -238,7 +262,7 @@ built as one static binary. See [server/README.md](server/README.md).
 
 GitHub Actions (`.github/workflows/build.yml`) runs on every push and pull request:
 
-1. It runs the tests.
+1. It runs the core, app-installer and community-server tests, then renders equal/unequal panels and single widescreen layouts. Rendered screenshots are kept as a CI artifact.
 2. It builds the aarch64 menu.
 3. It packages `slopetanium.zip` as a workflow artifact.
 

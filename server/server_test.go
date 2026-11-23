@@ -454,3 +454,16 @@ func TestShrink(t *testing.T) {
 		t.Fatal("svg accepted")
 	}
 }
+
+func TestAppInstallerCommunityConfig(t *testing.T) {
+	cfg := cleanConfig(map[string]any{"package_type": "app", "app_entry": "gba-ds/launch.sh", "unknown": "discard"})
+	if cfg["package_type"] != "app" || cfg["app_entry"] != "gba-ds/launch.sh" || cfg["unknown"] != nil {
+		t.Fatalf("app metadata was not retained: %v", cfg)
+	}
+	for _, entry := range []string{"../escape.sh", "/absolute.sh", "a/../escape.sh", "a\\escape.sh"} {
+		cfg = cleanConfig(map[string]any{"package_type": "shell-command", "app_entry": entry})
+		if cfg["package_type"] != nil || cfg["app_entry"] != nil {
+			t.Fatalf("invalid app metadata accepted: %v", cfg)
+		}
+	}
+}

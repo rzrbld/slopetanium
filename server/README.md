@@ -15,6 +15,8 @@ The service behind [slopetanium.pw](https://slopetanium.pw).
 It is one static Go binary with an SQLite database. It uses the pure-Go `modernc.org/sqlite`,
 so no C toolchain is needed.
 
+The optional shared configuration now includes `package_type` (`auto`, `portmaster`, or `app`) and `app_entry` (a relative launch-script path). Update the community server when publishing these client features so manually configured app launchers survive community sharing. Older servers ignore these extra fields; automatically detected app archives still work when added from their original GitHub repository.
+
 ## API
 
 The handheld sends `X-Slop-Device: <hex secret>` on each write. The server keeps only a keyed
