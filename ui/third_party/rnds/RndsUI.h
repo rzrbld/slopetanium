@@ -121,6 +121,12 @@ namespace rnds
 	{
 	public:
 		virtual ~Backend() {}
+		// Slopetanium: independent canvas geometry for unequal panels.
+		virtual int screenWidth(int) const { return 0; }
+		virtual int currentScreen() const { return 0; }
+		float layoutWidth(int screen, float scale) const { int w=screenWidth(screen); return w>0 && scale>0 ? w/scale : 640.0f; }
+		float layoutWidth(float scale) const { return layoutWidth(currentScreen(), scale); }
+		float centeredX(float width, float scale) const { return (layoutWidth(scale)-width)/2; }
 		virtual TexPtr upload(const Bitmap& b, bool smooth) = 0;
 		// device pixels of the current screen; tint multiplies (alpha textures take its colour)
 		virtual void draw(const TexPtr& t, float x, float y, float w, float h, const Color& tint) = 0;

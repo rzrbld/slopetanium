@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import queue
+import platform
 import random
 import re
 import shutil
@@ -30,6 +31,7 @@ import urllib.error
 
 import gog as gog_mod
 import community as community_mod
+import apps as apps_mod
 
 USER_AGENT = "slopetanium/0.1"
 API = "https://api.github.com"
@@ -401,13 +403,17 @@ class Job(object):
 
 
 class Core(object):
-    def __init__(self, root, controlfolder, ports_dir=None, python=None, harbourmaster=None, catalogue=True):
+    def __init__(self, root, controlfolder, ports_dir=None, python=None, harbourmaster=None, catalogue=True, apps_dir=None, app_shortcuts_dir=None):
         self.root = os.path.abspath(root)
         self.controlfolder = controlfolder
         self.ports_dir = os.path.abspath(ports_dir or os.path.dirname(self.root))
         self.python = python or sys.executable or "python3"
         self.harbourmaster = harbourmaster or (
             os.path.join(controlfolder, "harbourmaster") if controlfolder else None)
+        banana = os.path.isdir("/etc/banana")
+        apps_dir = apps_dir or os.environ.get("SLOP_APPS_DIR") or ("/data/store/apps" if banana else os.path.join(self.ports_dir, ".slopetanium-apps"))
+        app_shortcuts_dir = app_shortcuts_dir or os.environ.get("SLOP_APP_SHORTCUTS_DIR") or ("/data/store/tiles" if banana else self.ports_dir)
+        self.apps = apps_mod.Apps(apps_dir, app_shortcuts_dir)
         self.conf_dir = os.path.join(self.root, "conf")
         self.cache_dir = os.path.join(self.conf_dir, "cache")
         self.backup_dir = os.path.join(self.conf_dir, "backups")
@@ -464,11 +470,15 @@ class Core(object):
         s.setdefault("catalogue_offered", [])
         s.setdefault("count_installs", None)  # community install counts: None until the owner answered
         for r in state["repos"]:
+            # Existing watches retain their original Harbourmaster installer.
+            r.setdefault("package_type", "portmaster")
             self._repo_defaults(r)
         return state
 
     def _repo_defaults(self, r):
         r.setdefault("asset_pattern", "")
+        r.setdefault("package_type", "auto")
+        r.setdefault("app_entry", "")
         r.setdefault("prereleases", True)
         r.setdefault("port_name", "")  # harbourmaster's name: the zip file name, lower case
         r.setdefault("installed_tag", None)
@@ -636,6 +646,16 @@ class Core(object):
         return self.add_repo(data)
 
     def _apply_repo_fields(self, r, data):
+        if "package_type" in data:
+            kind = data.get("package_type") or "auto"
+            if kind not in ("auto", "portmaster", "app"):
+                raise ValueError("Installer must be auto, portmaster or app")
+            r["package_type"] = kind
+        if "app_entry" in data:
+            if not isinstance(data["app_entry"], str):
+                raise ValueError("App launcher must be a path inside the release ZIP")
+            r["app_entry"] = apps_mod.clean_path(data["app_entry"].strip()) if data.get("app_entry", "").strip() else ""
+
         if "asset_pattern" in data:
             r["asset_pattern"] = (data.get("asset_pattern") or "").strip()
         if "prereleases" in data:
@@ -783,6 +803,15 @@ class Core(object):
             cand = [a for a in assets if any(fnmatch.fnmatch(a["name"].lower(), p.lower()) for p in pats)]
         else:
             cand = zips
+        if not pats:
+            cand = [a for a in cand if apps_mod.compatible_asset(a["name"])]
+        if len(cand) > 1 and not pats:
+            linux = [a for a in cand if "linux" in a["name"].lower() and not re.search(r"(source|src|debug|symbols)",a["name"],re.I)]
+            if linux:
+                machine = (os.environ.get("DEVICE_ARCH") or platform.machine()).lower()
+                aliases = ("aarch64", "arm64") if machine in ("aarch64", "arm64") else (("x86_64", "amd64") if machine in ("x86_64", "amd64") else (machine,))
+                native = [a for a in linux if any(re.search(r"(?:^|[-_.])"+re.escape(x)+r"(?:[-_.]|$)",a["name"],re.I) for x in aliases)]
+                cand = native or linux
         if len(cand) > 1 and r.get("port_name"):
             same = [a for a in cand if name_cleaner(a["name"]) == r["port_name"]]
             if same:
@@ -904,6 +933,9 @@ class Core(object):
     def _installed_info(self, r, installed):
         """The entry's installed port: by the name PortMaster recorded, else a folder named like the release zip
         (a port copied in by hand has no port.json; its version is unknown until it is installed once)."""
+        app = self.apps.info(r["repo"])
+        if app or r.get("installed_package_type") == "app":
+            return app
         names = [n for n in [r.get("port_name") or ""] + list(r.get("aliases") or []) if n]
         for name in names:
             info = installed.get(name)
@@ -929,6 +961,11 @@ class Core(object):
             r["installed_md5"] = None
             return None
         md5 = (info.get("status") or {}).get("md5")
+        if info.get("_app"):
+            r["installed_tag"] = info["_app"]["tag"]
+            r["installed_package_type"] = "app"
+            r["installed_md5"] = md5
+            return info
         if md5 and md5 != r.get("installed_md5"):
             # Installed or replaced outside Slopetanium: a version we have cached?
             r["installed_tag"] = self._tag_for_md5(r, md5)
@@ -1162,14 +1199,19 @@ class Core(object):
                 shutil.rmtree(cdir, ignore_errors=True)
                 raise
         job.progress = None
-        self._check_zip(zip_path)
+        package_type = self._check_zip(zip_path, r)
+        existing = self._installed_info(r, self.installed_ports())
+        if existing and bool(existing.get("_app")) != (package_type == "app"):
+            raise RuntimeError("Uninstall the existing package before changing its installer")
         pdir = self.port_dir(r)
         import zipfile
         with zipfile.ZipFile(zip_path) as zf:
             unpacked = sum(i.file_size for i in zf.infolist())
             biggest = max([i.file_size for i in zf.infolist()] or [0])
-        check_fits(self.ports_dir, biggest, "A file in this release")
-        free = free_space(self.ports_dir)
+        install_dir = self.apps.root if package_type == "app" else self.ports_dir
+        os.makedirs(install_dir, exist_ok=True)
+        check_fits(install_dir, biggest, "A file in this release")
+        free = free_space(install_dir)
         if free is not None and free < unpacked:
             raise RuntimeError("Not enough space to unpack: %s free, %s needed" % (human_size(free), human_size(unpacked)))
         if pdir and os.path.realpath(pdir) != os.path.realpath(self.root):
@@ -1183,17 +1225,28 @@ class Core(object):
             self._make_room_for_self_update()
         else:
             self._refuse_if_running(r)
-        job.message = "Installing with PortMaster"
+        job.message = "Installing app" if package_type == "app" else "Installing with PortMaster"
         self.changed += 1
         self.log("%s: installing %s" % (r["repo"], tag))
-        rc, out = self.run_harbourmaster(["install", os.path.abspath(zip_path)], job)
-        if rc != 0:
-            raise RuntimeError("PortMaster install failed (code %s): %s" % (rc, last_line(out)))
+        if package_type == "app":
+            info = self.apps.install(r["repo"], tag, zip_path, r.get("app_entry", ""), check_fits)
+            roots = {""} | set(n.split("/", 1)[0] for n in info["_app"]["files"] if "/" in n)
+            keep = set(r.get("keep_on_uninstall") or [])
+            keep.update(n for n in info["_app"]["files"] if n.lower().endswith((".cfg", ".ini", ".conf")))
+            for root in roots:
+                for name in ("conf", "config", "saves", "states"):
+                    keep.add((root + "/" if root else "") + name)
+            r["keep_on_uninstall"] = sorted(n for n in keep if not any(n.startswith(k+"/") for k in keep if k != n))
+        else:
+            rc, out = self.run_harbourmaster(["install", os.path.abspath(zip_path)], job)
+            if rc != 0:
+                raise RuntimeError("PortMaster install failed (code %s): %s" % (rc, last_line(out)))
         md5 = file_hash(zip_path)
         with self.lock:
             prev = r.get("installed_tag")
             r["port_name"] = name_cleaner(os.path.basename(zip_path))
             r["installed_tag"] = tag
+            r["installed_package_type"] = package_type
             r["installed_md5"] = md5
             r["installed_at"] = now()
             hist = [h for h in r.get("history", []) if h["tag"] != tag]
@@ -1224,16 +1277,21 @@ class Core(object):
                 except OSError as e:
                     self.log("self-update: could not move %s aside: %s" % (f, e))
 
-    def _check_zip(self, path):
+    def _check_zip(self, path, repo=None):
         import zipfile
         with zipfile.ZipFile(path) as zf:
             names = zf.namelist()
             bad = zf.testzip()
         if bad:
             raise RuntimeError("Corrupt file in zip: %s" % bad)
-        if not any(n.endswith("port.json") for n in names) and \
-                not any(n.lower().endswith(".sh") and "/" not in n for n in names):
-            raise RuntimeError("This zip is not a PortMaster port (no port.json / launch script)")
+        requested = (repo or {}).get("package_type", "auto")
+        portmaster = requested == "portmaster" or (requested == "auto" and any(n.endswith("port.json") for n in names))
+        if portmaster:
+            if not any(n.endswith("port.json") for n in names) and not any(n.lower().endswith(".sh") and "/" not in n for n in names):
+                raise RuntimeError("This ZIP has no PortMaster metadata or launch script")
+            return "portmaster"
+        apps_mod.inspect(path, (repo or {}).get("app_entry", ""))
+        return "app"
 
     def run_harbourmaster(self, args, job=None):
         if not self.harbourmaster or not os.path.isfile(self.harbourmaster):
@@ -1299,7 +1357,7 @@ class Core(object):
 
     def _refuse_if_running(self, r):
         if self.running_pids(r):
-            raise RuntimeError("The port is running right now; quit it first, then try again")
+            raise RuntimeError("The app or port is running right now; quit it first, then try again")
 
     # ---------------------------------------------------------------- uninstall
     def queue_uninstall(self, repo_id, backup=True):
@@ -1324,14 +1382,18 @@ class Core(object):
                     if os.path.isdir(src):
                         shutil.copytree(src, dst, symlinks=True)
                     else:
-                        os.makedirs(os.path.dirname(dst))
+                        os.makedirs(os.path.dirname(dst), exist_ok=True)
                         shutil.copy2(src, dst)
                     self.log("%s: backed up %s to %s" % (r["repo"], keep, dst))
         self._refuse_if_running(r)
-        job.message = "Uninstalling with PortMaster"
-        rc, out = self.run_harbourmaster(["uninstall", r["port_name"]], job)
-        if rc != 0:
-            raise RuntimeError("PortMaster uninstall failed (code %s): %s" % (rc, last_line(out)))
+        if self.apps.info(r["repo"]):
+            job.message = "Uninstalling app"
+            self.apps.uninstall(r["repo"])
+        else:
+            job.message = "Uninstalling with PortMaster"
+            rc, out = self.run_harbourmaster(["uninstall", r["port_name"]], job)
+            if rc != 0:
+                raise RuntimeError("PortMaster uninstall failed (code %s): %s" % (rc, last_line(out)))
         with self.lock:
             r["installed_tag"] = None
             r["installed_md5"] = None
@@ -1382,10 +1444,14 @@ class Core(object):
                     cands.append(os.path.join(self.ports_dir, m.group(1)))
             except (IOError, OSError):
                 pass
+        if info.get("_app"):
+            title = info["_app"]["title"]
+            cands.extend(os.path.join(pdir, n) for n in ("images/"+title+".png", "icon.png"))
+            cands.extend(os.path.join(pdir, n) for n in info["_app"]["files"] if n.endswith("/images/icon.png"))
         for n in ("screenshot.png", "screenshot.jpg", "cover.png", "cover.jpg", "splash.png"):
             cands.append(os.path.join(pdir, n))
         for c in cands:
-            if os.path.isfile(c) and is_inside(c, self.ports_dir):
+            if os.path.isfile(c) and is_inside(c, pdir if info.get("_app") else self.ports_dir):
                 return c
         return None
 
@@ -2105,12 +2171,15 @@ class Core(object):
         return {
             "id": r["id"], "repo": r["repo"], "asset_pattern": r["asset_pattern"],
             "prereleases": r["prereleases"], "port_name": r["port_name"],
+            "package_type": r["package_type"], "app_entry": r["app_entry"],
+            "installed_package_type": r.get("installed_package_type"),
             "originals_dir": r["originals_dir"], "keep_on_uninstall": r["keep_on_uninstall"],
             "title": ((info or {}).get("attr") or {}).get("title") or r.get("title") or r["repo"].split("/")[1],
             "is_self": bool(info and os.path.realpath(info["_dir"]) == os.path.realpath(self.root)),
             "installed": info is not None, "installed_tag": r.get("installed_tag"),
             "installed_at": r.get("installed_at"),
             "port_dir": info["_dirname"] if info else None,
+            "install_path": info["_dir"] if info else None,
             "latest_tag": latest["tag"] if latest else None,
             "latest_published": latest["published"] if latest else None,
             "is_new": bool(latest and r.get("seen_tag") != latest["tag"] and status == "update"),

@@ -24,7 +24,7 @@ DEFAULT_URL = "https://slopetanium.pw"
 UA = "slopetanium (community)"
 # what a shared port carries for other handhelds: how to install it well, nothing about this one
 SHARED_FIELDS = ("originals_dir", "originals_pattern", "keep_on_uninstall", "asset_pattern", "prereleases", "gog",
-                 "hint", "buy", "rename")
+                 "hint", "buy", "rename", "package_type", "app_entry")
 
 
 class CommunityError(Exception):

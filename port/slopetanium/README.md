@@ -1,10 +1,15 @@
+<p align="center"><img src="docs/icon-256.png" width="128" alt="Slopetanium: a crystal swirl"></p>
+
 # Slopetanium
 
-An updater for PortMaster ports that are published as GitHub releases, in the spirit of
+An updater for apps and PortMaster ports that are published as GitHub releases, in the spirit of
 [Obtainium](https://github.com/ImranR98/Obtainium). It runs on the handheld as a port, with
 a console-style home menu on the device and a web interface for your PC, phone or tablet.
 
-![Slopetanium](screenshot.png)
+| One screen (H700 and most handhelds) | Two screens (RG DS) |
+| --- | --- |
+| ![The shelf on one screen](docs/single-screen.png) | ![Top: the port in detail. Bottom: the shelf](docs/dual-screen.png) |
+| ![A port's page with its menu](docs/single-screen-page.png) | ![Its menu, with the release notes on top](docs/dual-screen-menu.png) |
 
 - **Watch GitHub repos.** Add, edit and remove repos whose releases carry a PortMaster
   port `.zip` (a zip with `port.json` inside, the usual PortMaster layout).
@@ -39,14 +44,75 @@ a console-style home menu on the device and a web interface for your PC, phone o
   folder on your PC or phone. They go straight into the port's game-files folder on the handheld,
   in chunks that resume if the Wi-Fi drops, after a free-space check. Each catalogue port tells
   you what it wants; The ReThing's ISO is saved as the `the_thing.iso` it needs.
+- **A file browser for each port.** The **Files** tab on a port's page shows the port's whole
+  folder on the handheld:
+  - Upload files or whole folders into any folder: put saves in place, or install mods. A file
+    with the same name is replaced, after you confirm.
+  - Download any file, or any folder as a zip.
+  - Edit text files (configs, `.ini`, `.json`, `.gptk` and the like, up to 1 MB) in the browser.
+    A file keeps its encoding and line endings. If the game changed it after you opened it,
+    Slopetanium asks before saving over it.
+  - New folder, rename, delete.
+  - It only reaches inside the port's own folder. Links that point outside it are shown but
+    can't be opened, and deleting a link removes only the link.
+  - While the port is running, the tab warns you: many games write their saves and settings
+    when they quit, over what you changed.
+- **Big files, up to what the card holds.** Uploads, backup restores and whole-game downloads
+  of 4 to 9 GB work (tested with 5 and 6 GB files; ZIP64 for big backups). Slopetanium reads
+  the card's filesystem from `/proc/mounts`: on exFAT or ext4 there is no file size limit, while
+  FAT32 holds at most 4 GB per file. A file too big for the card is refused before the upload,
+  the GOG download or the install starts, with a message saying why.
 - **Where to buy a game.** Ports whose game is still sold, in the version the port is made for,
   link to the store: ReRed Faction II and ReConflict on GOG.com. The link is on the web card,
   and in the handheld menu while the port has no game files yet.
 - **Your GOG library.** Sign in to GOG.com once from the web interface. After you install a port
   of a game GOG sells, Slopetanium downloads that game's installer from your library into the
   port's folder, so its first start can import it.
+- **The community: [slopetanium.pw](https://slopetanium.pw).** Share the ports you watch, and
+  find the ones others share.
+  - When you add a repo, **Share with the community** is on. You can switch it on or off
+    later, on the port's page (Overview → Community).
+  - The **Community** page lists shared ports by popularity, rating, update or newness. **Add**
+    watches one with the settings its sharer used: game files folder, saves, GOG, store links.
+  - **Reviews and ratings** are written in Slopetanium, one per handheld and port, and can be
+    changed or deleted. The website shows them read-only.
+  - **Install counts are opt-in.** On first start, the handheld and the web page ask once.
+    Only after a yes are installs sent: the port, its version, the handheld model and the
+    firmware, once per version, for ports listed in the community, including versions
+    installed before. Sharing a port also counts your own install of it, without model or
+    firmware unless you said yes. No location is sent. This can be changed in **Settings →
+    Community**.
+  - **Box art from the community.** A watched port without box art of its own gets its cover
+    from slopetanium.pw, which has the game's cover from IGDB when the port is shared there.
+  - **No account.** Slopetanium makes a random id on the handheld and keeps it there. The
+    server stores only a keyed hash of it, plus the name you choose for your reviews
+    (otherwise a made-up one, such as “Mint Otter 3f2a”). See [server/](server/) for how the
+    server works.
 - **A catalogue of ports.** rzrbld's ports are watched from the first start: ReNFS5, The ReThing,
   ReConflict, Vurus, The Familia, ReRed Faction II, and Slopetanium itself.
+
+## Linux apps from their original repositories
+
+Add an app's own GitHub URL, for example `https://github.com/kyannon/gba-ds`. Slopetanium selects a compatible Linux ZIP from that repository's releases. It does not mirror the app, copy its source into this project, rebuild it or maintain an app fork.
+
+- **Detect from release** is the default for new watches: ZIPs containing `port.json` use PortMaster's harbourmaster. A self-contained Linux app ZIP with a launch script uses Slopetanium's app installer. Existing watches keep their PortMaster installer.
+- An app ZIP needs one top-level `.sh` launcher, or one `launch.sh` / `run.sh` just inside its app folder. If it has several launchers, select **Linux app ZIP** and set **App launcher** under Edit. Apps must support the handheld's CPU and available libraries; Android APKs, source archives and OS package formats are not supported.
+- On BananaOS, app files go under `/data/store/apps/<owner>__<repo>` and launchers under `/data/store/tiles`, so apps appear on the Apps shelf. On other systems, managed files live in `.slopetanium-apps` under Ports and launcher scripts appear in Ports. `--apps-dir` and `--app-shortcuts-dir` (or `SLOP_APPS_DIR` / `SLOP_APP_SHORTCUTS_DIR`) select other locations.
+- Updates are staged before swapping the app directory. Saves and other user-created files remain. Modified `.cfg`, `.ini`, `.conf` files and files under configuration/save directories are preserved; unchanged shipped defaults can update. The cached original release ZIP provides rollback through **Other versions**. There are no app-specific patches or install hooks.
+- Installed app configuration/save paths are included in the backup selection. Edit **Back up** for an app that stores user data in a different location. Uninstall removes only that app's managed directory and its own generated launcher.
+
+## Display geometry
+
+The native UI supports widescreen layouts and uses each display's aspect ratio independently, including single widescreen displays and dual handhelds with unequal panels. Text, the shelf, details, release notes, Connect and touch coordinates use each canvas's width; the renderer fits each canvas to its own output. The two canvases share a height-based layout scale, so neither screen inherits the other's width.
+
+Headless regression examples:
+
+```bash
+python3 tests/test_ui_layout.py --binary ui/slopetanium-ui --output /tmp/slop-layout
+# Individual Duo Lite render (with the core running):
+ui/slopetanium-ui --assets port/slopetanium/assets --conf /tmp/slop/conf \
+  --screens 2 --top-size 1920x1080 --bottom-size 1280x960 --shot /tmp/duo
+```
 
 ## Using it
 
@@ -166,7 +232,9 @@ Slopetanium.sh ──> app/slopetanium.py --serve   (Python: GitHub, downloads, 
 ```bash
 tools/build-ui.sh        # slopetanium-ui.aarch64 in Docker (Debian 11 cross toolchain, glibc 2.30+)
 tools/build.sh           # dist/slopetanium.zip (+ .md5): the port, with the menu binary when built
+python3 tests/test_apps.py   # app archive transactions and upstream-repo integration
 python3 tests/test_core.py   # the core end to end, offline (fake GitHub + fake harbourmaster)
+python3 tests/test_large.py  # 5-6 GB uploads, downloads and restores over HTTP (needs ~20 GB free)
 ```
 
 To build the menu for your PC, use `make -C ui` (it needs the SDL2 and FreeType headers).
@@ -185,11 +253,16 @@ On a device, `slopetanium/conf/dev.env` sets developer switches for the next sta
 - `SLOP_SCREENSHOT=/tmp/x`: writes both screens as PNG, then exits;
 - `SLOP_SCREENS=1|2`: forces one or two screens.
 
+### The community server
+
+`server/` is the service behind slopetanium.pw: Go, with SQLite (the pure-Go `modernc.org/sqlite`),
+built as one static binary. See [server/README.md](server/README.md).
+
 ### CI and releases
 
 GitHub Actions (`.github/workflows/build.yml`) runs on every push and pull request:
 
-1. It runs the tests.
+1. It runs the core, app-installer and community-server tests, then renders equal/unequal panels and single widescreen layouts. Rendered screenshots are kept as a CI artifact.
 2. It builds the aarch64 menu.
 3. It packages `slopetanium.zip` as a workflow artifact.
 

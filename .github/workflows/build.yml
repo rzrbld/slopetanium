@@ -20,6 +20,7 @@ jobs:
         run: |
           python3 -m py_compile port/slopetanium/app/*.py
           python3 tests/test_core.py
+          python3 tests/test_apps.py
 
       - name: Core stays Python 3.7 compatible
         run: |
@@ -37,6 +38,22 @@ jobs:
           go vet ./...
           go test ./...
           CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/slopetanium-community .
+
+      - name: Render unequal-panel UI regressions
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev libfreetype6-dev
+          python3 -m pip install --quiet Pillow
+          make -C ui
+          python3 tests/test_ui_layout.py --output "$RUNNER_TEMP/slop-layout"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slopetanium-layout-renders
+          path: ${{ runner.temp }}/slop-layout
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Cross toolchain (cached)
         uses: actions/cache@v4

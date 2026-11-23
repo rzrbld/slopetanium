@@ -211,6 +211,20 @@ func cleanConfig(in map[string]any) map[string]any {
 	str("originals_dir", 120)
 	str("originals_pattern", 200)
 	str("asset_pattern", 120)
+	if kind, ok := in["package_type"].(string); ok && (kind == "auto" || kind == "portmaster" || kind == "app") {
+		out["package_type"] = kind
+	}
+	if entry, ok := in["app_entry"].(string); ok && entry != "" && len(entry) <= 240 && !strings.HasPrefix(entry, "/") && !strings.Contains(entry, "\\") {
+		valid := true
+		for _, part := range strings.Split(entry, "/") {
+			if part == "" || part == "." || part == ".." {
+				valid = false
+			}
+		}
+		if valid {
+			out["app_entry"] = cleanText(entry, 240, false)
+		}
+	}
 	str("port_name", 120)
 	str("hint", 400)
 	if v, ok := in["prereleases"].(bool); ok {
