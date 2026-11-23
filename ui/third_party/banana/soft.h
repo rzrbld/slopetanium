@@ -10,6 +10,7 @@
 #include <cstring>
 #include <functional>
 #include <mutex>
+#include <memory>
 #include <vector>
 
 namespace banana
@@ -20,6 +21,7 @@ namespace banana
 		std::vector<uint8_t> a8;	// coverage (alpha textures)
 		bool opaque = false;		// every pixel has alpha 255: plain copies
 		bool smooth = false;
+		bool uniform = false;
 		// each row as runs of one kind: clear (skipped), solid (copied, or filled for alpha textures), mixed (blended).
 		// A run is (kind << 30) | length; row y's runs are runs[rowAt[y] .. rowAt[y + 1])
 		enum { CLEAR = 0, SOLID = 1, MIXED = 2 };
@@ -110,6 +112,10 @@ namespace banana
 					!memcmp(c.c, o.c.c, sizeof c.c) && box.x0 == o.box.x0 && box.y0 == o.box.y0 && box.x1 == o.box.x1 && box.y1 == o.box.y1;
 			}
 		};
+		// Keep shelf composition separate from modal damage.
+		std::unique_ptr<SoftBackend> underlay;
+		rnds::TexPtr underlayTex[2];
+		bool hadOverlay[2] = { false, false };
 		std::vector<Cmd> rec[2];
 		std::vector<Item> items, last[2];
 		std::vector<uint8_t> dirty;	// the tiles to draw again (TW x TH pixels each, rows of tilesX)
@@ -135,6 +141,7 @@ namespace banana
 		void sample(const SoftTex* t, float x, float y, float w, float h, int x0, int y0, int x1, int y1, uint32_t* px, uint8_t* a8, int stride);
 		void blitRuns(const SoftTex* t, int bx0, int by0, int x0, int y0, int x1, int y1, uint32_t tr, uint32_t tg, uint32_t tb, uint32_t ta, uint32_t tintWord);
 		void doDraw(SoftTex* t, float x, float y, float w, float h, const rnds::Color& tint, const Clip& cl);
+		void solidRect(int x0, int y0, int x1, int y1, uint32_t p);
 		void doFill(float x, float y, float w, float h, const rnds::Color& c, const Clip& cl);
 		int W, H, cur = 0;
 		int widths[2];

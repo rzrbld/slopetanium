@@ -20,6 +20,7 @@ jobs:
         run: |
           python3 -m py_compile port/slopetanium/app/*.py
           python3 tests/test_core.py
+          python3 tests/test_update_cache.py
           python3 tests/test_apps.py
           python3 tests/test_native_self.py
 
@@ -45,6 +46,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsdl2-dev libfreetype6-dev
           python3 -m pip install --quiet Pillow
+          g++ -std=c++17 -O2 -pthread tests/test_overlay.cpp ui/third_party/banana/soft.cpp -o /tmp/slop-overlay-test
+          /tmp/slop-overlay-test
           make -C ui
           python3 tests/test_ui_layout.py --output "$RUNNER_TEMP/slop-layout"
 

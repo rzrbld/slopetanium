@@ -862,8 +862,8 @@ struct Host
 	}
 
 	static float easeOut3(float p) { p = std::min(1.0f, std::max(0.0f, p)); return 1 - (1 - p) * (1 - p) * (1 - p); }
-	float overlayP() const { return easeOut3((float)((nowMs() - overlayAt) / 220.0)); }
-	bool overlayMoving() const { return nowMs() - overlayAt < 240 || (!toast.empty() && nowMs() - toastAt < 3200); }
+	float overlayP() const { return mode == MENU ? 1.0f : easeOut3((float)((nowMs() - overlayAt) / 220.0)); }
+	bool overlayMoving() const { return ((mode == CONNECT || mode == NOTES) && nowMs() - overlayAt < 240) || (!toast.empty() && nowMs() - toastAt < 3200); }
 
 	// the menu panel: x, y, w CSS px; maxRows rows
 	void drawMenu(int screen, float x, float y, float w, float maxH)
@@ -1300,6 +1300,7 @@ int main(int argc, char** argv)
 		bounds.w=w; bounds.h=h; return true;
 	};
 	float forceScale = 0;
+	bool shotImmediate = false;
 	bool windowed = false, stats = getenv("SLOP_FPS") != nullptr;
 	for (int i = 1; i < argc; i++)
 	{
@@ -1319,6 +1320,7 @@ int main(int argc, char** argv)
 		else if (a == "--scale") forceScale = (float)atof(next().c_str());
 		else if (a == "--windowed") windowed = true;
 		else if (a == "--shot") shot = next();
+		else if (a == "--shot-immediate") shotImmediate = true;
 		else if (a == "--script") script = next();
 		else { logf("unknown option %s", a.c_str()); return 2; }
 	}
@@ -1424,9 +1426,10 @@ int main(int argc, char** argv)
 			if (step.empty()) continue;
 			if (step.rfind("wait", 0) == 0) { settle(atoi(step.c_str() + 4)); continue; }
 			host.button(step);
-			settle(500);
+			if (!shotImmediate) settle(500);
 		}
-		settle(700);
+		if (!shotImmediate) settle(700);
+		else { host.ui->update(nowMs()); host.ui->render(); }
 		writeScreen(*host.be, 0, shot + "-top.png");
 		writeScreen(*host.be, 1, shot + "-bottom.png");
 		logf("wrote %s-top.png and %s-bottom.png (dual layout %d)", shot.c_str(), shot.c_str(), host.dual);
@@ -1517,10 +1520,12 @@ int main(int argc, char** argv)
 		return "";
 	};
 	int axisX = 0, axisY = 0;
+	double menuPressedAt = -1;
 	auto press = [&](const std::string& b) {
 		if (b.empty()) return;
 		if (b == "guide" || (b == "start" && selectHeld) || (b == "select" && startHeld)) { host.tryQuit(); return; }
 		if (b == "select") return;
+		if (b == "a" && host.mode == Host::SHELF) menuPressedAt = nowMs();
 		host.button(b);
 	};
 
@@ -1543,6 +1548,7 @@ int main(int argc, char** argv)
 	while (!host.quit)
 	{
 		double t0 = nowMs();
+		bool scriptedInput = !timeline.empty() && t0 >= timeline.front().first;
 		while (!timeline.empty() && t0 >= timeline.front().first) { press(timeline.front().second); timeline.erase(timeline.begin()); }
 		if (shotEnv && t0 >= shotAt)
 		{
@@ -1553,7 +1559,7 @@ int main(int argc, char** argv)
 		}
 		int wakeMs = host.ui->nextWake();
 		if (host.overlayMoving() || !held.empty()) wakeMs = wakeMs < 0 ? 16 : std::min(wakeMs, 16);
-		int timeout = wakeMs < 0 ? 1000 : wakeMs;
+		int timeout = scriptedInput ? 0 : (wakeMs < 0 ? 1000 : wakeMs);
 		if (!timeline.empty()) timeout = std::min(timeout, std::max(0, (int)(timeline.front().first - t0)));
 		if (shotEnv) timeout = std::min(timeout, std::max(0, (int)(shotAt - t0)));
 		SDL_Event ev;
@@ -1664,6 +1670,11 @@ int main(int argc, char** argv)
 		{
 			int scr = host.dual ? w.screen : host.shownScreen();
 			if (present(w, *host.be, dmg[scr], scr)) presented++;
+		}
+		if (menuPressedAt >= 0 && host.mode == Host::MENU && presented > 0)
+		{
+			if (stats) logf("menu input-to-present: %.1f ms", nowMs() - menuPressedAt);
+			menuPressedAt = -1;
 		}
 		double frameMs = nowMs() - now;	// (the work, not the wait for input before it)
 		if (stats && frameMs > 25)
