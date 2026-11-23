@@ -41,7 +41,7 @@ def check_images(output):
     from PIL import Image
     for name,top,bottom,screens,scale in CASES:
         height=int(480*scale)
-        for view in ('shelf','menu','connect'):
+        for view in ('shelf','menu','menu-immediate','connect'):
             for screen,dimensions in (('top',top),('bottom',bottom)):
                 image=Image.open(output/(name+'-'+view+'-'+screen+'.png')).convert('RGB')
                 w,h=size(dimensions); expected=(int(math.floor(w/h*height+0.5)),height)
@@ -61,6 +61,15 @@ def check_images(output):
                             if min(r,g,b)>200: xs.append(xx)
                     assert xs,(name,'missing shelf title')
                     assert abs((min(xs)+max(xs)+1)/2-image.width/2)<=4*scale,(name,'off-centre shelf title')
+    for name,top,bottom,screens,scale in CASES:
+        side='bottom' if screens==2 else 'top'
+        instant=Image.open(output/(name+'-menu-immediate-'+side+'.png')).convert('RGB')
+        settled=Image.open(output/(name+'-menu-'+side+'.png')).convert('RGB')
+        # Inside the panel, above its title: first-frame opacity must already
+        # match the settled menu, rather than showing the shelf through a fade.
+        x=instant.width//2; y=int((45 if screens==2 else 78)*scale)
+        area=(x-3,y-2,x+3,y+2)
+        assert instant.crop(area).tobytes()==settled.crop(area).tobytes(),(name,'menu not visible on first frame')
     print('UI layouts: equal panels, Duo Lite, wide lower panel and single widescreen passed')
 
 def main():
@@ -72,10 +81,11 @@ def main():
         with tempfile.TemporaryDirectory(prefix='slop-ui-') as tmp:
             port=Path(tmp)/'core.port'; port.write_text(str(server.server_address[1]))
             for name,top,bottom,screens,scale in CASES:
-                for view,script in [('shelf',''),('menu','a'),('connect','right,a')]:
+                for view,script in [('shelf',''),('menu','a'),('menu-immediate','a'),('connect','right,a')]:
                     prefix=output/(name+'-'+view)
                     command=[binary,'--assets',assets,'--conf',tmp,'--port-file',str(port),'--token','layout-test',
                              '--screens',str(screens),'--top-size',top,'--bottom-size',bottom,'--scale',str(scale),'--shot',str(prefix),'--script',script]
+                    if view=='menu-immediate': command.append('--shot-immediate')
                     result=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=45)
                     (output/(name+'-'+view+'.log')).write_bytes(result.stdout)
                     if result.returncode: raise RuntimeError(result.stdout.decode(errors='replace'))

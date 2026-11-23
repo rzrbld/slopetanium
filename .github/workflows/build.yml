@@ -20,6 +20,7 @@ jobs:
         run: |
           python3 -m py_compile port/slopetanium/app/*.py
           python3 tests/test_core.py
+          python3 tests/test_update_cache.py
           python3 tests/test_apps.py
           python3 tests/test_native_self.py
 

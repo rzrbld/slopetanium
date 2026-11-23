@@ -465,7 +465,7 @@ class Core(object):
         state.setdefault("repos", [])
         s = state.setdefault("settings", {})
         s.setdefault("github_token", "")
-        s.setdefault("auto_check_minutes", 360)
+        s.setdefault("auto_check_minutes", 60)
         s.setdefault("keep_versions", 2)
         s.setdefault("web_port", 8686)
         s.setdefault("pin", "%04d" % random.randint(0, 9999))
@@ -492,6 +492,7 @@ class Core(object):
         r.setdefault("releases", [])
         r.setdefault("etag", None)
         r.setdefault("last_checked", None)
+        r.setdefault("last_check_succeeded", bool(r.get("last_checked") and not r.get("error")))
         r.setdefault("error", None)
         r.setdefault("originals_dir", "source")
         r.setdefault("keep_on_uninstall", ["conf"])
@@ -866,12 +867,14 @@ class Core(object):
         except Exception as e:
             with self.lock:
                 r["error"] = str(e)
+                r["last_check_succeeded"] = False
                 r["last_checked"] = now()
                 self.save()
             self.log("%s: check failed: %s" % (r["repo"], e))
             return
         with self.lock:
             r["last_checked"] = now()
+            r["last_check_succeeded"] = True
             r["error"] = None
             if data is not None:
                 rels = []
@@ -1086,26 +1089,34 @@ class Core(object):
                 return j
         return None
 
-    def queue_check(self, repo_id=None):
-        ids = [repo_id] if repo_id else [r["id"] for r in self.state["repos"]]
-        jobs = []
-        for rid in ids:
-            r = self.get_repo(rid)
-            jobs.append(self._queue("check", rid, "Check %s" % r["repo"],
-                                    lambda job, rid=rid: self.check_repo(rid)))
-        return jobs
+    def queue_check(self, repo_id=None, max_age=0):
+        """Manual checks bypass the cache; automatic callers supply its lifetime."""
+        with self.lock:
+            ids = [repo_id] if repo_id else [r["id"] for r in self.state["repos"]]
+            jobs = []
+            for rid in ids:
+                r = self.get_repo(rid)
+                # Failed network requests retry sooner, without a busy-loop while
+                # offline. Successful empty release feeds are still cached.
+                age_limit = max_age if r.get("last_check_succeeded") else min(max_age, 60)
+                checked = r.get("last_checked")
+                age = now() - checked if checked is not None else None
+                if age_limit and age is not None and 0 <= age < age_limit:
+                    continue
+                jobs.append(self._queue("check", rid, "Check %s" % r["repo"],
+                                        lambda job, rid=rid: self.check_repo(rid)))
+            return jobs
 
     def _auto_checker(self):
-        time.sleep(2)
-        first = True
-        while not self._stop.is_set():
-            mins = self.settings().get("auto_check_minutes", 360)
-            if first or (mins and all(
-                    now() - (r.get("last_checked") or 0) >= mins * 60 for r in self.state["repos"])):
-                if self.state["repos"]:
-                    self.queue_check()
-                first = False
-            self._stop.wait(30)
+        if self._stop.wait(2):
+            return
+        # Saved release data survives process restarts. Opening the store again
+        # must not consume a GitHub request for every fresh entry.
+        self.queue_check(max_age=3600)
+        while not self._stop.wait(30):
+            mins = self.settings().get("auto_check_minutes", 60)
+            if mins:
+                self.queue_check(max_age=mins * 60)
 
     def stop(self):
         self._stop.set()

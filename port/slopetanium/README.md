@@ -13,8 +13,11 @@ a console-style home menu on the device and a web interface for your PC, phone o
 
 - **Watch GitHub repos.** Add, edit and remove repos whose releases carry a PortMaster
   port `.zip` (a zip with `port.json` inside, the usual PortMaster layout).
-- **Get told about new releases.** Slopetanium checks GitHub on start and every few hours
-  while it runs. Ports with a newer release are marked on the handheld and in the browser.
+- **Get told about new releases.** Slopetanium saves release/update results between launches and reuses checks
+  less than one hour old on startup. New installations check hourly while open
+  (an existing interval setting is retained); only stale entries are refreshed.
+  **X / Check for updates** always checks immediately. Failed requests retry after
+  a minute, and cached results stay visible offline. Ports with a newer release are marked on the handheld and in the browser.
 - **Update, roll back, or install any release.** Installs go through PortMaster's own
   `harbourmaster`, so every CFW PortMaster supports is handled the PortMaster way: ports
   and scripts folders, `gameinfo.xml`, frontend refresh, runtimes and permissions. The last

@@ -1409,7 +1409,7 @@ function renderSettings(main, force) {
       <section class="section"><header><h2>Checking for updates</h2></header>
         <form class="content stack" id="setf">
           <div class="form-grid">
-            <label class="f">Check every <span class="hint">minutes while Slopetanium runs; 0: only when it starts</span><input type="number" min="0" name="auto_check_minutes" value="${s.auto_check_minutes}"></label>
+            <label class="f">Check every <span class="hint">minutes while Slopetanium runs; 0: no periodic checks. Startup reuses checks for one hour; manual checks always refresh</span><input type="number" min="0" name="auto_check_minutes" value="${s.auto_check_minutes}"></label>
             <label class="f">Versions kept for rollback <span class="hint">on the handheld, to roll back offline</span><input type="number" min="1" max="20" name="keep_versions" value="${s.keep_versions}"></label>
             <label class="f">GitHub token <span class="hint">optional: more than 60 checks an hour</span><input type="password" name="github_token" placeholder="${s.github_token ? 'set (unchanged)' : 'not set'}" autocomplete="off"></label>
           </div>
