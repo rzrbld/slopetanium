@@ -1294,6 +1294,20 @@ class Core(object):
         with zipfile.ZipFile(path) as zf:
             names = zf.namelist()
             bad = zf.testzip()
+            # Legacy/custom PortMaster ZIPs need not include port.json. Identify
+            # their root entry scripts by the standard bootstrap, without ever
+            # executing a launcher. Native app wrappers (e.g. GBA DS) stay native.
+            pm_launcher = False
+            for name in names:
+                if "/" in name or not name.lower().endswith(".sh"):
+                    continue
+                with zf.open(name) as script:
+                    text = script.read(65536).decode("utf-8", "replace")
+                imports_controls = re.search(r"(?m)^[ \t]*(?:source|\.)[ \t]+[^\r\n]*\bcontrol\.txt(?:[\"' \t\r;]|$)", text)
+                gets_controls = re.search(r"(?m)(?:^[ \t]*|[;&|][ \t]*)get_controls(?:[ \t\r;&|]|$)", text)
+                if imports_controls and gets_controls:
+                    pm_launcher = True
+                    break
         if bad:
             raise RuntimeError("Corrupt file in zip: %s" % bad)
         requested = (repo or {}).get("package_type", "auto")
@@ -1306,7 +1320,7 @@ class Core(object):
                 if manifest.get("schema") != 1:
                     raise RuntimeError("Unsupported Slopetanium native app package")
             requested = "app"
-        portmaster = requested == "portmaster" or (requested == "auto" and any(n.endswith("port.json") for n in names))
+        portmaster = requested == "portmaster" or (requested == "auto" and (any(n.endswith("port.json") for n in names) or pm_launcher))
         if portmaster:
             if not any(n.endswith("port.json") for n in names) and not any(n.lower().endswith(".sh") and "/" not in n for n in names):
                 raise RuntimeError("This ZIP has no PortMaster metadata or launch script")

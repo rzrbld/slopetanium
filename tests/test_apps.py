@@ -128,4 +128,37 @@ class CoreApps(unittest.TestCase):
                 self.assertFalse(c.repo_view(r)['installed'])
             finally: c.stop()
 
+class PackageDetection(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory(); self.root=Path(self.tmp.name)
+        self.core=core.Core.__new__(core.Core); self.core.self_apps=None
+    def tearDown(self): self.tmp.cleanup()
+    def archive(self, scripts, metadata=False):
+        path=self.root/'release.zip'
+        with zipfile.ZipFile(path,'w') as z:
+            for name,text in scripts.items(): z.writestr(name,text)
+            z.writestr('game/game.aarch64',b'\x7fELFpayload')
+            if metadata: z.writestr('game/port.json',json.dumps({'name':'game.zip'}))
+        return str(path)
+    def test_metadata_less_portmaster_with_multiple_launchers(self):
+        # The original Vurus release: game + benchmark entries, no port.json.
+        path=self.archive({'Game.sh':'#!/bin/bash\nsource "$controlfolder/control.txt"\nget_controls\n', 'Game Benchmark.sh':'#!/bin/bash\nexec bash Game.sh --benchmark\n'})
+        self.assertEqual(self.core._check_zip(path,{'package_type':'auto'}),'portmaster')
+        with self.assertRaises(ValueError): self.core._check_zip(path,{'package_type':'app'})
+        self.assertEqual(self.core._check_zip(path,{'package_type':'app','app_entry':'Game.sh'}),'app')
+    def test_metadata_less_single_portmaster_and_dot_source(self):
+        for text in ['source "$controlfolder/control.txt"\nget_controls\n', '. "${controlfolder}/control.txt"; get_controls\n']:
+            path=self.archive({'Game.sh':text})
+            self.assertEqual(self.core._check_zip(path,{}),'portmaster')
+    def test_native_app_wrappers_and_comments_are_not_portmaster(self):
+        path=self.archive({'App.sh':'#!/bin/bash\n# source "$controlfolder/control.txt"\n# get_controls\nexec bash "$(dirname "$0")/game/launch.sh"\n','game/launch.sh':'#!/bin/bash\ntrue\n'})
+        self.assertEqual(self.core._check_zip(path,{}),'app')
+        self.assertEqual(self.core._check_zip(path,{'package_type':'portmaster'}),'portmaster')
+    def test_multiple_native_app_launchers_still_require_explicit_entry(self):
+        path=self.archive({'App.sh':'#!/bin/bash\ntrue\n','Tools.sh':'#!/bin/bash\ntrue\n'})
+        with self.assertRaises(ValueError): self.core._check_zip(path,{})
+    def test_existing_metadata_remains_portmaster(self):
+        path=self.archive({'Game.sh':'#!/bin/bash\ntrue\n'},metadata=True)
+        self.assertEqual(self.core._check_zip(path,{}),'portmaster')
+
 if __name__=='__main__': unittest.main()
